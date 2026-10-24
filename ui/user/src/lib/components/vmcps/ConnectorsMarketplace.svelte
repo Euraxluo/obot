@@ -11,6 +11,7 @@
 	import { isDeprecatedMCPServer } from '$lib/services/user/mcp';
 	import {
 		catalogConfigurationFields,
+		catalogEntryDisplayName,
 		entryCategories,
 		matchesQuery,
 		sortMcpServers
@@ -84,7 +85,7 @@
 	}
 
 	function title(entry: MCPCatalogEntry) {
-		return entry.manifest.name;
+		return catalogEntryDisplayName(entry);
 	}
 </script>
 

@@ -826,6 +826,7 @@ export interface MCPCatalogEntryServerManifest {
 		categories?: string;
 		deprecated?: string;
 		'allow-multiple'?: string;
+		displayNameZh?: string;
 	};
 
 	runtime: Runtime;

@@ -16,7 +16,14 @@ vi.mock('$lib/url', async (importOriginal) => {
 function renderMarketplace(overrides: { query?: string } = {}) {
 	mcpServersAndEntries.current = {
 		entries: [
-			createMCPCatalogEntry({ id: 'entry-github', name: 'GitHub' }),
+			createMCPCatalogEntry({
+				id: 'entry-github',
+				name: 'Zenicredit',
+				manifest: {
+					shortDescription: 'Chinese credit connector',
+					metadata: { displayNameZh: ' 水滴征信 ' }
+				}
+			}),
 			createMCPCatalogEntry({ id: 'entry-slack', name: 'Slack' })
 		],
 		servers: [],
@@ -56,7 +63,11 @@ describe('ConnectorsMarketplace', () => {
 		await tick();
 
 		expect(document.body.textContent).toContain('Connector Marketplace');
-		expect(document.body.textContent).toContain('GitHub');
+		expect(githubCard?.textContent).toContain('水滴征信');
+		expect(githubCard?.textContent).not.toContain('Zenicredit');
+		expect(
+			document.querySelector('[data-testid="connector-card-entry-slack"]')?.textContent
+		).toContain('Slack');
 		expect(document.body.textContent).toContain('Use in vMCP');
 		expect(
 			document.querySelector('a[href="/mcp-servers/c/entry-github?from=connectors"]')
@@ -64,7 +75,15 @@ describe('ConnectorsMarketplace', () => {
 	});
 
 	it('searches cards by manifest name', async () => {
-		renderMarketplace({ query: 'GitHub' });
+		renderMarketplace({ query: 'Slack' });
+		await tick();
+
+		expect(document.querySelector('[data-testid="connector-card-entry-slack"]')).not.toBeNull();
+		expect(document.querySelector('[data-testid="connector-card-entry-github"]')).toBeNull();
+	});
+
+	it('searches cards by the Chinese display name', async () => {
+		renderMarketplace({ query: '水滴' });
 		await tick();
 
 		expect(document.querySelector('[data-testid="connector-card-entry-github"]')).not.toBeNull();

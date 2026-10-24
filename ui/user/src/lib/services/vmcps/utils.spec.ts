@@ -174,7 +174,11 @@ describe('matchesQuery', () => {
 	const entry = createMCPCatalogEntry({
 		id: 'entry-1',
 		name: 'GitHub',
-		manifest: { shortDescription: 'Issues and pull requests', description: 'Source forge' }
+		manifest: {
+			shortDescription: 'Issues and pull requests',
+			description: 'Source forge',
+			metadata: { displayNameZh: '水滴征信' }
+		}
 	});
 
 	it('matches the name regardless of case', () => {
@@ -187,6 +191,10 @@ describe('matchesQuery', () => {
 		expect(matchesQuery(entry, 'forge')).toBe(true);
 	});
 
+	it('matches the Chinese display name', () => {
+		expect(matchesQuery(entry, '水滴')).toBe(true);
+	});
+
 	it('does not match unrelated text', () => {
 		expect(matchesQuery(entry, 'slack')).toBe(false);
 	});
@@ -196,7 +204,11 @@ describe('queryMatchScore', () => {
 	const entry = createMCPCatalogEntry({
 		id: 'entry-1',
 		name: 'GitHub',
-		manifest: { shortDescription: 'Issues and pull requests', description: 'Source forge' }
+		manifest: {
+			shortDescription: 'Issues and pull requests',
+			description: 'Source forge',
+			metadata: { displayNameZh: '水滴征信' }
+		}
 	});
 	const vmcp = createVMCP({
 		id: 'vmcp-1',
@@ -224,6 +236,7 @@ describe('queryMatchScore', () => {
 
 	it('scores name and displayName matches highest', () => {
 		expect(queryMatchScore(entry, 'github')).toBe(2);
+		expect(queryMatchScore(entry, '水滴')).toBe(2);
 		expect(queryMatchScore(vmcp, 'shared')).toBe(2);
 	});
 
@@ -459,6 +472,26 @@ describe('sortMcpServers', () => {
 		expect(sortMcpServers([zeta, alpha], 'nameAsc').map((entry) => entry.id)).toEqual([
 			'entry-a',
 			'entry-z'
+		]);
+	});
+
+	it('orders by the displayed Chinese name when present', () => {
+		const slack = createMCPCatalogEntry({ id: 'entry-slack', name: 'Slack' });
+		const cad = createMCPCatalogEntry({
+			id: 'entry-cad',
+			name: 'Zenicredit',
+			manifest: { metadata: { displayNameZh: '中望CAD MCP' } }
+		});
+		const credit = createMCPCatalogEntry({
+			id: 'entry-credit',
+			name: 'GitHub',
+			manifest: { metadata: { displayNameZh: '水滴征信' } }
+		});
+
+		expect(sortMcpServers([slack, cad, credit], 'nameAsc').map((entry) => entry.id)).toEqual([
+			'entry-credit',
+			'entry-cad',
+			'entry-slack'
 		]);
 	});
 
