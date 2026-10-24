@@ -27,7 +27,7 @@
 
 ## PR
 
-- 待提交/推送后创建（链接将在实际创建后补充）。
+- https://github.com/Euraxluo/obot/pull/1
 
 ## 下一步
 
