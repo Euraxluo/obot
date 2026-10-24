@@ -4,17 +4,16 @@
 	import CopyField from '$lib/components/CopyField.svelte';
 	import ResponsiveDialog from '$lib/components/ResponsiveDialog.svelte';
 	import Search from '$lib/components/Search.svelte';
-	import Table from '$lib/components/table/Table.svelte';
+	import MarketplaceCard from '$lib/components/marketplace/MarketplaceCard.svelte';
+	import MarketplaceGrid from '$lib/components/marketplace/MarketplaceGrid.svelte';
 	import { PAGE_TRANSITION_DURATION } from '$lib/constants';
 	import { sanitizeFilenameSegment, saveBlob } from '$lib/download';
 	import { m } from '$lib/i18n';
 	import { UserService, type Skill } from '$lib/services';
 	import type { SkillRepository } from '$lib/services/admin/types';
 	import { AiClient, COMMON_AI_CLIENTS_MAP } from '$lib/services/user/constants';
-	import { profile } from '$lib/stores';
 	import { setUrlParamAndUpdateUrl } from '$lib/url';
-	import { openUrl } from '$lib/utils.js';
-	import { Bot, Download, GitBranch, PencilRuler, TriangleAlert } from '@lucide/svelte';
+	import { Bot, Download, PencilRuler, TriangleAlert } from '@lucide/svelte';
 	import { fade } from 'svelte/transition';
 	import { twMerge } from 'tailwind-merge';
 
@@ -22,26 +21,18 @@
 		skills: Skill[];
 		skillRepositories: SkillRepository[];
 		showLicenseError: boolean;
-		urlFilters: Record<string, string[]>;
-		onFilter: (property: string, values: string[]) => void;
-		onClearAllFilters: () => void;
 	}
 
-	let {
-		skills,
-		skillRepositories,
-		showLicenseError,
-		urlFilters,
-		onFilter,
-		onClearAllFilters
-	}: Props = $props();
+	let { skills, skillRepositories, showLicenseError }: Props = $props();
 
 	let query = $derived(page.url.searchParams.get('query') ?? '');
 	let copyFields = $state<ReturnType<typeof CopyField>[]>([]);
 	let installSkillDialog = $state<ReturnType<typeof ResponsiveDialog> | undefined>(undefined);
 	let selectedSkillToInstall = $state<Skill | undefined>(undefined);
 	let selectedTab = $state<'macos/linux' | 'windows'>('macos/linux');
-	let skillRepositoriesMap = $derived(new Map(skillRepositories.map((d) => [d.id, d])));
+	let skillRepositoriesMap = $derived(
+		new Map(skillRepositories.map((repository) => [repository.id, repository]))
+	);
 	let clientUnzipCommands = $derived.by(() => {
 		const skillName = sanitizeFilenameSegment(
 			selectedSkillToInstall?.name ?? selectedSkillToInstall?.id ?? 'skill'
@@ -84,19 +75,25 @@
 			}
 		];
 	});
-	let skillsTableData = $derived(
+	let visibleSkills = $derived(
 		(query
-			? skills.filter(
-					(d) =>
-						d.name?.toLowerCase().includes(query.toLowerCase()) ||
-						d.description?.toLowerCase().includes(query.toLowerCase())
-				)
+			? skills.filter((skill) => {
+					const normalizedQuery = query.toLowerCase();
+					return (
+						skillTitle(skill)?.toLowerCase().includes(normalizedQuery) ||
+						skill.description?.toLowerCase().includes(normalizedQuery)
+					);
+				})
 			: skills
-		).map((d) => ({
-			...d,
-			repository: d.repoID ? (skillRepositoriesMap.get(d.repoID)?.displayName ?? '') : ''
+		).map((skill) => ({
+			...skill,
+			repository: skill.repoID ? (skillRepositoriesMap.get(skill.repoID)?.displayName ?? '') : ''
 		}))
 	);
+
+	function skillTitle(skill: Skill) {
+		return skill.name || skill.displayName;
+	}
 
 	function updateSearchQuery(value: string) {
 		setUrlParamAndUpdateUrl(page.url, 'query', value);
@@ -114,11 +111,17 @@
 	}
 </script>
 
-<div class="flex min-h-full flex-col" in:fade={{ duration: PAGE_TRANSITION_DURATION }}>
-	<div class="bg-base-200 dark:bg-base-100 sticky top-0 z-20 w-full">
-		<div class="mb-2">
+<div class="bg-base-200/70 min-h-full" in:fade={{ duration: PAGE_TRANSITION_DURATION }}>
+	<div class="flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between md:p-6">
+		<div>
+			<h2 class="text-xl font-semibold tracking-tight">{m.skills_title()}</h2>
+			<p class="text-muted-content mt-1 text-sm font-light">
+				{m.skills_marketplace_subtitle({ count: skills.length })}
+			</p>
+		</div>
+		<div class="w-full max-w-xl">
 			<Search
-				class="dark:bg-base-200 dark:border-base-400 bg-base-100 border border-transparent shadow-sm"
+				class="h-11 rounded-lg border-base-300/70 bg-base-100 shadow-sm"
 				value={query}
 				onChange={updateSearchQuery}
 				placeholder={m.skills_search_skills()}
@@ -127,96 +130,53 @@
 	</div>
 
 	{#if skills.length > 0}
-		<Table
-			data={skillsTableData}
-			fields={profile.current.hasAdminAccess?.()
-				? ['displayName', 'description', 'repository']
-				: ['displayName', 'description']}
-			noDataMessage={m.skills_no_skills_found()}
-			classes={{
-				root: 'rounded-md shadow-sm'
-			}}
-			sortable={profile.current.hasAdminAccess?.()
-				? ['displayName', 'repository']
-				: ['displayName']}
-			filterable={profile.current.hasAdminAccess?.() ? ['repository'] : []}
-			headers={[
-				{
-					title: m.core_name(),
-					property: 'displayName'
-				},
-				{
-					title: m.core_description(),
-					property: 'description'
-				},
-				{
-					title: m.core_repository(),
-					property: 'repository'
-				}
-			]}
-			onClickRow={(d, isCtrlClick) => {
-				if (d.valid) {
-					openUrl(`/skills/${d.id}`, isCtrlClick);
-				}
-			}}
-			setRowClasses={(d) => {
-				if (d.validationError) {
-					return 'opacity-50 cursor-default dark:hover:bg-transparent hover:bg-transparent';
-				}
-				return '';
-			}}
-			filters={urlFilters}
-			{onFilter}
-			{onClearAllFilters}
-		>
-			{#snippet onRenderColumn(property, d)}
-				{#if property === 'displayName'}
-					<span class="flex items-center gap-2">
-						{d.displayName}
-						{#if d.validationError}
-							<div use:tooltip={{ text: d.validationError }}>
-								<TriangleAlert class="size-3 text-warning" />
-							</div>
-						{/if}
-					</span>
-				{:else if property === 'repository'}
-					<span class="block min-w-0 truncate">{d.repository}</span>
-				{:else if property === 'description'}
-					<span class="line-clamp-2 text-sm">{d.description ?? '—'}</span>
-				{:else}
-					{d[property as keyof typeof d]}
-				{/if}
-			{/snippet}
-			{#snippet actions(d)}
-				<div class="flex items-center gap-1">
-					{#if d.valid}
-						<div id={`install-skill-btn-container-${d.id}`}>
-							<button
-								class="btn btn-primary btn-sm text-nowrap"
-								id={`install-skill-btn-${d.id}`}
-								onclick={(e) => {
-									e.stopPropagation();
-									selectedSkillToInstall = d;
-									installSkillDialog?.open();
-								}}
-							>
-								{m.skills_install()}
-							</button>
-						</div>
-					{/if}
-					<a
-						class="btn btn-square btn-ghost hover:text-blue-500 btn-sm tooltip tooltip-left"
-						href={`${d.repoURL}/tree/${d.repoRef || d.commitSHA || 'main'}/${d.relativePath}`}
-						rel="external noopener noreferrer"
-						target="_blank"
-						onclick={(e) => e.stopPropagation()}
-						data-tip={m.skills_view_source_on_git()}
+		<div class="px-4 pb-6 md:px-6">
+			<MarketplaceGrid>
+				{#each visibleSkills as skill (skill.id)}
+					{@const repository = skill.repoID
+						? (skillRepositoriesMap.get(skill.repoID)?.displayName ?? '')
+						: ''}
+					<MarketplaceCard
+						testId="skill-card-{skill.id}"
+						title={skillTitle(skill) ?? m.skills_no_name()}
+						description={skill.description}
+						actionLabel={m.skills_install()}
+						href={skill.valid ? `/skills/${skill.id}` : undefined}
+						disabled={!skill.valid}
+						onAction={() => {
+							selectedSkillToInstall = skill;
+							installSkillDialog?.open();
+						}}
 					>
-						<GitBranch class="size-4" />
-					</a>
-				</div>
-			{/snippet}
-		</Table>
+						{#snippet icon()}
+							<span
+								class="from-primary to-info flex size-10 shrink-0 items-center justify-center rounded-lg bg-linear-to-br text-primary-content shadow-sm"
+							>
+								<Bot class="size-5" />
+							</span>
+						{/snippet}
+						{#snippet metadata()}
+							<span class="text-muted-content flex items-center gap-2 text-xs font-light">
+								{#if repository}
+									<span class="truncate">{repository}</span>
+									<span aria-hidden="true">·</span>
+								{/if}
+								<span>{skill.valid ? m.skills_ready_to_install() : m.skills_invalid()}</span>
+								{#if skill.validationError}
+									<span
+										class="text-warning inline-flex"
+										use:tooltip={{ text: skill.validationError }}
+										aria-label={m.skills_invalid()}
+									>
+										<TriangleAlert class="size-3.5" />
+									</span>
+								{/if}
+							</span>
+						{/snippet}
+					</MarketplaceCard>
+				{/each}
+			</MarketplaceGrid>
+		</div>
 	{:else if showLicenseError}
 		<div class="my-12 flex w-md flex-col items-center gap-4 self-center text-center">
 			<TriangleAlert class="size-12 text-warning" />

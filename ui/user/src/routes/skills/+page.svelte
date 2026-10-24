@@ -20,7 +20,7 @@
 		SkillRepository
 	} from '$lib/services/admin/types';
 	import { errors, profile } from '$lib/stores';
-	import { clearUrlParams, getTableUrlParamsFilters, goto, setFilterUrlParams } from '$lib/url';
+	import { clearUrlParams, goto } from '$lib/url';
 	import SkillsPoliciesView from './SkillsPoliciesView.svelte';
 	import SkillsView from './SkillsView.svelte';
 	import SourcesView from './SourcesView.svelte';
@@ -115,7 +115,6 @@
 	>(undefined);
 	let sourceError = $state<string | undefined>(undefined);
 	let saving = $state(false);
-	let urlFilters = $state(getTableUrlParamsFilters());
 	let editingSourceHost = $derived(sourceHost(editingSource?.value ?? ''));
 	let gitCredentialOptions = $derived(
 		gitCredentials.map((credential) => ({
@@ -181,21 +180,6 @@
 		if (!repository) return false;
 		const token = repository.sourceURLCredentials?.[repository.repoURL];
 		return token !== undefined && token !== '';
-	}
-
-	function handleFilter(property: string, values: string[]) {
-		if (values.length === 0) {
-			delete urlFilters[property];
-			urlFilters = { ...urlFilters };
-		} else {
-			urlFilters[property] = values;
-		}
-		setFilterUrlParams(property, values);
-	}
-
-	function handleClearAllFilters() {
-		urlFilters = {};
-		clearUrlParams();
 	}
 
 	function clearSyncInterval(id: string) {
@@ -286,7 +270,6 @@
 	}
 
 	function openSkillsForRepository(displayName: string) {
-		urlFilters = { repository: [displayName] };
 		goto(`${page.url.pathname}?view=skills&repository=${encodeURIComponent(displayName)}`);
 	}
 
@@ -356,14 +339,7 @@
 			</div>
 		</div>
 	{/if}
-	<SkillsView
-		{skills}
-		{skillRepositories}
-		{showLicenseError}
-		{urlFilters}
-		onFilter={handleFilter}
-		onClearAllFilters={handleClearAllFilters}
-	/>
+	<SkillsView {skills} {skillRepositories} {showLicenseError} />
 {/snippet}
 
 {#snippet sourcesView()}

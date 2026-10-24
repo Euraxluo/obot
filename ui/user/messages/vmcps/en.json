@@ -424,5 +424,7 @@
 	"connectors_marketplace_config_short": "config fields",
 	"connectors_marketplace_use_in_vmcp": "Use in vMCP",
 	"connectors_marketplace_open_details": "Open full details",
-	"connectors_marketplace_view": "View"
+	"connectors_marketplace_view": "View",
+	"connectors_marketplace_custom_connector": "Custom connector",
+	"connectors_marketplace_no_name": "Untitled connector"
 }

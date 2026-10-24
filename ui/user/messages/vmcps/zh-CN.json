@@ -424,5 +424,7 @@
 	"connectors_marketplace_config_short": "个配置项",
 	"connectors_marketplace_use_in_vmcp": "用于 vMCP",
 	"connectors_marketplace_open_details": "打开完整详情",
-	"connectors_marketplace_view": "查看"
+	"connectors_marketplace_view": "查看",
+	"connectors_marketplace_custom_connector": "自定义连接器",
+	"connectors_marketplace_no_name": "未命名连接器"
 }

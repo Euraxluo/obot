@@ -94,5 +94,9 @@
 	"skills_syncing_notice": "The system is currently syncing with your configured Git repositories.",
 	"skills_this_policy": "this policy",
 	"skills_title": "Skills",
-	"skills_view_source_on_git": "View Source on Git"
+	"skills_view_source_on_git": "View Source on Git",
+	"skills_marketplace_subtitle": "Browse {count} available skills and install them into your AI clients.",
+	"skills_no_name": "Untitled skill",
+	"skills_ready_to_install": "Ready to install",
+	"skills_invalid": "Invalid"
 }

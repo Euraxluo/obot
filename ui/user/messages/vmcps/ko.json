@@ -424,5 +424,7 @@
 	"connectors_marketplace_config_short": "구성 항목",
 	"connectors_marketplace_use_in_vmcp": "vMCP에서 사용",
 	"connectors_marketplace_open_details": "전체 세부 정보 열기",
-	"connectors_marketplace_view": "보기"
+	"connectors_marketplace_view": "보기",
+	"connectors_marketplace_custom_connector": "사용자 지정 커넥터",
+	"connectors_marketplace_no_name": "제목 없는 커넥터"
 }

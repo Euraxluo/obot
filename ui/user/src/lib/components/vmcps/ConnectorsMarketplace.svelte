@@ -2,6 +2,8 @@
 	import { page } from '$app/state';
 	import Search from '$lib/components/Search.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
+	import MarketplaceCard from '$lib/components/marketplace/MarketplaceCard.svelte';
+	import MarketplaceGrid from '$lib/components/marketplace/MarketplaceGrid.svelte';
 	import McpDeprecatedNotice from '$lib/components/mcp/McpDeprecatedNotice.svelte';
 	import McpServerIcon from '$lib/components/vmcps/McpServerIcon.svelte';
 	import { m } from '$lib/i18n';
@@ -28,7 +30,9 @@
 	let selectedEntry = $state<MCPCatalogEntry>();
 
 	let allEntries = $derived(
-		mcpServersAndEntries.current.entries.filter((entry) => entry.manifest.runtime !== 'vmcp')
+		mcpServersAndEntries.current.entries.filter(
+			(entry) => entry.manifest.runtime !== 'vmcp' && !isDeprecatedMCPServer(entry)
+		)
 	);
 	let visibleEntries = $derived(
 		sortMcpServers(
@@ -78,22 +82,34 @@
 			? m.connectors_marketplace_runtime_remote()
 			: m.connectors_marketplace_runtime_hosted();
 	}
+
+	function title(entry: MCPCatalogEntry) {
+		return entry.manifest.name;
+	}
 </script>
 
-<div class="flex min-h-full flex-col gap-5">
-	<div class="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:items-end">
-		<div class="space-y-2">
-			<h2 class="text-2xl font-semibold tracking-tight">{m.connectors_marketplace_title()}</h2>
-			<p class="text-muted-content text-sm font-light">
+<div class="bg-base-200/70 flex min-h-full flex-col gap-4 p-4 md:p-6">
+	<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+		<div>
+			<h2 class="text-xl font-semibold tracking-tight">{m.connectors_marketplace_title()}</h2>
+			<p class="text-muted-content mt-1 text-sm font-light">
 				{m.connectors_marketplace_subtitle({ count: allEntries.length })}
 			</p>
 		</div>
-		<Search
-			value={query}
-			onChange={updateQuery}
-			placeholder={m.connectors_marketplace_search()}
-			class="border border-base-300 bg-base-100 shadow-sm"
-		/>
+		<div class="flex w-full max-w-xl items-center gap-2">
+			<Search
+				value={query}
+				onChange={updateQuery}
+				placeholder={m.connectors_marketplace_search()}
+				class="h-11 rounded-lg border-base-300/70 bg-base-100 shadow-sm"
+			/>
+			<a
+				href="/mcp-servers?view=entries&new=true"
+				class="btn btn-primary h-11 rounded-lg px-5 text-sm whitespace-nowrap"
+			>
+				{m.connectors_marketplace_custom_connector()}
+			</a>
+		</div>
 	</div>
 
 	{#if selectedEntry}
@@ -113,7 +129,7 @@
 						<div class="min-w-0">
 							<div class="flex flex-wrap items-center gap-2">
 								<h3 class="truncate text-xl font-semibold">
-									{selectedEntry.manifest.name ?? selectedEntry.id}
+									{title(selectedEntry) ?? m.connectors_marketplace_no_name()}
 								</h3>
 								<span class="badge badge-primary badge-sm">{runtimeLabel(selectedEntry)}</span>
 								<span class="badge badge-ghost badge-sm">{selectedEntry.manifest.runtime}</span>
@@ -193,11 +209,11 @@
 	{/if}
 
 	{#if isLoading}
-		<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+		<MarketplaceGrid>
 			{#each Array.from({ length: 8 }) as _, index (index)}
-				<Skeleton type="card" class="h-44 rounded-xl" />
+				<Skeleton type="card" class="h-28 rounded-xl" />
 			{/each}
-		</div>
+		</MarketplaceGrid>
 	{:else if visibleEntries.length === 0}
 		<div class="bg-base-100 dark:bg-base-200 my-16 flex flex-col items-center gap-4 rounded-xl p-8">
 			<PackageSearch class="text-muted-content size-16 opacity-40" />
@@ -209,42 +225,38 @@
 			</p>
 		</div>
 	{:else}
-		<div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+		<MarketplaceGrid>
 			{#each visibleEntries as entry (entry.id)}
 				{@const summary = configurationSummary(entry)}
-				<button
-					type="button"
-					data-testid="connector-card-{entry.id}"
-					class="bg-base-100 dark:bg-base-200 border-base-300 hover:border-primary/50 dark:hover:border-primary/50 group flex h-full min-h-44 flex-col gap-4 rounded-xl border p-5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus:ring-primary"
-					onclick={() => openDetails(entry)}
+				<MarketplaceCard
+					testId="connector-card-{entry.id}"
+					title={title(entry) ?? m.connectors_marketplace_no_name()}
+					description={entry.manifest.shortDescription ??
+						entry.manifest.description ??
+						m.connectors_marketplace_no_description()}
+					actionLabel={m.connectors_marketplace_use_in_vmcp()}
+					onAction={() => openDetails(entry)}
 				>
-					<div class="flex items-start justify-between gap-3">
-						<div class="flex min-w-0 items-center gap-3">
-							<McpServerIcon icon={entry.manifest.icon} class="size-5" />
-							<h3 class="min-w-0 truncate font-semibold">
-								{entry.manifest.name ?? entry.id}
-							</h3>
-						</div>
-						<span class="badge badge-ghost badge-sm shrink-0">{entry.manifest.runtime}</span>
-					</div>
-					<p class="text-muted-content line-clamp-3 min-h-12 text-sm leading-5 font-light">
-						{entry.manifest.shortDescription ??
-							entry.manifest.description ??
-							m.connectors_marketplace_no_description()}
-					</p>
-					<div class="mt-auto flex items-center justify-between gap-2 text-xs">
-						<span class="text-muted-content">
-							{summary.required}/{summary.total}
-							{m.connectors_marketplace_config_short()}
+					{#snippet icon()}
+						<McpServerIcon
+							icon={entry.manifest.icon}
+							classes={{ root: 'size-10 bg-primary/12 rounded-lg' }}
+							class="size-5"
+						/>
+					{/snippet}
+					{#snippet metadata()}
+						<span class="text-muted-content flex items-center gap-2 text-xs font-light">
+							<span>{runtimeLabel(entry)}</span>
+							<span aria-hidden="true">·</span>
+							<span>
+								{summary.required}/{summary.total}
+								{m.connectors_marketplace_config_short()}
+							</span>
 						</span>
-						<span class="text-primary flex items-center gap-1 opacity-70 group-hover:opacity-100">
-							{m.connectors_marketplace_view()}
-							<ArrowRight class="size-3.5" />
-						</span>
-					</div>
-				</button>
+					{/snippet}
+				</MarketplaceCard>
 			{/each}
-		</div>
+		</MarketplaceGrid>
 	{/if}
 </div>
 

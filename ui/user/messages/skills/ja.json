@@ -94,5 +94,9 @@
 	"skills_syncing_notice": "システムは現在、設定済みの Git リポジトリと同期しています。",
 	"skills_this_policy": "このポリシー",
 	"skills_title": "スキル",
-	"skills_view_source_on_git": "Git でソースを表示"
+	"skills_view_source_on_git": "Git でソースを表示",
+	"skills_marketplace_subtitle": "利用可能な {count} 個のスキルを参照して AI クライアントにインストールします。",
+	"skills_no_name": "無題のスキル",
+	"skills_ready_to_install": "インストール可能",
+	"skills_invalid": "無効"
 }

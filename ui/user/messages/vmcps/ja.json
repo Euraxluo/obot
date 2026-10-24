@@ -424,5 +424,7 @@
 	"connectors_marketplace_config_short": "設定項目",
 	"connectors_marketplace_use_in_vmcp": "vMCP で使用",
 	"connectors_marketplace_open_details": "詳細を開く",
-	"connectors_marketplace_view": "表示"
+	"connectors_marketplace_view": "表示",
+	"connectors_marketplace_custom_connector": "カスタムコネクタ",
+	"connectors_marketplace_no_name": "無題のコネクタ"
 }

@@ -94,5 +94,9 @@
 	"skills_syncing_notice": "시스템이 현재 구성된 Git 저장소와 동기화하고 있습니다.",
 	"skills_this_policy": "이 정책",
 	"skills_title": "스킬",
-	"skills_view_source_on_git": "Git에서 소스 보기"
+	"skills_view_source_on_git": "Git에서 소스 보기",
+	"skills_marketplace_subtitle": "사용 가능한 {count}개 스킬을 탐색하여 AI 클라이언트에 설치합니다.",
+	"skills_no_name": "제목 없는 스킬",
+	"skills_ready_to_install": "설치 가능",
+	"skills_invalid": "유효하지 않음"
 }

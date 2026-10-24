@@ -94,5 +94,9 @@
 	"skills_syncing_notice": "系统正在与您配置的 Git 仓库同步。",
 	"skills_this_policy": "此策略",
 	"skills_title": "技能",
-	"skills_view_source_on_git": "在 Git 上查看源代码"
+	"skills_view_source_on_git": "在 Git 上查看源代码",
+	"skills_marketplace_subtitle": "浏览 {count} 个可用技能，并安装到你的 AI 客户端。",
+	"skills_no_name": "未命名技能",
+	"skills_ready_to_install": "可安装",
+	"skills_invalid": "无效"
 }

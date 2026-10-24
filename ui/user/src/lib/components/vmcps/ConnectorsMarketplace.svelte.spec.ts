@@ -1,9 +1,9 @@
 import { mcpServersAndEntries } from '$lib/stores';
 import { createMCPCatalogEntry } from '../../../tests/helpers/mcp';
 import ConnectorsMarketplace from './ConnectorsMarketplace.svelte';
+import { tick } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import { tick } from 'svelte';
 
 vi.mock('$lib/url', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('$lib/url')>();
@@ -13,7 +13,7 @@ vi.mock('$lib/url', async (importOriginal) => {
 	};
 });
 
-function renderMarketplace() {
+function renderMarketplace(overrides: { query?: string } = {}) {
 	mcpServersAndEntries.current = {
 		entries: [
 			createMCPCatalogEntry({ id: 'entry-github', name: 'GitHub' }),
@@ -28,7 +28,7 @@ function renderMarketplace() {
 	};
 
 	return render(ConnectorsMarketplace, {
-		props: { query: '', onQueryChange: vi.fn() }
+		props: { query: overrides.query ?? '', onQueryChange: vi.fn() }
 	});
 }
 
@@ -61,5 +61,13 @@ describe('ConnectorsMarketplace', () => {
 		expect(
 			document.querySelector('a[href="/mcp-servers/c/entry-github?from=connectors"]')
 		).not.toBeNull();
+	});
+
+	it('searches cards by manifest name', async () => {
+		renderMarketplace({ query: 'GitHub' });
+		await tick();
+
+		expect(document.querySelector('[data-testid="connector-card-entry-github"]')).not.toBeNull();
+		expect(document.querySelector('[data-testid="connector-card-entry-slack"]')).toBeNull();
 	});
 });
