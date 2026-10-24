@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import ResponsiveDialog from '$lib/components/ResponsiveDialog.svelte';
 	import IconButton from '$lib/components/primitives/IconButton.svelte';
@@ -957,5 +958,5 @@
 </ResponsiveDialog>
 
 <svelte:head>
-	<title>ZTOCC | {title}</title>
+	<title>{productTitle(title)}</title>
 </svelte:head>

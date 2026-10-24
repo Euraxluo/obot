@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import AccessControlRuleForm from '$lib/components/admin/AccessControlRuleForm.svelte';
 	import { MCP_PUBLISHER_ALL_OPTION, PAGE_TRANSITION_DURATION } from '$lib/constants';
@@ -59,5 +60,5 @@
 </Layout>
 
 <svelte:head>
-	<title>ZTOCC | {title}</title>
+	<title>{productTitle(title)}</title>
 </svelte:head>

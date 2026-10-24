@@ -16,18 +16,18 @@ for (const [path, catalog] of Object.entries(catalogs)) {
 	byArea.set(area, { ...byArea.get(area), [locale]: messages });
 }
 
-const translatedLocales = ['ja', 'ko', 'zh-CN'];
+const translatedLocales = ['en', 'ja', 'ko'];
 const placeholders = (s: string) => (s.match(/\{\w+\}/g) ?? []).sort();
 
 describe.each([...byArea.entries()])('message catalog "%s"', (_, locales) => {
-	const en = locales.en ?? {};
+	const base = locales['zh-CN'] ?? {};
 
-	it.each(translatedLocales)('%s defines exactly the keys in en.json', (locale) => {
-		expect(Object.keys(locales[locale] ?? {}).sort()).toEqual(Object.keys(en).sort());
+	it.each(translatedLocales)('%s defines exactly the keys in the zh-CN catalog', (locale) => {
+		expect(Object.keys(locales[locale] ?? {}).sort()).toEqual(Object.keys(base).sort());
 	});
 
-	it.each(translatedLocales)('%s keeps every {placeholder} from en.json', (locale) => {
-		for (const [key, value] of Object.entries(en)) {
+	it.each(translatedLocales)('%s keeps every {placeholder} from the zh-CN catalog', (locale) => {
+		for (const [key, value] of Object.entries(base)) {
 			expect(placeholders(locales[locale]?.[key] ?? ''), key).toEqual(placeholders(value));
 		}
 	});
@@ -36,7 +36,7 @@ describe.each([...byArea.entries()])('message catalog "%s"', (_, locales) => {
 it('message keys are unique across catalogs', () => {
 	const seen = new Map<string, string>();
 	for (const [area, locales] of byArea) {
-		for (const key of Object.keys(locales.en ?? {})) {
+		for (const key of Object.keys(locales['zh-CN'] ?? {})) {
 			expect(seen.get(key), `${key} is defined in both "${seen.get(key)}" and "${area}"`).toBe(
 				undefined
 			);

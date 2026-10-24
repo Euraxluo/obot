@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { productTitle } from '$lib/branding.svelte';
 	import TabLayout from '$lib/components/TabLayout.svelte';
 	import { m } from '$lib/i18n';
 	import type { GitCredential, ImagePullSecret, ImagePullSecretCapability } from '$lib/services';
@@ -50,7 +51,7 @@
 </script>
 
 <svelte:head>
-	<title>ZTOCC | {m.platform_title()}</title>
+	<title>{productTitle(m.platform_title())}</title>
 </svelte:head>
 
 <TabLayout

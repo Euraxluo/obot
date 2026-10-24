@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { productTitle } from '$lib/branding.svelte';
 	import DotDotDot from '$lib/components/DotDotDot.svelte';
 	import TabLayout from '$lib/components/TabLayout.svelte';
 	import AuditLogsPageContent from '$lib/components/admin/audit-logs/AuditLogsPageContent.svelte';
@@ -21,7 +22,7 @@
 </script>
 
 <svelte:head>
-	<title>{m.audit_usage_audit_logs_page_title()}</title>
+	<title>{productTitle(m.audit_usage_audit_logs_title())}</title>
 </svelte:head>
 
 <TabLayout

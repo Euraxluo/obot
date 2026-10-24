@@ -60,6 +60,7 @@ export interface AppNotification {
 // App preferences
 
 export interface AppPreferences {
+	displayName: string;
 	logos: {
 		logoIcon: string;
 		logoIconError: string;

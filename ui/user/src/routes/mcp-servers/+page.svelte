@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import DotDotDot from '$lib/components/DotDotDot.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import TabLayout from '$lib/components/TabLayout.svelte';
@@ -266,7 +267,7 @@
 </script>
 
 <svelte:head>
-	<title>ZTOCC | {layoutTitle}</title>
+	<title>{productTitle(layoutTitle)}</title>
 </svelte:head>
 
 {#if creating}

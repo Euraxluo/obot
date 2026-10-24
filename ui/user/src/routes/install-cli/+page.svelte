@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import Logo from '$lib/components/Logo.svelte';
@@ -273,7 +274,7 @@
 {/snippet}
 
 <svelte:head>
-	<title>{m.install_cli_page_title()}</title>
+	<title>{productTitle(m.install_cli_title())}</title>
 </svelte:head>
 
 <style lang="postcss">

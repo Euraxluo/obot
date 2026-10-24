@@ -52,7 +52,7 @@
 	"chat_models": "モデル",
 	"chat_no": "いいえ",
 	"chat_none_option": "(なし)",
-	"chat_page_title_named": "ZTOCC | {name}",
+	"chat_page_title_suffix": "{name}",
 	"chat_settings": "設定",
 	"chat_skills": "スキル",
 	"chat_templates_col_harness": "ハーネス",

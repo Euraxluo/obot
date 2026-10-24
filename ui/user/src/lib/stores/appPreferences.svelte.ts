@@ -26,6 +26,8 @@ export const DEFAULT_LOGOS = {
 	}
 } as const;
 
+export const DEFAULT_DISPLAY_NAME = 'ZTOCC';
+
 /** Default UI font stack; kept in sync with `app.css` (`--theme-font-family` fallback). */
 export const DEFAULT_FONT_FAMILY =
 	'Poppins, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial, Noto Sans, sans-serif, Apple Color Emoji, Segoe UI Emoji, Segoe UI Symbol, Noto Color Emoji';
@@ -42,6 +44,7 @@ export const FONT_FAMILY_PRESETS: { label: string; value: string }[] = [
 
 export function compileAppPreferences(preferences?: AppPreferences): AppPreferences {
 	return {
+		displayName: preferences?.displayName?.trim() || DEFAULT_DISPLAY_NAME,
 		logos: {
 			logoIcon: preferences?.logos?.logoIcon ?? DEFAULT_LOGOS.icon.default,
 			logoIconError: preferences?.logos?.logoIconError ?? DEFAULT_LOGOS.icon.error,

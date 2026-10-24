@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import { PAGE_TRANSITION_DURATION } from '$lib/constants.js';
 	import { m } from '$lib/i18n';
@@ -23,5 +24,5 @@
 </Layout>
 
 <svelte:head>
-	<title>ZTOCC | {title}</title>
+	<title>{productTitle(title)}</title>
 </svelte:head>

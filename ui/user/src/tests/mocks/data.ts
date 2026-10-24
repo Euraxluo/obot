@@ -33,6 +33,7 @@ export const getAppNotificationResponse = {
 // App preferences
 
 export const listAppPreferencesResponse = {
+	displayName: 'ZTOCC',
 	logos: {
 		darkLogoChat: '/user/images/ztocc/drp-admin-logo.png',
 		darkLogoCommunity: '/user/images/ztocc/drp-admin-logo.png',

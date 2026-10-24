@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { productTitle } from '$lib/branding.svelte';
 	import McpCompositeOauth from '$lib/components/mcp/McpCompositeOauth.svelte';
 	import ConnectVMcp from '$lib/components/vmcps/ConnectVMcp.svelte';
 	import { isAbortError } from '$lib/errors';
@@ -88,5 +89,5 @@
 {/if}
 
 <svelte:head>
-	<title>ZTOCC | {m.vmcps_authenticate()}</title>
+	<title>{productTitle(m.vmcps_authenticate())}</title>
 </svelte:head>

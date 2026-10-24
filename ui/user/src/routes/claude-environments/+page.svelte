@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import TabLayout from '$lib/components/TabLayout.svelte';
 	import ClaudeAccountManagement from '$lib/components/claude/ClaudeAccountManagement.svelte';
@@ -34,7 +35,7 @@
 	}
 </script>
 
-<svelte:head><title>ZTOCC | {layoutTitle}</title></svelte:head>
+<svelte:head><title>{productTitle(layoutTitle)}</title></svelte:head>
 
 {#if showingForm && environmentId}
 	<Layout title={layoutTitle} showBackButton onBackButtonClick={closeEnvironment}>

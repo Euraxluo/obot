@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import BetaLogo from '$lib/components/navbar/BetaLogo.svelte';
 	import { m } from '$lib/i18n';
@@ -85,5 +86,5 @@
 </main>
 
 <svelte:head>
-	<title>{m.mcps_oauth_debugger_page_title()}</title>
+	<title>{productTitle(m.mcps_oauth_debugger_title())}</title>
 </svelte:head>

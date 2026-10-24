@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import TabLayout, { type TabView } from '$lib/components/TabLayout.svelte';
 	import IconButton from '$lib/components/primitives/IconButton.svelte';
 	import ConnectAllVMcps from '$lib/components/vmcps/ConnectAllVMcps.svelte';
@@ -349,5 +350,5 @@
 />
 
 <svelte:head>
-	<title>ZTOCC | {creating ? m.vmcps_create_vmcp() : m.vmcps()}</title>
+	<title>{productTitle(creating ? m.vmcps_create_vmcp() : m.vmcps())}</title>
 </svelte:head>

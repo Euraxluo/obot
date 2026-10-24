@@ -2,6 +2,7 @@
 	import { browser } from '$app/environment';
 	import { afterNavigate, beforeNavigate } from '$app/navigation';
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import DotDotDot from '$lib/components/DotDotDot.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import Search from '$lib/components/Search.svelte';
@@ -249,5 +250,5 @@
 {/snippet}
 
 <svelte:head>
-	<title>{m.audit_usage_audit_logs_llm_exports_page_title()}</title>
+	<title>{productTitle(m.audit_usage_audit_logs_llm_exports_title())}</title>
 </svelte:head>

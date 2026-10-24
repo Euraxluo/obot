@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import McpCompositeOauth from '$lib/components/mcp/McpCompositeOauth.svelte';
 	import McpOauth from '$lib/components/mcp/McpOauth.svelte';
@@ -133,9 +134,11 @@
 
 <svelte:head>
 	<title
-		>Obot | {m.mcps_tester_page_title({
-			kind: data.server.id.startsWith('vmcp') ? 'vMCP' : 'MCP',
-			name: serverName
-		})}</title
+		>{productTitle(
+			m.mcps_tester_page_title({
+				kind: data.server.id.startsWith('vmcp') ? 'vMCP' : 'MCP',
+				name: serverName
+			})
+		)}</title
 	>
 </svelte:head>

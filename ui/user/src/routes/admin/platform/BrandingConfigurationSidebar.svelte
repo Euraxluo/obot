@@ -368,6 +368,23 @@
 			</div>
 		</div>
 
+		<div class="flex flex-col gap-1 px-4 py-3">
+			<label class="text-sm font-medium" for="platform-display-name">
+				{m.platform_branding_display_name()}
+			</label>
+			<input
+				id="platform-display-name"
+				class="text-input-filled"
+				type="text"
+				maxlength={80}
+				placeholder={compileAppPreferences().displayName}
+				bind:value={form.displayName}
+			/>
+			<p class="text-xs font-light text-muted-content">
+				{m.platform_branding_display_name_description()}
+			</p>
+		</div>
+
 		{#if selectedConfigurationMode === 'theme'}
 			{@render themeConfiguration()}
 		{/if}
@@ -386,7 +403,7 @@
 					onclick={() => {
 						form = compileAppPreferences();
 						customSurfaces = surfacesSnapshotFromTheme(form.theme);
-						appPreferences.current = compileAppPreferences(form);
+						appPreferences.current = form;
 						appPreferences.setThemeColors(form.theme);
 						if (selectedSurfaceMode === 'tinted') {
 							captureTintedSurfaceSnapshot();
@@ -411,7 +428,7 @@
 							form = prevAppPreferences;
 							customSurfaces = surfacesSnapshotFromTheme(prevAppPreferences.theme);
 							form = applyCustomSurfacesToForm();
-							appPreferences.current = compileAppPreferences(prevAppPreferences);
+							appPreferences.current = prevAppPreferences;
 							appPreferences.setThemeColors(form.theme);
 							resetTintedControls();
 							selectedSurfaceMode = 'solid';

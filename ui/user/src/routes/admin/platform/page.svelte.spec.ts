@@ -1,15 +1,25 @@
 import { page as appPage } from '$app/state';
 import { CLOUD_ENTITLEMENT, COMMUNITY_ENTITLEMENT } from '$lib/constants';
 import * as navigation from '$lib/navigation';
-import { Group, type ModelProxySettings, type ProductTelemetryConsent } from '$lib/services';
+import {
+	Group,
+	type AppPreferences,
+	type ModelProxySettings,
+	type ProductTelemetryConsent
+} from '$lib/services';
 import type {
 	ImagePullSecret,
 	ImagePullSecretCapability,
 	License
 } from '$lib/services/admin/types';
 import type { Version } from '$lib/services/user/types';
+import { compileAppPreferences } from '$lib/stores/appPreferences.svelte';
 import { createMockProfile, preparePageData } from '../../../tests/helpers/pageData';
-import { getLicenseResponse, getVersionResponse } from '../../../tests/mocks/data';
+import {
+	getLicenseResponse,
+	getVersionResponse,
+	listAppPreferencesResponse
+} from '../../../tests/mocks/data';
 import { worker } from '../../../tests/mocks/worker';
 import type { PageData } from './$types';
 import PlatformPage from './+page.svelte';
@@ -35,7 +45,8 @@ async function renderPlatformPage({
 	groups = [Group.ADMIN],
 	productAnalyticsAvailable = true,
 	productAnalyticsConsent = { consent: false },
-	modelProxySettings
+	modelProxySettings,
+	displayName
 }: {
 	license?: License;
 	versionOverrides?: Partial<Version>;
@@ -47,6 +58,7 @@ async function renderPlatformPage({
 	productAnalyticsAvailable?: boolean;
 	productAnalyticsConsent?: ProductTelemetryConsent;
 	modelProxySettings?: ModelProxySettings;
+	displayName?: string;
 } = {}) {
 	appPage.url.searchParams.set('view', view);
 	if (create) {
@@ -56,6 +68,9 @@ async function renderPlatformPage({
 	}
 
 	const data = await preparePageData<PageData>({
+		appPreferences: compileAppPreferences(
+			displayName ? { ...listAppPreferencesResponse, displayName } : undefined
+		),
 		profile: createMockProfile(groups),
 		license,
 		appNotification: undefined,
@@ -127,6 +142,37 @@ describe('Platform Page', () => {
 			await expect
 				.element(page.getByRole('button', { name: 'Save', exact: true }))
 				.not.toBeInTheDocument();
+		});
+	});
+
+	describe('branding tab', () => {
+		it('edits the platform display name', async () => {
+			let savedPreferences: AppPreferences | undefined;
+			worker.use(
+				http.put('/api/app-preferences', async ({ request }) => {
+					savedPreferences = (await request.json()) as AppPreferences;
+					return HttpResponse.json(savedPreferences);
+				})
+			);
+
+			const data: PageData = {
+				...(await preparePageData<PageData>()),
+				appPreferences: compileAppPreferences({
+					...listAppPreferencesResponse,
+					displayName: 'Cold Chain Platform'
+				})
+			};
+			appPage.url.searchParams.set('view', 'branding');
+			await render(PlatformPage, { data });
+
+			const input = page.getByRole('textbox', { name: 'Platform Name', exact: true });
+			await expect.element(input).toHaveValue('Cold Chain Platform');
+			await input.fill('ZTOCC Test');
+			await page.getByRole('button', { name: 'Save', exact: true }).click();
+
+			await vi.waitFor(() => {
+				expect(savedPreferences).toMatchObject({ displayName: 'ZTOCC Test' });
+			});
 		});
 	});
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import TabLayout, { type TabView } from '$lib/components/TabLayout.svelte';
 	import DefaultModels from '$lib/components/admin/DefaultModels.svelte';
 	import GuardrailsList from '$lib/components/guardrails/GuardrailsList.svelte';
@@ -106,7 +107,7 @@
 </script>
 
 <svelte:head>
-	<title>ZTOCC | {title}</title>
+	<title>{productTitle(title)}</title>
 </svelte:head>
 
 <TabLayout

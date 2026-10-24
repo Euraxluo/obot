@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import TabLayout from '$lib/components/TabLayout.svelte';
 	import { AUTH_PROVIDERS_VIEW_PATH, isSCIMView, SCIM_VIEW_PATH } from '$lib/constants';
 	import { m } from '$lib/i18n';
@@ -25,11 +26,11 @@
 </script>
 
 <svelte:head>
-	<title
-		>Obot | {showCreateAgent
-			? m.identity_access_create_agent_identity()
-			: m.identity_access_title()}</title
-	>
+	<title>
+		{productTitle(
+			showCreateAgent ? m.identity_access_create_agent_identity() : m.identity_access_title()
+		)}
+	</title>
 </svelte:head>
 
 <TabLayout

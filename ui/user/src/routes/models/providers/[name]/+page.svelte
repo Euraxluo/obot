@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import Confirm from '$lib/components/Confirm.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
@@ -278,7 +279,7 @@
 </script>
 
 <svelte:head>
-	<title>ZTOCC | {providerLabel(name)}</title>
+	<title>{productTitle(providerLabel(name))}</title>
 </svelte:head>
 
 <Layout

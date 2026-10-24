@@ -21,6 +21,8 @@
 	"platform_branding_default_icon": "기본 아이콘",
 	"platform_branding_description_placeholder": "설명 입력...",
 	"platform_branding_disabled": "비활성화",
+	"platform_branding_display_name": "플랫폼 이름",
+	"platform_branding_display_name_description": "제목과 로그인 텍스트에 표시됩니다. 비워 두면 기본 이름이 사용됩니다.",
 	"platform_branding_edit_image_url": "이미지 URL 편집",
 	"platform_branding_enabled": "활성화",
 	"platform_branding_error": "오류",

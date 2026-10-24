@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { productTitle } from '$lib/branding.svelte';
 	import Logo from '$lib/components/Logo.svelte';
 	import { parseErrorContent } from '$lib/errors';
 	import { m } from '$lib/i18n';
@@ -65,7 +66,7 @@
 </script>
 
 <svelte:head>
-	<title>ZTOCC | {m.auth_activate_page_title()}</title>
+	<title>{productTitle(m.auth_activate_page_title())}</title>
 </svelte:head>
 
 <div

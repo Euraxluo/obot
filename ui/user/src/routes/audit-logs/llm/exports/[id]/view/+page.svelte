@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import CreateAuditLogExportForm from '$lib/components/admin/audit-log-exports/CreateAuditLogExportForm.svelte';
 	import { PAGE_TRANSITION_DURATION } from '$lib/constants';
@@ -69,5 +70,5 @@
 </Layout>
 
 <svelte:head>
-	<title>{m.audit_usage_audit_logs_obot_title({ title })}</title>
+	<title>{productTitle(m.audit_usage_audit_logs_title_suffix({ title }))}</title>
 </svelte:head>

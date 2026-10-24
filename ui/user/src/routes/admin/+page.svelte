@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { productTitle } from '$lib/branding.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import SensitiveInput from '$lib/components/SensitiveInput.svelte';
 	import BetaLogo from '$lib/components/navbar/BetaLogo.svelte';
@@ -311,5 +312,5 @@
 {/snippet}
 
 <svelte:head>
-	<title>ZTOCC | {m.auth_bootstrap_page_title()}</title>
+	<title>{productTitle(m.auth_bootstrap_page_title())}</title>
 </svelte:head>

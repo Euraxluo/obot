@@ -21,6 +21,8 @@
 	"platform_branding_default_icon": "默认图标",
 	"platform_branding_description_placeholder": "输入描述...",
 	"platform_branding_disabled": "禁用",
+	"platform_branding_display_name": "平台名称",
+	"platform_branding_display_name_description": "显示在页面标题和登录文案中。留空时使用默认名称。",
 	"platform_branding_edit_image_url": "编辑图片 URL",
 	"platform_branding_enabled": "启用",
 	"platform_branding_error": "错误",

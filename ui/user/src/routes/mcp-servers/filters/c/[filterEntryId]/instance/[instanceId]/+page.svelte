@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import { m } from '$lib/i18n';
 	import { goto } from '$lib/url';
 	import FilterView from '../../../../../FilterView.svelte';
@@ -23,5 +24,5 @@
 {/if}
 
 <svelte:head>
-	<title>ZTOCC | {title}</title>
+	<title>{productTitle(title)}</title>
 </svelte:head>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { tooltip } from '$lib/actions/tooltip.svelte';
+	import { productTitle } from '$lib/branding.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import DotDotDot from '$lib/components/DotDotDot.svelte';
 	import Layout from '$lib/components/Layout.svelte';
@@ -187,7 +188,11 @@
 </script>
 
 <svelte:head>
-	<title>{m.inventory_enforcement_devices_page_title_device({ id: deviceId.slice(0, 12) })}</title>
+	<title
+		>{productTitle(
+			m.inventory_enforcement_devices_title_device({ id: deviceId.slice(0, 12) })
+		)}</title
+	>
 </svelte:head>
 
 <Layout

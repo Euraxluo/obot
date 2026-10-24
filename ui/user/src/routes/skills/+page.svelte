@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import Confirm from '$lib/components/Confirm.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import ResponsiveDialog from '$lib/components/ResponsiveDialog.svelte';
@@ -306,7 +307,7 @@
 </script>
 
 <svelte:head>
-	<title>ZTOCC | {layoutTitle}</title>
+	<title>{productTitle(layoutTitle)}</title>
 </svelte:head>
 
 {#if creating}

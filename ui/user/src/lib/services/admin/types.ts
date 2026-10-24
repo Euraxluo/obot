@@ -53,6 +53,7 @@ export interface AppNotificationManifest {
 // App preferences
 
 export interface AppPreferencesManifest {
+	displayName?: string;
 	logos?: {
 		logoIcon?: string;
 		logoIconError?: string;

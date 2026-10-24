@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import { goto } from '$lib/url';
 	import GuardrailForm from './GuardrailForm.svelte';
@@ -14,7 +15,7 @@
 </script>
 
 <svelte:head>
-	<title>ZTOCC | {title}</title>
+	<title>{productTitle(title)}</title>
 </svelte:head>
 
 <Layout {title} showBackButton onBackButtonClick={back}>

@@ -1,11 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { productTitle } from '$lib/branding.svelte';
 	import Logo from '$lib/components/Logo.svelte';
 	import { m } from '$lib/i18n';
 </script>
 
 <svelte:head>
-	<title>{m.identity_access_scim_okta_title()}</title>
+	<title>{productTitle(m.identity_access_scim_okta_title_suffix())}</title>
 </svelte:head>
 
 <!-- The login page of the Okta app that provisions users and groups through SCIM. Okta requires one, but the app is

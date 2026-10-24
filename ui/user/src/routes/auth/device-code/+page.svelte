@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { productTitle } from '$lib/branding.svelte';
 	import Logo from '$lib/components/Logo.svelte';
 	import { getHttpStatusCode } from '$lib/errors';
 	import { m } from '$lib/i18n';
@@ -66,7 +67,7 @@
 </script>
 
 <svelte:head>
-	<title>ZTOCC | {m.auth_device_page_title()}</title>
+	<title>{productTitle(m.auth_device_page_title())}</title>
 </svelte:head>
 
 <div

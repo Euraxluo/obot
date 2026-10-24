@@ -1,9 +1,11 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { productTitle } from '$lib/branding.svelte';
 	import Logo from '$lib/components/Logo.svelte';
 	import SensitiveInput from '$lib/components/SensitiveInput.svelte';
 	import { LOCAL_AUTH_MIN_PASSWORD_LENGTH } from '$lib/constants';
 	import { getLocale, m } from '$lib/i18n';
+	import { appPreferences } from '$lib/stores';
 	import { CircleAlert } from '@lucide/svelte';
 
 	// The form posts to the auth provider, which sets the session cookie and redirects to `rd`.
@@ -25,7 +27,7 @@
 </script>
 
 <svelte:head>
-	<title>{m.login_local_page_title()}</title>
+	<title>{productTitle(m.login_local_page_title_suffix())}</title>
 </svelte:head>
 
 <div
@@ -38,7 +40,9 @@
 		class="dark:border-base-400 dark:bg-base-200 bg-base-100 flex w-full md:w-sm flex-col gap-4 rounded-xl border border-transparent p-6 shadow-sm"
 	>
 		<Logo class="h-12 self-center" />
-		<h1 class="text-center text-xl font-semibold">{m.login_local_heading()}</h1>
+		<h1 class="text-center text-xl font-semibold">
+			{m.login_local_heading({ name: appPreferences.current.displayName })}
+		</h1>
 
 		{#if error}
 			<div class="notification-error flex items-center gap-2">

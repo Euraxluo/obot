@@ -16,8 +16,9 @@ type AppPreferences struct {
 }
 
 type AppPreferencesSpec struct {
-	Logos types.LogoPreferences  `json:"logos"`
-	Theme types.ThemePreferences `json:"theme"`
+	DisplayName string                 `json:"displayName"`
+	Logos       types.LogoPreferences  `json:"logos"`
+	Theme       types.ThemePreferences `json:"theme"`
 }
 
 type AppPreferencesStatus struct{}

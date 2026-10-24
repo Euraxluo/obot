@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { productTitle } from '$lib/branding.svelte';
 	import CatalogConfigureForm, {
 		type CompositeLaunchFormData,
 		type LaunchFormData
@@ -357,7 +358,7 @@
 </script>
 
 <svelte:head>
-	<title>{m.auth_consent_page_title()}</title>
+	<title>{productTitle(m.auth_consent_page_title())}</title>
 </svelte:head>
 
 <div class="bg-base-200 dark:bg-base-100 flex min-h-screen items-center justify-center p-4">

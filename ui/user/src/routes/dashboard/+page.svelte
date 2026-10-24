@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import TweenedMetric from '$lib/components/TweenedMetric.svelte';
@@ -826,5 +827,5 @@
 {/snippet}
 
 <svelte:head>
-	<title>{m.dashboard_page_title()}</title>
+	<title>{productTitle(m.dashboard_title())}</title>
 </svelte:head>

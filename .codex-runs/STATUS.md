@@ -1,35 +1,50 @@
-# Obot ZTOCC 主题改造状态
+# ZTOCC Branding + zh-CN Default Status
 
-## 进度
+## Scope
 
-- 已完成默认主题 token、DaisyUI light/dark 默认值、启动兜底色与圆角比例调整。
-- 已完成 ZTOCC 默认 Logo/Icon/Favicon 替换，并保留 Branding 配置对 `--theme-*` 的覆盖机制。
-- 已完成默认展示名与页面标题从 Obot 调整为 ZTOCC。
-- 分支：`skin/ztocc-theme`。
+- Branch: `skin/ztocc-theme`
+- Added configurable platform display name (`displayName`) with default `ZTOCC`.
+- Changed Paraglide `baseLocale` and initial HTML language from `en` to `zh-CN`.
+- Preserved the locale strategy `localStorage -> preferredLanguage -> baseLocale`; saved locale preferences continue to win.
+- No auth, permission, MCP, or feature-behavior changes beyond the app preferences field and branding presentation.
 
-## 变更文件
+## Main Files
 
-- 主题与默认偏好：`ui/user/src/app.css`、`ui/user/src/app.html`、`ui/user/src/lib/stores/appPreferences.svelte.ts`
-- Logo 使用与尺寸：`ui/user/src/lib/components/Logo.svelte`、`ui/user/src/lib/components/navbar/BetaLogo.svelte`，以及使用默认 Logo 的少量页面样式类
-- 静态品牌资源：`ui/user/static/user/images/ztocc/{ztocc-logo.png,drp-admin-logo.png,driver-app-logo.png,favicon.png}`
-- Favicon/PWA/touch icon：`ui/user/static/favicon*`、`ui/user/static/apple-touch-icon.png`、`ui/user/static/android-chrome-*.png`
-- 残留 Obot 蓝标直连引用：`ui/user/src/routes/admin/platform/LicenseView.svelte`、`ui/user/src/routes/privacy-policy/+page.svelte`、`ui/user/src/routes/terms-of-service/+page.svelte`
-- 默认展示文案：`ui/user/messages/**/*.json`
-- 测试 mock 默认值：`ui/user/src/tests/mocks/data.ts`
+- Backend preference contract: `apiclient/types/apppreferences.go`, `pkg/storage/apis/obot.obot.ai/v1/apppreferences.go`, `pkg/api/handlers/apppreferences.go`
+- Generated deep-copy updates: `apiclient/types/zz_generated.deepcopy.go`, `pkg/storage/apis/obot.obot.ai/v1/zz_generated.deepcopy.go`
+- Frontend preference contract/default: `ui/user/src/lib/services/admin/types.ts`, `ui/user/src/lib/services/user/types.ts`, `ui/user/src/lib/stores/appPreferences.svelte.ts`
+- Branding helper/title consumption: `ui/user/src/lib/branding.svelte.ts` and route/component `<title>` usages
+- Branding UI: `ui/user/src/routes/admin/platform/BrandingConfigurationSidebar.svelte`, `BrandingView.svelte`
+- Login/i18n fragments: `ui/user/messages/**/*.json`
+- Locale default: `ui/user/project.inlang/settings.json`, `ui/user/src/app.html`, `ui/user/src/lib/i18n.test.ts`
+- Regression coverage: `ui/user/src/routes/admin/platform/page.svelte.spec.ts`, `ui/user/src/tests/mocks/data.ts`
 
-## 验收结果
+## How `displayName` Works
 
-- **verified**：默认 primary light=`#159a91`、dark=`#2dd4bf`；默认 UI 引用中已无 `#4f7ef3`。
-- **verified**：默认 icon/error/warning 指向 `/user/images/ztocc/driver-app-logo.png`；light 全标指向 `ztocc-logo.png`；dark 全标指向 `drp-admin-logo.png`。
-- **verified**：`favicon.ico` 含 16/32/48/64/128/256 六档；PNG favicon、apple touch icon、android chrome icon 均由 ZTOCC 方形品牌图生成。
-- **verified**：`git diff --check` 通过。
-- **blocked/skipped**：`pnpm install && pnpm run check` 未完成。原因：pnpm 自更新先被 `http://npm.ztosys.com` 502 阻断；绕过自更新后又受本机代理/registry 组合影响，依赖拉取长时间 0 进展。按纠偏要求停止继续探测并跳过 check。
+1. Open **Platform -> Branding**.
+2. Enter the desired value under **Platform Name** (shown below Mode and above theme/logo controls).
+3. Select **Save**. The UI sends `PUT /api/app-preferences` with `displayName`, persists it in `AppPreferencesSpec`, and immediately updates page titles/login copy.
+4. Empty or whitespace-only input is compiled back to `ZTOCC`; **Restore Default** also returns the name to `ZTOCC`.
 
-## PR
+Titles use `productTitle(suffix)`, which reads `appPreferences.current.displayName`. Login heading/welcome messages use translated fragments with `{name}`.
 
-- https://github.com/Euraxluo/obot/pull/1
+## Verification
 
-## 下一步
+- **verified**: `cd ui/user && pnpm run i18n:compile` succeeds; generated runtime reports `baseLocale = "zh-CN"` and retains `localStorage`, `preferredLanguage`, `baseLocale`.
+- **verified**: `cd ui/user && pnpm run check` passes (0 errors / 0 warnings).
+- **verified**: `cd ui/user && pnpm exec vitest run src/routes/admin/platform/page.svelte.spec.ts src/lib/i18n.test.ts --browser.headless` passes 120 tests. Coverage includes editing/saving `displayName` through Branding UI and all locale catalogs matching the zh-CN base keys/placeholders.
+- **verified**: `go test ./pkg/api/handlers ./pkg/storage/apis/obot.obot.ai/v1` passes (1168 tests), and `cd apiclient && go test ./types` passes (276 tests).
+- **verified**: `git diff --check` passes.
+- **observed**: standalone `tsc --noEmit` still reports pre-existing project errors in unrelated Svelte exported-type/test-helper files; `pnpm run check` is the project's Svelte-aware gate and passes.
+- **partial**: Fresh real-browser language behavior was not manually screenshotted. The generated runtime and compiled strategy were verified; a no-localStorage browser visit should be checked if visual acceptance is required.
 
-1. 在 registry/代理恢复或可使用完整依赖缓存后运行 `cd ui/user && pnpm install && pnpm run check`。
-2. 用真实页面检查 light/dark 首页、navbar、错误页、favicon 与 Branding 自定义覆盖路径。
+## Risks
+
+- Existing preference objects omit `displayName`; the frontend compiles them to `ZTOCC`, so the deployment default remains stable.
+- Some long marketing/prose references to Obot remain intentionally untouched where they describe the upstream product or non-title text.
+- PR/i18n catalogs are key-synchronized; future title fragments must be added to all four locales.
+
+## Branch/PR
+
+- Local commit pending on `skin/ztocc-theme`.
+- Remote is `Euraxluo/obot` (`origin`). Existing PR: https://github.com/Euraxluo/obot/pull/1

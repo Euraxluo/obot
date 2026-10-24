@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import type { DateRange } from '$lib/components/Calendar.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import AuditLogCalendar from '$lib/components/admin/audit-logs/AuditLogCalendar.svelte';
@@ -318,7 +319,11 @@
 {/snippet}
 
 <svelte:head>
-	<title>ZTOCC | {apiKey?.name || m.identity_access_agents_agent_identity()} | {apiKeyId}</title>
+	<title
+		>{productTitle(
+			`${apiKey?.name || m.identity_access_agents_agent_identity()} | ${apiKeyId}`
+		)}</title
+	>
 </svelte:head>
 
 <style lang="postcss">

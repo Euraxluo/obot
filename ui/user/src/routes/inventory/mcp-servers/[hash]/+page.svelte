@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import Pagination from '$lib/components/table/Pagination.svelte';
 	import Table from '$lib/components/table/Table.svelte';
@@ -67,7 +68,7 @@
 </script>
 
 <svelte:head>
-	<title>{m.inventory_enforcement_device_mcp_servers_page_title_mcp_server()}</title>
+	<title>{productTitle(m.inventory_enforcement_device_mcp_servers_title_mcp_server())}</title>
 </svelte:head>
 
 <Layout

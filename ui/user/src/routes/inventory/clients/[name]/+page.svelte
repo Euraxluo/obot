@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import SubjectName from '$lib/components/admin/SubjectName.svelte';
 	import Table from '$lib/components/table/Table.svelte';
@@ -38,7 +39,7 @@
 </script>
 
 <svelte:head>
-	<title>ZTOCC | {clientName}</title>
+	<title>{productTitle(clientName)}</title>
 </svelte:head>
 
 <Layout

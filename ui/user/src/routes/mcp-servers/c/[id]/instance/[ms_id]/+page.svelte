@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import McpServerEntryForm from '$lib/components/admin/McpServerEntryForm.svelte';
 	import McpDetachedNotice from '$lib/components/mcp/McpDetachedNotice.svelte';
@@ -73,5 +74,5 @@
 </Layout>
 
 <svelte:head>
-	<title>ZTOCC | {catalogEntry?.manifest?.name ?? m.mcps_server_fallback_name()}</title>
+	<title>{productTitle(catalogEntry?.manifest?.name ?? m.mcps_server_fallback_name())}</title>
 </svelte:head>

@@ -21,6 +21,8 @@
 	"platform_branding_default_icon": "Default Icon",
 	"platform_branding_description_placeholder": "Write a description...",
 	"platform_branding_disabled": "disabled",
+	"platform_branding_display_name": "Platform Name",
+	"platform_branding_display_name_description": "Shown in titles and login text. Leave empty to use the default name.",
 	"platform_branding_edit_image_url": "Edit Image URL",
 	"platform_branding_enabled": "enabled",
 	"platform_branding_error": "Error",

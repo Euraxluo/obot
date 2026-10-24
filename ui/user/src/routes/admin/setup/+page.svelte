@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { productTitle } from '$lib/branding.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import LocalAuthConfigure from '$lib/components/admin/LocalAuthConfigure.svelte';
 	import LocalAuthInitialUserForm from '$lib/components/admin/LocalAuthInitialUserForm.svelte';
@@ -136,7 +137,7 @@
 </script>
 
 <svelte:head>
-	<title>ZTOCC | {m.auth_setup_page_title()}</title>
+	<title>{productTitle(m.auth_setup_page_title())}</title>
 </svelte:head>
 
 <div class="flex min-h-dvh flex-col items-center">

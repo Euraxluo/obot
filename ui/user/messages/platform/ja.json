@@ -21,6 +21,8 @@
 	"platform_branding_default_icon": "デフォルトアイコン",
 	"platform_branding_description_placeholder": "説明を入力...",
 	"platform_branding_disabled": "無効",
+	"platform_branding_display_name": "プラットフォーム名",
+	"platform_branding_display_name_description": "タイトルとログインテキストに表示されます。空欄の場合は既定の名前を使用します。",
 	"platform_branding_edit_image_url": "画像 URL を編集",
 	"platform_branding_enabled": "有効",
 	"platform_branding_error": "エラー",

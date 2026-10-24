@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { productTitle } from '$lib/branding.svelte';
 	import TabLayout, { type TabView } from '$lib/components/TabLayout.svelte';
 	import { m } from '$lib/i18n';
 	import { profile } from '$lib/stores';
@@ -16,7 +17,7 @@
 </script>
 
 <svelte:head>
-	<title>{m.audit_usage_usage_page_title()}</title>
+	<title>{productTitle(m.audit_usage_usage_title())}</title>
 </svelte:head>
 
 <TabLayout
