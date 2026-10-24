@@ -110,7 +110,7 @@
 			pathname.startsWith('/mcp-servers') || pathname.startsWith('/vmcps');
 		const forceRefresh =
 			(pathname === '/mcp-servers' || pathname === '/vmcps') &&
-			(!view || ['servers', 'vmcps'].includes(view));
+			(!view || ['connectors', 'servers', 'vmcps'].includes(view));
 		const scope = profile.current.hasAdminAccess?.() ? 'admin' : 'user';
 		// A restricted session is walled off from every one of these endpoints, so prefetching the
 		// catalog only produces a wall of 403s (and races to create the same identity).
@@ -132,7 +132,7 @@
 			pathname === '/mcp-servers' &&
 			(!view || ['servers', 'deployments', 'tunnels'].includes(view));
 		const isValidVmcpsView =
-			pathname === '/vmcps' && (!view || ['deployments', 'vmcps'].includes(view));
+			pathname === '/vmcps' && (!view || ['connectors', 'deployments', 'vmcps'].includes(view));
 		const usesMcpTunnelStatus = isSingleMcpServerView || isValidMcpServersView || isValidVmcpsView;
 
 		if (profile.current.loaded && usesMcpTunnelStatus) {

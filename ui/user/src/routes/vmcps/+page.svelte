@@ -4,6 +4,7 @@
 	import TabLayout, { type TabView } from '$lib/components/TabLayout.svelte';
 	import IconButton from '$lib/components/primitives/IconButton.svelte';
 	import ConnectAllVMcps from '$lib/components/vmcps/ConnectAllVMcps.svelte';
+	import ConnectorsMarketplace from '$lib/components/vmcps/ConnectorsMarketplace.svelte';
 	import CreateEditVMcp from '$lib/components/vmcps/CreateEditVMcp.svelte';
 	import VMcpDeploymentsView from '$lib/components/vmcps/VMcpDeploymentsView.svelte';
 	import VMcpDesigner from '$lib/components/vmcps/VMcpDesigner.svelte';
@@ -35,6 +36,12 @@
 		profile.current.hasAdminAccess?.()
 			? [
 					{
+						label: m.connectors_marketplace_tab(),
+						value: 'connectors',
+						content: connectorsView,
+						tooltip: m.connectors_marketplace_tab_tooltip()
+					},
+					{
 						label: m.vmcps(),
 						value: 'vmcps',
 						content: vmcpsView,
@@ -47,7 +54,15 @@
 						tooltip: m.vmcps_deployments_tab_tooltip()
 					}
 				]
-			: [{ label: m.vmcps(), value: 'vmcps', content: vmcpsView }]
+			: [
+					{
+						label: m.connectors_marketplace_tab(),
+						value: 'connectors',
+						content: connectorsView,
+						tooltip: m.connectors_marketplace_tab_tooltip()
+					},
+					{ label: m.vmcps(), value: 'vmcps', content: vmcpsView }
+				]
 	);
 
 	const options = COMMON_AI_CLIENTS.slice(0, 4);
@@ -219,7 +234,7 @@
 {:else}
 	<TabLayout
 		title={m.vmcps()}
-		defaultView="vmcps"
+		defaultView="connectors"
 		rightNavActions={navActions}
 		{views}
 		classes={{
@@ -254,6 +269,15 @@
 			{m.vmcps_create_vmcp()}
 		</button>
 	{/if}
+{/snippet}
+
+{#snippet connectorsView()}
+	<ConnectorsMarketplace
+		query={page.url.searchParams.get('connectorQuery') ?? ''}
+		onQueryChange={(value) => {
+			setUrlParamAndUpdateUrl(page.url, 'connectorQuery', value || null);
+		}}
+	/>
 {/snippet}
 
 {#snippet vmcpsView()}
