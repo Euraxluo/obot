@@ -72,7 +72,7 @@
 </script>
 
 <div class="flex w-full items-center justify-center">
-	<Logo class="size-18" />
+	<Logo class="size-12" />
 </div>
 <h2 class="mb-6 text-center text-2xl font-semibold">{m.auth_setup_welcome_to_obot()}</h2>
 

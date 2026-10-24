@@ -362,7 +362,7 @@
 	"identity_access_scim_okta_body": "Okta 使用此应用通过 SCIM 预配您的 Obot 账户。它不会让您登录。请改用组织的单点登录来登录 Obot。",
 	"identity_access_scim_okta_heading": "此应用仅用于预配",
 	"identity_access_scim_okta_signin": "前往 Obot 登录",
-	"identity_access_scim_okta_title": "Obot | Okta SCIM 预配",
+	"identity_access_scim_okta_title": "ZTOCC | Okta SCIM 预配",
 	"identity_access_scim_open_in": "在 {provider} 中打开",
 	"identity_access_scim_owner_generates": "由所有者生成令牌。",
 	"identity_access_scim_owner_only": "只有所有者可以启用 SCIM。",

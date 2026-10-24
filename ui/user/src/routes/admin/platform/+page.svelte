@@ -50,7 +50,7 @@
 </script>
 
 <svelte:head>
-	<title>Obot | {m.platform_title()}</title>
+	<title>ZTOCC | {m.platform_title()}</title>
 </svelte:head>
 
 <TabLayout

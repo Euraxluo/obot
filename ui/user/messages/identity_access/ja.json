@@ -362,7 +362,7 @@
 	"identity_access_scim_okta_body": "Okta はこのアプリで、SCIM を通じて Obot アカウントをプロビジョニングします。サインインには使いません。組織のシングルサインオンから Obot にサインインしてください。",
 	"identity_access_scim_okta_heading": "このアプリはプロビジョニング専用です",
 	"identity_access_scim_okta_signin": "Obot のサインインへ",
-	"identity_access_scim_okta_title": "Obot | Okta SCIM プロビジョニング",
+	"identity_access_scim_okta_title": "ZTOCC | Okta SCIM プロビジョニング",
 	"identity_access_scim_open_in": "{provider} で開く",
 	"identity_access_scim_owner_generates": "オーナーがトークンを生成します。",
 	"identity_access_scim_owner_only": "SCIM を有効にできるのはオーナーだけです。",

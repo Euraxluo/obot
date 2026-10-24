@@ -38,7 +38,7 @@
 </script>
 
 <svelte:head>
-	<title>Obot | {clientName}</title>
+	<title>ZTOCC | {clientName}</title>
 </svelte:head>
 
 <Layout

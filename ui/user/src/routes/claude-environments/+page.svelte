@@ -34,7 +34,7 @@
 	}
 </script>
 
-<svelte:head><title>Obot | {layoutTitle}</title></svelte:head>
+<svelte:head><title>ZTOCC | {layoutTitle}</title></svelte:head>
 
 {#if showingForm && environmentId}
 	<Layout title={layoutTitle} showBackButton onBackButtonClick={closeEnvironment}>

@@ -362,7 +362,7 @@
 	"identity_access_scim_okta_body": "Okta uses this app to provision your Obot account through SCIM. It does not sign you in. Sign in to Obot through your organization's single sign-on instead.",
 	"identity_access_scim_okta_heading": "This app is for provisioning only",
 	"identity_access_scim_okta_signin": "Go to Obot sign-in",
-	"identity_access_scim_okta_title": "Obot | Okta SCIM Provisioning",
+	"identity_access_scim_okta_title": "ZTOCC | Okta SCIM Provisioning",
 	"identity_access_scim_open_in": "Open in {provider}",
 	"identity_access_scim_owner_generates": "An Owner generates the token.",
 	"identity_access_scim_owner_only": "Only an owner can enable SCIM.",

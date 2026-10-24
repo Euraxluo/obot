@@ -610,7 +610,7 @@
 	"mcps_oauth_debugger_copy_code_suffix": "」ステップにコピーしてください。",
 	"mcps_oauth_debugger_heading": "OAuth デバッガーの認可",
 	"mcps_oauth_debugger_no_payload": "このページは MCP OAuth デバッガーのリダイレクト後に開かれます。コードもエラーも提供されませんでした。",
-	"mcps_oauth_debugger_page_title": "Obot | OAuth デバッガーの認可",
+	"mcps_oauth_debugger_page_title": "ZTOCC | OAuth デバッガーの認可",
 	"mcps_oauth_debugger_state_label": "State：",
 	"mcps_oauth_dynamic_client_registration": "動的クライアント登録",
 	"mcps_oauth_icon_alt": "アイコン",

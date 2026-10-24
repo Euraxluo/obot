@@ -349,5 +349,5 @@
 />
 
 <svelte:head>
-	<title>Obot | {creating ? m.vmcps_create_vmcp() : m.vmcps()}</title>
+	<title>ZTOCC | {creating ? m.vmcps_create_vmcp() : m.vmcps()}</title>
 </svelte:head>

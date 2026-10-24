@@ -362,7 +362,7 @@
 	"identity_access_scim_okta_body": "Okta는 이 앱으로 SCIM을 통해 Obot 계정을 프로비저닝합니다. 로그인에는 사용되지 않습니다. 조직의 SSO로 Obot에 로그인하세요.",
 	"identity_access_scim_okta_heading": "이 앱은 프로비저닝 전용입니다",
 	"identity_access_scim_okta_signin": "Obot 로그인으로 이동",
-	"identity_access_scim_okta_title": "Obot | Okta SCIM 프로비저닝",
+	"identity_access_scim_okta_title": "ZTOCC | Okta SCIM 프로비저닝",
 	"identity_access_scim_open_in": "{provider}에서 열기",
 	"identity_access_scim_owner_generates": "소유자가 토큰을 생성합니다.",
 	"identity_access_scim_owner_only": "소유자만 SCIM을 사용하도록 설정할 수 있습니다.",

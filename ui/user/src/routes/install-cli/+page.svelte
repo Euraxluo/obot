@@ -51,7 +51,7 @@
 		<section class="paper">
 			<div class="flex flex-col @2xl/cli:flex-row items-center justify-center gap-8">
 				<div class="max-w-md">
-					<Logo class="@2xl/cli:size-16 size-12 mb-1 mx-auto @2xl:mx-0" />
+					<Logo class="@2xl/cli:size-12 size-10 mb-1 mx-auto @2xl:mx-0" />
 					<h2 class="text-2xl font-bold mb-2">{m.install_cli_hero_heading()}</h2>
 					{#if isAdmin}
 						<p class="font-light">

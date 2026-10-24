@@ -311,5 +311,5 @@
 {/snippet}
 
 <svelte:head>
-	<title>Obot | {m.auth_bootstrap_page_title()}</title>
+	<title>ZTOCC | {m.auth_bootstrap_page_title()}</title>
 </svelte:head>

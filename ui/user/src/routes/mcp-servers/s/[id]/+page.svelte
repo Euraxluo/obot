@@ -70,5 +70,5 @@
 </Layout>
 
 <svelte:head>
-	<title>Obot | {title}</title>
+	<title>ZTOCC | {title}</title>
 </svelte:head>

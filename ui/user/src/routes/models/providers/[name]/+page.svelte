@@ -278,7 +278,7 @@
 </script>
 
 <svelte:head>
-	<title>Obot | {providerLabel(name)}</title>
+	<title>ZTOCC | {providerLabel(name)}</title>
 </svelte:head>
 
 <Layout

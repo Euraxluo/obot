@@ -14,7 +14,7 @@
 </script>
 
 <svelte:head>
-	<title>Obot | {title}</title>
+	<title>ZTOCC | {title}</title>
 </svelte:head>
 
 <Layout {title} showBackButton onBackButtonClick={back}>

@@ -306,7 +306,7 @@
 </script>
 
 <svelte:head>
-	<title>Obot | {layoutTitle}</title>
+	<title>ZTOCC | {layoutTitle}</title>
 </svelte:head>
 
 {#if creating}

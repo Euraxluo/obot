@@ -73,5 +73,5 @@
 </Layout>
 
 <svelte:head>
-	<title>Obot | {catalogEntry?.manifest?.name ?? m.mcps_server_fallback_name()}</title>
+	<title>ZTOCC | {catalogEntry?.manifest?.name ?? m.mcps_server_fallback_name()}</title>
 </svelte:head>

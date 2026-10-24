@@ -51,7 +51,7 @@
 </script>
 
 <svelte:head>
-	<title>Obot | {m.auth_password_page_title()}</title>
+	<title>ZTOCC | {m.auth_password_page_title()}</title>
 </svelte:head>
 
 <div

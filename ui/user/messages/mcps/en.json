@@ -610,7 +610,7 @@
 	"mcps_oauth_debugger_copy_code_suffix": "\" step.",
 	"mcps_oauth_debugger_heading": "OAuth Debugger Authorization",
 	"mcps_oauth_debugger_no_payload": "This page is opened after the MCP OAuth debugger redirect. No code or error was provided.",
-	"mcps_oauth_debugger_page_title": "Obot | OAuth Debugger Authorization",
+	"mcps_oauth_debugger_page_title": "ZTOCC | OAuth Debugger Authorization",
 	"mcps_oauth_debugger_state_label": "State:",
 	"mcps_oauth_dynamic_client_registration": "Dynamic Client Registration",
 	"mcps_oauth_icon_alt": "icon",

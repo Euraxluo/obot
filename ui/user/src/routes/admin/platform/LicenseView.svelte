@@ -197,7 +197,7 @@
 							class="flex size-16 shrink-0 items-center justify-center rounded-xl bg-white/10 backdrop-blur-sm"
 						>
 							<img
-								src="/user/images/obot-icon-white.svg"
+								src="/user/images/ztocc/driver-app-logo.png"
 								alt=""
 								width="48"
 								height="48"

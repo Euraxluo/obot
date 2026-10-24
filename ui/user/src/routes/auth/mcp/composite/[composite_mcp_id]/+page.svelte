@@ -88,5 +88,5 @@
 {/if}
 
 <svelte:head>
-	<title>Obot | {m.vmcps_authenticate()}</title>
+	<title>ZTOCC | {m.vmcps_authenticate()}</title>
 </svelte:head>

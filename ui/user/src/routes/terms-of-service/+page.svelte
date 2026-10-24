@@ -103,7 +103,7 @@
 {/snippet}
 
 <svelte:head>
-	<title>Obot - Terms of Service</title>
+	<title>ZTOCC - Terms of Service</title>
 </svelte:head>
 
 <div class="relative flex h-dvh w-full flex-col text-black dark:text-white">
@@ -872,7 +872,7 @@
 		&::before {
 			content: '';
 			position: absolute;
-			background-image: url('/user/images/obot-icon-white.svg');
+			background-image: url('/user/images/ztocc/driver-app-logo.png');
 			width: 10rem;
 			height: 10rem;
 			background-size: 100%;

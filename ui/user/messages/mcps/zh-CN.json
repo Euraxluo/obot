@@ -610,7 +610,7 @@
 	"mcps_oauth_debugger_copy_code_suffix": "”步骤中。",
 	"mcps_oauth_debugger_heading": "OAuth 调试器授权",
 	"mcps_oauth_debugger_no_payload": "此页面在 MCP OAuth 调试器重定向后打开。未提供代码或错误。",
-	"mcps_oauth_debugger_page_title": "Obot | OAuth 调试器授权",
+	"mcps_oauth_debugger_page_title": "ZTOCC | OAuth 调试器授权",
 	"mcps_oauth_debugger_state_label": "State：",
 	"mcps_oauth_dynamic_client_registration": "动态客户端注册",
 	"mcps_oauth_icon_alt": "图标",

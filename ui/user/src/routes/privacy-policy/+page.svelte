@@ -114,7 +114,7 @@
 {/snippet}
 
 <svelte:head>
-	<title>Obot - Privacy Policy</title>
+	<title>ZTOCC - Privacy Policy</title>
 </svelte:head>
 
 <div class="text-base-content relative flex h-dvh w-full flex-col">
@@ -743,7 +743,7 @@
 		&::before {
 			content: '';
 			position: absolute;
-			background-image: url('/user/images/obot-icon-white.svg');
+			background-image: url('/user/images/ztocc/driver-app-logo.png');
 			width: 10rem;
 			height: 10rem;
 			background-size: 100%;

@@ -610,7 +610,7 @@
 	"mcps_oauth_debugger_copy_code_suffix": "\" 단계에 복사하세요.",
 	"mcps_oauth_debugger_heading": "OAuth 디버거 인증",
 	"mcps_oauth_debugger_no_payload": "이 페이지는 MCP OAuth 디버거 리디렉션 후에 열립니다. 코드나 오류가 제공되지 않았습니다.",
-	"mcps_oauth_debugger_page_title": "Obot | OAuth 디버거 인증",
+	"mcps_oauth_debugger_page_title": "ZTOCC | OAuth 디버거 인증",
 	"mcps_oauth_debugger_state_label": "State:",
 	"mcps_oauth_dynamic_client_registration": "동적 클라이언트 등록",
 	"mcps_oauth_icon_alt": "아이콘",

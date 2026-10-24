@@ -66,7 +66,7 @@
 </script>
 
 <svelte:head>
-	<title>Obot | {m.auth_device_page_title()}</title>
+	<title>ZTOCC | {m.auth_device_page_title()}</title>
 </svelte:head>
 
 <div

@@ -318,7 +318,7 @@
 {/snippet}
 
 <svelte:head>
-	<title>Obot | {apiKey?.name || m.identity_access_agents_agent_identity()} | {apiKeyId}</title>
+	<title>ZTOCC | {apiKey?.name || m.identity_access_agents_agent_identity()} | {apiKeyId}</title>
 </svelte:head>
 
 <style lang="postcss">
