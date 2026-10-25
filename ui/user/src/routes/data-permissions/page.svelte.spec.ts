@@ -45,10 +45,10 @@ const adminSettings = {
 const graph = {
 	revision: 12,
 	groups: {
-		'7': {
+		'1': {
 			'2': {
-				'view-data': 'blocked',
-				'create-queries': 'no',
+				'view-data': 'unrestricted',
+				'create-queries': 'query-builder-and-native',
 				download: { native: 'none' }
 			}
 		}
@@ -157,18 +157,33 @@ describe('Data permissions', () => {
 		expect(createKey).toHaveBeenCalledTimes(1);
 	});
 
-	it('collapses tables by default and saves only through the graph PUT with revision', async () => {
+	it('shows unrestricted values, creates a group, and saves the graph with revision', async () => {
+		let groupList = [{ id: 1, name: 'All Users' }];
+		const postGroup = vi.fn(async ({ request }) => {
+			expect(await request.json()).toEqual({ name: 'Warehouse editors' });
+			const group = { id: 8, name: 'Warehouse editors' };
+			groupList = [...groupList, group];
+			return HttpResponse.json(group);
+		});
+		let permissionGraph = structuredClone(graph);
+		const newGroupGraph = structuredClone({
+			...graph,
+			groups: {
+				...graph.groups,
+				'8': graph.groups['1']
+			}
+		});
 		const putGraph = vi.fn(async ({ request }) => {
 			const body = await request.json();
 			expect(body.revision).toBe(12);
-			expect(body.groups['7']['2']['view-data']).toBe('all');
-			expect(body.groups['7']['2'].download).toEqual({ native: 'none' });
+			expect(body.groups['1']['2']['view-data']).toBe('blocked');
+			expect(body.groups['1']['2'].download).toEqual({ native: 'none' });
+			permissionGraph = body;
 			return HttpResponse.json({ ...body, revision: 13 });
 		});
 		worker.use(
-			http.get('http://127.0.0.1:3000/api/permissions/group', () =>
-				HttpResponse.json([{ id: 7, name: 'Analysts' }])
-			),
+			http.get('http://127.0.0.1:3000/api/permissions/group', () => HttpResponse.json(groupList)),
+			http.post('http://127.0.0.1:3000/api/permissions/group', postGroup),
 			http.get('http://127.0.0.1:3000/api/database', () =>
 				HttpResponse.json({
 					data: [
@@ -184,16 +199,42 @@ describe('Data permissions', () => {
 					total: 1
 				})
 			),
-			http.get('http://127.0.0.1:3000/api/permissions/graph', () => HttpResponse.json(graph)),
+			http.get('http://127.0.0.1:3000/api/permissions/graph', () =>
+				HttpResponse.json(groupList.at(-1)?.id === 8 ? newGroupGraph : permissionGraph)
+			),
 			http.put('http://127.0.0.1:3000/api/permissions/graph', putGraph)
 		);
 		await renderPage({ view: 'table-permissions' });
 		await tick();
 
+		const viewData = page.getByRole('combobox', { name: 'Warehouse — View data' });
+		await expect.element(viewData).toHaveValue('unrestricted');
+		await expect
+			.element(page.getByRole('combobox', { name: 'Warehouse — Create queries' }))
+			.toHaveValue('query-builder-and-native');
 		await expect.element(page.getByRole('button', { name: /Warehouse/ })).toBeVisible();
+		await page.getByRole('button', { name: /Warehouse/ }).click();
+		await expect
+			.element(page.getByRole('combobox', { name: 'public.orders — View data' }))
+			.toHaveValue('unrestricted');
+		await expect
+			.element(page.getByRole('combobox', { name: 'public.orders — Create queries' }))
+			.toHaveValue('query-builder-and-native');
+		await page.getByRole('button', { name: /Warehouse/ }).click();
 		await expect.element(page.getByText('public.orders')).not.toBeInTheDocument();
 		await expect.element(page.getByText('public.shipments')).not.toBeInTheDocument();
-		await page.getByRole('combobox', { name: 'Warehouse — View data' }).selectOptions('all');
+		await page
+			.getByRole('textbox', { name: m.data_permissions_new_group() })
+			.fill('Warehouse editors');
+		await page.getByRole('button', { name: m.data_permissions_create_group() }).click();
+		await expect
+			.element(page.getByText(m.data_permissions_group_created({ name: 'Warehouse editors' })))
+			.toBeVisible();
+		await expect
+			.element(page.getByRole('combobox', { name: m.data_permissions_group() }))
+			.toHaveValue('8');
+		await page.getByRole('combobox', { name: m.data_permissions_group() }).selectOptions('1');
+		await page.getByRole('combobox', { name: 'Warehouse — View data' }).selectOptions('blocked');
 		await page.getByRole('button', { name: m.core_save() }).click();
 		await expect.element(page.getByText(m.data_permissions_permissions_saved())).toBeVisible();
 		await expect

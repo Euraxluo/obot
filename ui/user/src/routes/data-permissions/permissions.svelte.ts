@@ -1,9 +1,4 @@
-import type {
-	PermissionDatabaseGraph,
-	PermissionGraph,
-	PermissionValue,
-	TablePermissionValue
-} from './metabase';
+import type { PermissionDatabaseGraph, PermissionGraph, PermissionValue } from './metabase';
 
 export interface PermissionRow {
 	id: string;
@@ -11,31 +6,49 @@ export interface PermissionRow {
 	scope: 'database' | 'table';
 	databaseId: number;
 	tableId?: number;
+	tableSchema?: string;
 	viewData: PermissionValue;
 	createQueries: PermissionValue;
 }
 
 function enumValue(value: unknown, fallback: PermissionValue): PermissionValue {
-	return typeof value === 'string' ? (value as PermissionValue) : fallback;
+	if (value === 'all') return 'unrestricted';
+	if (
+		value === 'unrestricted' ||
+		value === 'blocked' ||
+		value === 'no' ||
+		value === 'query-builder' ||
+		value === 'query-builder-and-native'
+	) {
+		return value;
+	}
+	return fallback;
 }
 
-function tablePermission(value: unknown): TablePermissionValue {
+function tablePermission(value: unknown, field: 'view-data' | 'create-queries'): PermissionValue {
+	const fallback: PermissionValue = field === 'view-data' ? 'blocked' : 'no';
 	if (typeof value === 'string') {
-		return value === 'all' || value === 'blocked'
-			? value
-			: value === 'none' || value === 'no'
-				? 'none'
-				: 'none';
+		return enumValue(value, fallback);
 	}
 	if (value && typeof value === 'object') {
-		const record = value as { read?: unknown; query?: unknown };
-		if (record.read === 'all' || record.query === 'all') return 'all';
+		const record = value as {
+			read?: unknown;
+			query?: unknown;
+			'create-queries'?: unknown;
+		};
+		const nested = field === 'view-data' ? record.read : (record.query ?? record['create-queries']);
+		if (typeof nested === 'string') return enumValue(nested, fallback);
+		if (field === 'view-data' && nested === 'all') return 'unrestricted';
 	}
-	return 'none';
+	return fallback;
 }
 
-export function tableGraphValue(value: TablePermissionValue): Record<string, string> {
-	return value === 'all' ? { read: 'all' } : { read: 'none' };
+export function tableGraphValue(
+	value: PermissionValue,
+	field: 'view-data' | 'create-queries'
+): Record<string, string> {
+	if (field === 'create-queries') return { query: value };
+	return value === 'unrestricted' ? { read: 'all' } : { read: 'none' };
 }
 
 export function permissionRows(
@@ -62,7 +75,7 @@ export function permissionRows(
 		for (const table of database.tables ?? []) {
 			const viewData = databaseGraph['view-data'];
 			const createQueries = databaseGraph['create-queries'];
-			const schemaGraph =
+			const viewDataGraph =
 				typeof viewData === 'object' && viewData !== null
 					? ((viewData as Record<string, unknown>)[table.schema ?? ''] as
 							| Record<string, unknown>
@@ -80,12 +93,15 @@ export function permissionRows(
 				scope: 'table',
 				databaseId: database.id,
 				tableId: table.id,
-				viewData: schemaGraph
-					? tablePermission(schemaGraph[String(table.id)])
-					: enumValue(databaseGraph['view-data'], 'blocked'),
-				createQueries: schemaGraph
-					? tablePermission(schemaGraph[String(table.id)])
-					: enumValue(databaseGraph['create-queries'], 'no')
+				tableSchema: table.schema,
+				viewData:
+					viewDataGraph && String(table.id) in viewDataGraph
+						? tablePermission(viewDataGraph[String(table.id)], 'view-data')
+						: enumValue(databaseGraph['view-data'], 'blocked'),
+				createQueries:
+					queryGraph && String(table.id) in queryGraph
+						? tablePermission(queryGraph[String(table.id)], 'create-queries')
+						: enumValue(databaseGraph['create-queries'], 'no')
 			});
 		}
 	}
@@ -111,10 +127,9 @@ export function applyPermission(
 		const current = databaseGraph[field];
 		const schemas =
 			current && typeof current === 'object' ? { ...(current as Record<string, unknown>) } : {};
-		const schemaName = row.label.split('.')[0] || '';
+		const schemaName = row.tableSchema ?? row.label.split('.')[0] ?? '';
 		const tableMap = { ...(schemas[schemaName] as Record<string, unknown> | undefined) };
-		tableMap[String(row.tableId)] =
-			field === 'view-data' ? tableGraphValue(value === 'all' ? 'all' : 'none') : value;
+		tableMap[String(row.tableId)] = tableGraphValue(value, field);
 		schemas[schemaName] = tableMap;
 		databaseGraph[field] = schemas;
 	}

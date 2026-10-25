@@ -3,6 +3,7 @@
 	import Loading from '$lib/icons/Loading.svelte';
 	import PermissionRowView from './PermissionRowView.svelte';
 	import {
+		createGroup,
 		getPermissionGraph,
 		listDatabases,
 		listGroups,
@@ -19,7 +20,7 @@
 		permissionRows,
 		type PermissionRow
 	} from './permissions.svelte';
-	import { RefreshCcw, Save } from '@lucide/svelte';
+	import { RefreshCcw, Save, UserPlus } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -34,6 +35,8 @@
 	let selectedGroupId = $state('');
 	let loading = $state(false);
 	let saving = $state(false);
+	let creatingGroup = $state(false);
+	let newGroupName = $state('');
 	let error = $state('');
 	let notice = $state('');
 	let expanded = $state<Set<number>>(new Set());
@@ -116,6 +119,26 @@
 	function groupedRows(databaseId: number): PermissionRow[] {
 		return rows.filter((row) => row.databaseId === databaseId);
 	}
+
+	async function handleCreateGroup() {
+		const name = newGroupName.trim();
+		if (!name || creatingGroup) return;
+		creatingGroup = true;
+		error = '';
+		notice = '';
+		try {
+			const group = await createGroup(settings, name);
+			const nextGroups = await listGroups(settings);
+			groups = nextGroups;
+			selectedGroupId = String(group.id);
+			newGroupName = '';
+			notice = m.data_permissions_group_created({ name: group.name });
+		} catch (err) {
+			error = formatError(err);
+		} finally {
+			creatingGroup = false;
+		}
+	}
 </script>
 
 <div class="flex flex-col gap-4">
@@ -126,10 +149,14 @@
 		<select
 			id="metabase-permission-group"
 			class="select select-bordered w-64"
-			bind:value={selectedGroupId}
+			value={selectedGroupId}
+			onchange={(event) => {
+				selectedGroupId = (event.target as HTMLSelectElement).value;
+				notice = '';
+			}}
 		>
 			{#each groups as group (group.id)}
-				<option value={group.id}>{group.name}</option>
+				<option value={String(group.id)}>{group.name}</option>
 			{/each}
 		</select>
 		<button class="btn btn-secondary" type="button" disabled={loading} onclick={load}>
@@ -139,6 +166,29 @@
 		<button class="btn btn-primary" type="button" disabled={!hasChanges || saving} onclick={save}>
 			{#if saving}<Loading class="size-4" />{:else}<Save class="size-4" />{/if}
 			{m.core_save()}
+		</button>
+	</div>
+	<div class="flex flex-col gap-2 md:flex-row md:items-center">
+		<label class="text-sm font-light" for="metabase-new-group-name"
+			>{m.data_permissions_new_group()}</label
+		>
+		<input
+			id="metabase-new-group-name"
+			class="input input-bordered w-64"
+			type="text"
+			bind:value={newGroupName}
+			onkeydown={(event) => {
+				if (event.key === 'Enter') void handleCreateGroup();
+			}}
+		/>
+		<button
+			class="btn btn-secondary"
+			type="button"
+			disabled={!newGroupName.trim() || creatingGroup}
+			onclick={handleCreateGroup}
+		>
+			{#if creatingGroup}<Loading class="size-4" />{:else}<UserPlus class="size-4" />{/if}
+			{m.data_permissions_create_group()}
 		</button>
 	</div>
 	{#if error}<p class="notification-error" role="alert">{error}</p>{/if}

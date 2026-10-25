@@ -32,7 +32,7 @@ export interface MetabaseDatabase {
 }
 
 export type PermissionValue =
-	| 'all'
+	| 'unrestricted'
 	| 'blocked'
 	| 'none'
 	| 'no'

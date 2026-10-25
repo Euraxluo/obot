@@ -33,7 +33,7 @@
 			value={row.viewData}
 			onchange={(event) => onchange('view-data', (event.target as HTMLSelectElement).value)}
 		>
-			<option value="all">{m.data_permissions_view_all()}</option>
+			<option value="unrestricted">{m.data_permissions_view_all()}</option>
 			<option value="blocked">{m.data_permissions_view_blocked()}</option>
 		</select>
 	</td>
