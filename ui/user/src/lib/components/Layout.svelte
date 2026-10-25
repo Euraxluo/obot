@@ -256,6 +256,15 @@
 					label: m.nav_skills(),
 					href: '/skills'
 				},
+				...(profile.current.hasAdminAccess?.()
+					? [
+							{
+								id: 'data-permissions',
+								label: m.nav_data_permissions(),
+								href: '/data-permissions'
+							}
+						]
+					: []),
 				{
 					id: 'models',
 					label: m.nav_llm_gateway(),

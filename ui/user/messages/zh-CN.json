@@ -81,6 +81,7 @@
 	"nav_operations": "运维",
 	"nav_platform": "平台",
 	"nav_skills": "技能",
+	"nav_data_permissions": "数据的查询和权限控制",
 	"nav_usage": "用量",
 	"nav_vmcps": "vMCP",
 	"notifications_error_copied": "错误信息已复制到剪贴板。",
