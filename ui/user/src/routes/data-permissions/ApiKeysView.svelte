@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 	import Confirm from '$lib/components/Confirm.svelte';
 	import { m } from '$lib/i18n';
 	import Loading from '$lib/icons/Loading.svelte';
@@ -10,17 +10,18 @@
 		ensureServiceGroup,
 		listApiKeys,
 		revokeApiKey,
+		SERVICE_GROUP_NAME,
 		type MetabaseApiKey,
 		type MetabaseSettings
 	} from './metabase';
-	import { KeyRound, Link2, Plus, RefreshCcw } from '@lucide/svelte';
+	import { KeyRound, Plus, RefreshCcw } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 
 	interface Props {
 		settings: MetabaseSettings;
 	}
 
-	let { settings }: Props = $props();
+	let { settings } = $props();
 	let keys = $state<MetabaseApiKey[]>([]);
 	let loading = $state(false);
 	let creating = $state(false);
@@ -155,9 +156,13 @@
 			{m.data_permissions_refresh()}
 		</button>
 	</div>
+	<p class="text-xs font-light">
+		{m.data_permissions_service_group_note({ name: SERVICE_GROUP_NAME })}
+	</p>
 	{#if error}<p class="notification-error" role="alert">{error}</p>{/if}
 	{#if createdKey}
 		<div class="notification-info flex flex-col gap-2 p-3 text-sm">
+			<p class="font-medium">{m.data_permissions_created_once()}</p>
 			<div class="flex flex-wrap items-center gap-2">
 				<code class="flex-1 wrap-break-word">{createdKey}</code>
 				<button class="btn btn-xs" type="button" onclick={copyCreatedKey}>
@@ -171,7 +176,7 @@
 						data-testid="metabase-add-key-to-env"
 						onclick={addToEnvironment}
 					>
-						{#if addingToEnv}<Loading class="size-4" />{:else}<Link2 class="size-4" />{/if}
+						{#if addingToEnv}<Loading class="size-4" />{/if}
 						{m.data_permissions_add_to_env()}
 					</button>
 				{/if}
@@ -183,7 +188,11 @@
 			{#if addedMcp}
 				<div class="flex flex-wrap items-center gap-2 text-xs" data-testid="metabase-key-mcp-added">
 					<span class="font-medium">{addedMcp.displayName}</span>
+					<span>{m.data_permissions_add_to_env_done()}</span>
 					<a class="link" href={resolve('/vmcps')}>{m.data_permissions_open_vmcps()}</a>
+					{#if !addedMcp.environmentAttached}
+						<span class="opacity-70">{m.data_permissions_env_attach_skipped()}</span>
+					{/if}
 					{#if addedMcp.launchError}
 						<span class="text-warning">{addedMcp.launchError}</span>
 					{/if}

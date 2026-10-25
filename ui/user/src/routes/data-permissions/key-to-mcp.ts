@@ -31,7 +31,7 @@ export function tablePermissionsViewURL(groupId?: number): string {
 export function buildMetabaseMcpDescription(keyName: string, groupId?: number): string {
 	const keyLink = `[${m.data_permissions_mcp_view_key_link()}](${apiKeysViewURL(keyName)})`;
 	const groupLink = `[${m.data_permissions_mcp_view_group_link()}](${tablePermissionsViewURL(groupId)})`;
-	return `${keyLink} · ${groupLink}`;
+	return `${m.data_permissions_mcp_description_prefix({ name: keyName })} ${keyLink} · ${groupLink}`;
 }
 
 // The Metabase MCP runs inside Obot's container runtime, so a browser-local
