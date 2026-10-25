@@ -43,5 +43,14 @@
 	"data_permissions_create_no": "不可",
 	"data_permissions_revision": "現在のグラフリビジョン: {revision}",
 	"data_permissions_changed": "変更あり",
-	"data_permissions_permissions_saved": "権限を保存しました。"
+	"data_permissions_permissions_saved": "権限を保存しました。",
+	"data_permissions_add_to_env": "環境に追加",
+	"data_permissions_add_to_env_done": "環境に追加しました。",
+	"data_permissions_add_to_env_failed": "環境に追加できませんでした: {error}",
+	"data_permissions_open_vmcps": "MCP サーバーを開く",
+	"data_permissions_env_attach_skipped": "Claude 環境には接続されていません。",
+	"data_permissions_mcp_entry_missing": "Metabase MCP カタログエントリが見つかりません。先に MCP カタログに追加してください。",
+	"data_permissions_mcp_description_prefix": "キー {name} 用の MCP 接続です。",
+	"data_permissions_mcp_view_key_link": "この MCP のキーを表示",
+	"data_permissions_mcp_view_group_link": "グループ権限を表示"
 }

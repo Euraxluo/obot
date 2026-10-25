@@ -43,5 +43,14 @@
 	"data_permissions_create_no": "불가",
 	"data_permissions_revision": "현재 그래프 리비전: {revision}",
 	"data_permissions_changed": "변경됨",
-	"data_permissions_permissions_saved": "권한을 저장했습니다."
+	"data_permissions_permissions_saved": "권한을 저장했습니다.",
+	"data_permissions_add_to_env": "환경에 추가",
+	"data_permissions_add_to_env_done": "환경에 추가했습니다.",
+	"data_permissions_add_to_env_failed": "환경에 추가하지 못했습니다: {error}",
+	"data_permissions_open_vmcps": "MCP 서버 열기",
+	"data_permissions_env_attach_skipped": "연결된 Claude 환경이 없습니다.",
+	"data_permissions_mcp_entry_missing": "Metabase MCP 카탈로그 항목을 찾을 수 없습니다. 먼저 MCP 카탈로그에 추가하세요.",
+	"data_permissions_mcp_description_prefix": "키 {name}용 MCP 연결입니다.",
+	"data_permissions_mcp_view_key_link": "이 MCP의 키 보기",
+	"data_permissions_mcp_view_group_link": "그룹 권한 보기"
 }

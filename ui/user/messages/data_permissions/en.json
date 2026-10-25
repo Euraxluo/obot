@@ -43,5 +43,14 @@
 	"data_permissions_create_no": "No",
 	"data_permissions_revision": "Current graph revision: {revision}",
 	"data_permissions_changed": "Changed",
-	"data_permissions_permissions_saved": "Permissions saved."
+	"data_permissions_permissions_saved": "Permissions saved.",
+	"data_permissions_add_to_env": "Add to Environment",
+	"data_permissions_add_to_env_done": "Added to environment.",
+	"data_permissions_add_to_env_failed": "Could not add to environment: {error}",
+	"data_permissions_open_vmcps": "Open MCP Servers",
+	"data_permissions_env_attach_skipped": "No Claude environment attached.",
+	"data_permissions_mcp_entry_missing": "The Metabase MCP catalog entry was not found. Add it to the MCP catalog first.",
+	"data_permissions_mcp_description_prefix": "MCP connection for key {name}.",
+	"data_permissions_mcp_view_key_link": "View this MCP's key",
+	"data_permissions_mcp_view_group_link": "View group permissions"
 }

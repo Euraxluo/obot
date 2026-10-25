@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { page } from '$app/state';
 	import { m } from '$lib/i18n';
 	import Loading from '$lib/icons/Loading.svelte';
 	import PermissionRowView from './PermissionRowView.svelte';
@@ -72,7 +73,12 @@
 			[groups, databases] = await Promise.all([listGroups(settings), listDatabases(settings)]);
 			originalGraph = await getPermissionGraph(settings);
 			graph = structuredClone($state.snapshot(originalGraph));
-			if (!selectedGroupId && groups.length > 0) selectedGroupId = String(groups[0].id);
+			const requestedGroupId = page.url.searchParams.get('group');
+			if (requestedGroupId && groups.some((group) => String(group.id) === requestedGroupId)) {
+				selectedGroupId = requestedGroupId;
+			} else if (!selectedGroupId && groups.length > 0) {
+				selectedGroupId = String(groups[0].id);
+			}
 			expanded = new Set();
 		} catch (err) {
 			error = formatError(err);

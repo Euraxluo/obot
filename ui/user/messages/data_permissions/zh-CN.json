@@ -43,5 +43,14 @@
 	"data_permissions_create_no": "不可创建",
 	"data_permissions_revision": "当前权限图版本：{revision}",
 	"data_permissions_changed": "已变更",
-	"data_permissions_permissions_saved": "权限已保存。"
+	"data_permissions_permissions_saved": "权限已保存。",
+	"data_permissions_add_to_env": "一键添加到环境",
+	"data_permissions_add_to_env_done": "已添加到环境。",
+	"data_permissions_add_to_env_failed": "添加到环境失败：{error}",
+	"data_permissions_open_vmcps": "打开 MCP 服务器",
+	"data_permissions_env_attach_skipped": "未附加 Claude 环境。",
+	"data_permissions_mcp_entry_missing": "未找到 Metabase MCP 目录项，请先将其添加到 MCP 目录。",
+	"data_permissions_mcp_description_prefix": "{name} key 对应的 MCP 链接。",
+	"data_permissions_mcp_view_key_link": "查看该 MCP 的 Key",
+	"data_permissions_mcp_view_group_link": "查看分组权限"
 }

@@ -1,7 +1,10 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { resolve } from '$app/paths';
 	import Confirm from '$lib/components/Confirm.svelte';
 	import { m } from '$lib/i18n';
 	import Loading from '$lib/icons/Loading.svelte';
+	import { createMetabaseMcpForKey, type MetabaseMcpCreationResult } from './key-to-mcp';
 	import {
 		createApiKey,
 		ensureServiceGroup,
@@ -11,7 +14,7 @@
 		type MetabaseApiKey,
 		type MetabaseSettings
 	} from './metabase';
-	import { KeyRound, Plus, RefreshCcw } from '@lucide/svelte';
+	import { KeyRound, Link2, Plus, RefreshCcw } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 
 	interface Props {
@@ -26,8 +29,15 @@
 	let revoking = $state(false);
 	let newKeyName = $state('');
 	let createdKey = $state('');
+	let createdKeyName = $state('');
+	let createdGroupId = $state<number>();
 	let copied = $state(false);
 	let error = $state('');
+	let addingToEnv = $state(false);
+	let addedMcp = $state<MetabaseMcpCreationResult>();
+	let addError = $state('');
+
+	let highlightedKeyName = $derived(page.url.searchParams.get('keyName'));
 
 	async function load() {
 		if (!settings.baseUrl || !settings.adminApiKey) {
@@ -57,10 +67,14 @@
 		creating = true;
 		error = '';
 		copied = false;
+		addedMcp = undefined;
+		addError = '';
 		try {
 			const group = await ensureServiceGroup(settings);
 			const key = await createApiKey(settings, newKeyName.trim(), group.id);
 			createdKey = key.unmasked_key ?? '';
+			createdKeyName = key.name;
+			createdGroupId = group.id;
 			newKeyName = '';
 			await load();
 		} catch (err) {
@@ -87,6 +101,32 @@
 	async function copyCreatedKey() {
 		await navigator.clipboard.writeText(createdKey);
 		copied = true;
+	}
+
+	async function addToEnvironment() {
+		if (!createdKey || !createdKeyName || addingToEnv) return;
+		addingToEnv = true;
+		addError = '';
+		try {
+			addedMcp = await createMetabaseMcpForKey({
+				keyName: createdKeyName,
+				apiKey: createdKey,
+				metabaseUrl: settings.baseUrl,
+				groupId: createdGroupId
+			});
+		} catch (err) {
+			addError = formatError(err);
+		} finally {
+			addingToEnv = false;
+		}
+	}
+
+	function dismissCreatedKey() {
+		createdKey = '';
+		createdKeyName = '';
+		createdGroupId = undefined;
+		addedMcp = undefined;
+		addError = '';
 	}
 
 	onMount(() => {
@@ -123,15 +163,41 @@
 	{#if createdKey}
 		<div class="notification-info flex flex-col gap-2 p-3 text-sm">
 			<p class="font-medium">{m.data_permissions_created_once()}</p>
-			<div class="flex items-center gap-2">
+			<div class="flex flex-wrap items-center gap-2">
 				<code class="flex-1 wrap-break-word">{createdKey}</code>
 				<button class="btn btn-xs" type="button" onclick={copyCreatedKey}>
 					{copied ? m.data_permissions_copied() : m.data_permissions_copy()}
 				</button>
-				<button class="btn btn-xs btn-secondary" type="button" onclick={() => (createdKey = '')}>
+				{#if !addedMcp}
+					<button
+						class="btn btn-xs btn-primary"
+						type="button"
+						disabled={addingToEnv}
+						data-testid="metabase-add-key-to-env"
+						onclick={addToEnvironment}
+					>
+						{#if addingToEnv}<Loading class="size-4" />{:else}<Link2 class="size-4" />{/if}
+						{m.data_permissions_add_to_env()}
+					</button>
+				{/if}
+				<button class="btn btn-xs btn-secondary" type="button" onclick={dismissCreatedKey}>
 					{m.data_permissions_dismiss()}
 				</button>
 			</div>
+			{#if addError}<p class="text-error" role="alert">{addError}</p>{/if}
+			{#if addedMcp}
+				<div class="flex flex-wrap items-center gap-2 text-xs" data-testid="metabase-key-mcp-added">
+					<span class="font-medium">{addedMcp.displayName}</span>
+					<span>{m.data_permissions_add_to_env_done()}</span>
+					<a class="link" href={resolve('/vmcps')}>{m.data_permissions_open_vmcps()}</a>
+					{#if !addedMcp.environmentAttached}
+						<span class="opacity-70">{m.data_permissions_env_attach_skipped()}</span>
+					{/if}
+					{#if addedMcp.launchError}
+						<span class="text-warning">{addedMcp.launchError}</span>
+					{/if}
+				</div>
+			{/if}
 		</div>
 	{/if}
 	<div class="overflow-x-auto">
@@ -149,7 +215,7 @@
 					<tr><td colspan="4"><Loading class="mx-auto size-5" /></td></tr>
 				{:else}
 					{#each keys as key (key.id)}
-						<tr>
+						<tr class={highlightedKeyName === key.name ? 'bg-primary/10' : ''}>
 							<td><KeyRound class="mr-2 inline size-4" />{key.name}</td>
 							<td>{key.masked_key ?? '—'}</td>
 							<td>{key.group?.name ?? '—'}</td>
