@@ -41,8 +41,10 @@ export default defineConfig(({ mode }) => {
 			paraglideVitePlugin({
 				project: './project.inlang',
 				outdir: './src/lib/paraglide',
-				// Keep in sync with the `i18n:compile` script in package.json
-				strategy: ['localStorage', 'preferredLanguage', 'baseLocale']
+				// Keep in sync with the `i18n:compile` script in package.json.
+				// baseLocale is the fallback (not preferredLanguage) so first visits land on
+				// zh-CN; an explicit LanguageSelect choice persists via localStorage.
+				strategy: ['localStorage', 'baseLocale']
 			}),
 			tailwindcss(),
 			sveltekit()

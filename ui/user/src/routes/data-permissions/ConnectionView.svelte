@@ -4,7 +4,6 @@
 	import Loading from '$lib/icons/Loading.svelte';
 	import {
 		DEFAULT_METABASE_URL,
-		loadSettings,
 		saveSettings,
 		testConnection,
 		type MetabaseSettings
@@ -91,5 +90,4 @@
 			{m.data_permissions_test_connection()}
 		</button>
 	</div>
-	<p class="text-xs font-light">{m.data_permissions_browser_storage_risk()}</p>
 </div>

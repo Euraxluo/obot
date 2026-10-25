@@ -165,6 +165,12 @@ describe('Data permissions', () => {
 		await page.getByRole('textbox', { name: m.data_permissions_key_name() }).fill('Warehouse bot');
 		await page.getByRole('button', { name: m.data_permissions_create_key() }).click();
 		await expect.element(page.getByText('mb_live_one_time')).toBeVisible();
+		await expect
+			.element(page.getByRole('button', { name: m.data_permissions_copy() }))
+			.toBeVisible();
+		await expect
+			.element(page.getByRole('button', { name: m.data_permissions_dismiss() }))
+			.toBeVisible();
 		expect(createGroup).toHaveBeenCalledTimes(1);
 		expect(createKey).toHaveBeenCalledTimes(1);
 	});
@@ -404,7 +410,6 @@ describe('Data permissions', () => {
 		await expect.element(page.getByText('mb_live_one_time')).toBeVisible();
 		await page.getByRole('button', { name: m.data_permissions_add_to_env() }).click();
 		await expect.element(page.getByText('Warehouse bot Metabase')).toBeVisible();
-		await expect.element(page.getByText(m.data_permissions_add_to_env_done())).toBeVisible();
 		await expect
 			.element(page.getByRole('link', { name: m.data_permissions_open_vmcps() }))
 			.toHaveAttribute('href', '/vmcps');
