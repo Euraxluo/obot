@@ -38,7 +38,12 @@ export function getMCPDisplayName(
 	item?: MCPCatalogServer | MCPCatalogEntry,
 	fallback: string = ''
 ): string {
-	return (item && 'alias' in item && item?.alias) || item?.manifest.name || fallback;
+	return (
+		(item && 'alias' in item && item.alias) ||
+		item?.manifest.metadata?.displayNameZh?.trim() ||
+		item?.manifest.name ||
+		fallback
+	);
 }
 
 export function supportsMCPBackendDetails(item?: { manifest?: { runtime?: string } }): boolean {
@@ -384,7 +389,7 @@ export function convertEntriesToTableData(
 			const isDeployed = isMultiUserEntry && deployedMultiUserCatalogEntryIDs.has(entry.id);
 			return {
 				id: entry.id,
-				name: entry.manifest?.name ?? '',
+				name: getMCPDisplayName(entry),
 				icon: entry.manifest?.icon,
 				data: entry,
 				users: isMultiUserEntry

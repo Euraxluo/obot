@@ -7,6 +7,7 @@ import type {
 	RuntimeFormData,
 	SystemMCPServerCatalogEntryManifest
 } from '$lib/services';
+import { createMCPCatalogEntry, createMCPCatalogServer } from '../../../tests/helpers/mcp';
 import {
 	convertServerRuntimeFormDataToManifest,
 	getManifestConfiguration,
@@ -14,10 +15,16 @@ import {
 	manifestHasSecretBindings,
 	hasMissingSecretBindingConfig,
 	getMcpValueLabel,
+	getMCPDisplayName,
+	convertEntriesToTableData,
 	mcpTableDisplayValue,
 	validateRuntimeForm
 } from './mcp';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
+
+beforeEach(() => {
+	overwriteGetLocale(() => 'en');
+});
 
 function runtimeForm(options: MCPConfigurationOption[]): RuntimeFormData {
 	return {
@@ -318,5 +325,45 @@ describe('MCP table value labels', () => {
 		} finally {
 			overwriteGetLocale(restoreLocale);
 		}
+	});
+});
+
+describe('MCP catalog display names', () => {
+	it('prefers aliases, then Chinese display names, then catalog names', () => {
+		const entry = createMCPCatalogEntry({
+			id: 'entry-credit',
+			name: 'Zenicredit',
+			manifest: { metadata: { displayNameZh: ' 水滴征信 ' } }
+		});
+		expect(getMCPDisplayName(entry)).toBe('水滴征信');
+
+		const server = createMCPCatalogServer({
+			id: 'server-credit',
+			name: 'Zenicredit',
+			userID: 'user-1',
+			alias: 'Custom name',
+			manifest: { metadata: { displayNameZh: '水滴征信' } }
+		});
+		expect(getMCPDisplayName(server)).toBe('Custom name');
+
+		const blank = createMCPCatalogEntry({
+			id: 'entry-blank',
+			name: 'Zenicredit',
+			manifest: { metadata: { displayNameZh: '   ' } }
+		});
+		expect(getMCPDisplayName(blank)).toBe('Zenicredit');
+		expect(getMCPDisplayName(undefined, 'Fallback')).toBe('Fallback');
+	});
+
+	it('uses Chinese display names for MCP Servers table rows', () => {
+		const entry = createMCPCatalogEntry({
+			id: 'entry-credit',
+			name: 'Zenicredit',
+			manifest: { metadata: { displayNameZh: '水滴征信' } }
+		});
+
+		expect(convertEntriesToTableData([entry])).toMatchObject([
+			{ id: 'entry-credit', name: '水滴征信', data: entry }
+		]);
 	});
 });

@@ -919,6 +919,7 @@ export interface MCPServer {
 	metadata?: {
 		categories?: string;
 		deprecated?: string;
+		displayNameZh?: string;
 	};
 
 	runtime: Runtime;
