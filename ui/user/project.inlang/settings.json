@@ -18,6 +18,7 @@
 			"./messages/identity_access/{locale}.json",
 			"./messages/install_cli/{locale}.json",
 			"./messages/inventory_enforcement/{locale}.json",
+			"./messages/market/{locale}.json",
 			"./messages/mcps/{locale}.json",
 			"./messages/models/{locale}.json",
 			"./messages/platform/{locale}.json",

@@ -69,7 +69,8 @@ import {
 	type VMCPInstance,
 	type VMCPManifest,
 	type VMCPConfiguration,
-	type Skill
+	type Skill,
+	type ConnectorAccessRequest
 } from './types';
 
 type ItemsResponse<T> = { items: T[] | null };
@@ -1530,6 +1531,63 @@ export async function downloadSkill(
 		...opts,
 		blob: true
 	})) as Blob;
+}
+
+// Connector access requests
+
+export async function listConnectorAccessRequests(opts?: {
+	fetch?: Fetcher;
+	mine?: boolean;
+	status?: string;
+}): Promise<ConnectorAccessRequest[]> {
+	const params = new URLSearchParams();
+	if (opts?.mine) params.set('mine', 'true');
+	if (opts?.status) params.set('status', opts.status);
+	const suffix = params.size > 0 ? `?${params.toString()}` : '';
+	const response = (await doGet(
+		`/connector-access-requests${suffix}`,
+		opts
+	)) as ItemsResponse<ConnectorAccessRequest>;
+	return response.items ?? [];
+}
+
+export async function createConnectorAccessRequest(
+	connectorID: string,
+	reason?: string,
+	opts?: { fetch?: Fetcher }
+): Promise<ConnectorAccessRequest> {
+	return (await doPost(
+		'/connector-access-requests',
+		{
+			connectorID,
+			reason: reason || ''
+		},
+		opts
+	)) as ConnectorAccessRequest;
+}
+
+export async function approveConnectorAccessRequest(
+	id: string,
+	comment?: string,
+	opts?: { fetch?: Fetcher }
+): Promise<ConnectorAccessRequest> {
+	return (await doPost(
+		`/connector-access-requests/${encodeURIComponent(id)}/approve`,
+		{ comment: comment || '' },
+		opts
+	)) as ConnectorAccessRequest;
+}
+
+export async function rejectConnectorAccessRequest(
+	id: string,
+	comment?: string,
+	opts?: { fetch?: Fetcher }
+): Promise<ConnectorAccessRequest> {
+	return (await doPost(
+		`/connector-access-requests/${encodeURIComponent(id)}/reject`,
+		{ comment: comment || '' },
+		opts
+	)) as ConnectorAccessRequest;
 }
 
 // Claude

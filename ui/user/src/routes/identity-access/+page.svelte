@@ -8,6 +8,7 @@
 	import { profile } from '$lib/stores';
 	import AgentsView from './AgentsView.svelte';
 	import AuthProvidersView from './AuthProvidersView.svelte';
+	import ConnectorApprovalsView from './ConnectorApprovalsView.svelte';
 	import GroupsView from './GroupsView.svelte';
 	import RolesView from './RolesView.svelte';
 	import ScimView from './ScimView.svelte';
@@ -46,6 +47,11 @@
 				{ label: m.identity_access_agents_tab(), value: 'agents', content: agents },
 				{ label: m.identity_access_groups_tab(), value: 'groups', content: groups },
 				{ label: m.identity_access_roles_tab(), value: 'roles', content: roles },
+				{
+					label: m.identity_access_connector_approvals(),
+					value: 'connector-approvals',
+					content: connectorApprovals
+				},
 				{
 					label: m.identity_access_auth_providers_tab(),
 					value: 'auth-providers',
@@ -89,6 +95,10 @@
 
 {#snippet roles()}
 	<RolesView defaultUsersRole={data.defaultUsersRole} />
+{/snippet}
+
+{#snippet connectorApprovals()}
+	<ConnectorApprovalsView />
 {/snippet}
 
 {#snippet authProviders()}

@@ -147,6 +147,8 @@ var (
 		"/api/skill-repositories/",
 		"/api/skill-access-rules",
 		"/api/skill-access-rules/",
+		"/api/connector-access-requests",
+		"/api/connector-access-requests/",
 		"GET /api/eula",
 		"PUT /api/eula",
 		"/api/product-telemetry-consent",
@@ -374,6 +376,12 @@ var (
 			"GET /oauth/userinfo",
 			"GET /api/me",
 			"POST /api/local-auth/change-password",
+
+			// Connector access requests: users file requests for marketplace
+			// connectors and track their own progress (scoping in handler).
+			"GET /api/connector-access-requests",
+			"GET /api/connector-access-requests/{connector_access_request_id}",
+			"POST /api/connector-access-requests",
 		},
 
 		types.GroupSkills: {

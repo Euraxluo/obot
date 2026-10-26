@@ -920,6 +920,8 @@ export interface MCPServer {
 		categories?: string;
 		deprecated?: string;
 		displayNameZh?: string;
+		/** Pipe- or newline-separated example prompts, shown as 试试这样用. */
+		usageExamples?: string;
 	};
 
 	runtime: Runtime;
@@ -1222,4 +1224,26 @@ export interface Skill {
 	valid?: boolean;
 	validationError?: string;
 	lastIndexedAt?: string;
+}
+
+// Connector access requests
+
+export type ConnectorAccessRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface ConnectorAccessRequest {
+	id: string;
+	created?: string;
+	manifest: {
+		requesterUserID: string;
+		requesterUsername?: string;
+		requesterEmail?: string;
+		connectorID: string;
+		connectorName?: string;
+		mcpCatalogID?: string;
+		status: ConnectorAccessRequestStatus;
+		reason?: string;
+		reviewerUserID?: string;
+		reviewerUsername?: string;
+		reviewComment?: string;
+	};
 }

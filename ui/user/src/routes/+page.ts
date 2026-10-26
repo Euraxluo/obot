@@ -26,7 +26,9 @@ export const load: PageLoad = async ({ fetch, url, parent }) => {
 
 		const isAtLeastPoweruser =
 			profile?.groups.includes(Group.POWERUSER) || profile?.hasAdminAccess?.();
-		throw redirect(302, isAtLeastPoweruser ? '/dashboard' : '/vmcps');
+		// Basic (end-user) accounts live in the marketplace; everyone else keeps
+		// the dashboard.
+		throw redirect(302, isAtLeastPoweruser ? '/dashboard' : '/market');
 	}
 
 	if (bootstrapStatus?.enabled && authProviders.length === 0) {

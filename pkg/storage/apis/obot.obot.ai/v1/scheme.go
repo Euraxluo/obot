@@ -79,6 +79,8 @@ func AddToSchemeWithGV(scheme *runtime.Scheme, schemeGroupVersion schema.GroupVe
 		&MDMAssetList{},
 		&SkillAccessRule{},
 		&SkillAccessRuleList{},
+		&ConnectorAccessRequest{},
+		&ConnectorAccessRequestList{},
 		&OAuthClient{},
 		&OAuthClientList{},
 		&OAuthAuthRequest{},

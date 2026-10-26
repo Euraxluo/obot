@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strconv"
 
 	"github.com/obot-platform/obot/apiclient/types"
 	"github.com/obot-platform/obot/pkg/accesscontrolrule"
@@ -17,6 +18,7 @@ import (
 	"github.com/obot-platform/obot/pkg/system"
 	vmcpconfig "github.com/obot-platform/obot/pkg/vmcp"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apiserver/pkg/authentication/user"
 	"k8s.io/client-go/util/retry"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -414,6 +416,9 @@ func (h *VMCPHandler) loadComponentSnapshots(req api.Context, manifest *types.VM
 			if err := authz.CheckVMCPComponentAccess(req.Context(), req.User, ownerID, &entry, h.acrHelper, req.GatewayClient.UserInfoByID); err != nil {
 				return err
 			}
+			if err := h.requireConnectorApproval(req, ownerID, &entry); err != nil {
+				return err
+			}
 			if previous == nil && rejectUnconfiguredOAuth && entryRequiresStaticOAuthCreds(entry) {
 				name := entry.Spec.Manifest.Name
 				if name == "" {
@@ -464,6 +469,86 @@ func (h *VMCPHandler) loadComponentSnapshots(req api.Context, manifest *types.VM
 		}
 	}
 	return nil
+}
+
+// requireConnectorApproval enforces the end-user connector approval flow on
+// personal vMCP composition: a basic-role owner may only add catalog entries
+// that carry an individual grant — a user-subject AccessControlRule (written by
+// approving a ConnectorAccessRequest, or pre-existing) or an approved request.
+// Group-level ACRs only make the entry visible in the marketplace; they do not
+// bypass the approval flow. Shared vMCPs (ownerID == "") are admin-managed and
+// not gated.
+func (h *VMCPHandler) requireConnectorApproval(req api.Context, ownerID string, entry *v1.MCPServerCatalogEntry) error {
+	if ownerID == "" {
+		return nil
+	}
+
+	owner := req.User
+	if owner.GetUID() != ownerID {
+		id, err := strconv.ParseUint(ownerID, 10, 64)
+		if err != nil {
+			return fmt.Errorf("invalid VMCP owner ID %q: %w", ownerID, err)
+		}
+		owner, err = req.GatewayClient.UserInfoByID(req.Context(), uint(id))
+		if err != nil {
+			return fmt.Errorf("get VMCP owner %q: %w", ownerID, err)
+		}
+	}
+	if !isBasicOnlyUser(owner) {
+		return nil
+	}
+
+	if userSubjectGrantsEntry(h.acrHelper, owner, entry) {
+		return nil
+	}
+
+	approved, err := UserHasApprovedConnectorAccess(req, ownerID, entry.Name)
+	if err != nil {
+		return err
+	}
+	if approved {
+		return nil
+	}
+
+	name := entry.Spec.Manifest.Name
+	if name == "" {
+		name = entry.Name
+	}
+	return types.NewErrForbidden("connector %q requires an approved access request", name)
+}
+
+// userSubjectGrantsEntry reports whether an AccessControlRule grants the entry
+// to this specific user (not via a group or wildcard).
+func userSubjectGrantsEntry(helper *accesscontrolrule.Helper, u user.Info, entry *v1.MCPServerCatalogEntry) bool {
+	rules, err := helper.GetAccessControlRulesForMCPServerCatalogEntryInCatalog(
+		system.DefaultNamespace, entry.Name, entry.Spec.MCPCatalogName,
+	)
+	if err != nil {
+		return false
+	}
+	for _, rule := range rules {
+		for _, subject := range rule.Spec.Manifest.Subjects {
+			if subject.Type == types.SubjectTypeUser && subject.ID == u.GetUID() {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// isBasicOnlyUser reports whether the user holds no role above basic. Role
+// groups arrive in the obot_groups extra.
+func isBasicOnlyUser(u user.Info) bool {
+	var hasBasic, hasElevated bool
+	for _, group := range u.GetExtra()["obot_groups"] {
+		switch group {
+		case types.GroupBasic:
+			hasBasic = true
+		case types.GroupAdmin, types.GroupOwner, types.GroupPowerUser, types.GroupPowerUserPlus:
+			hasElevated = true
+		}
+	}
+	return hasBasic && !hasElevated
 }
 
 // validateConfigurationSecretBindings restricts API-selected Secrets to shared,

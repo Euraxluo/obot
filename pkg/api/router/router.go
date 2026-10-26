@@ -75,6 +75,7 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	skillRepositories := handlers.NewSkillRepositoryHandler()
 	gitCredentials := handlers.NewGitCredentialHandler()
 	skillAccessRules := handlers.NewSkillAccessRuleHandler()
+	connectorAccessRequests := handlers.NewConnectorAccessRequestHandler()
 	skills := handlers.NewSkillHandler(services.GitMaxRepoSizeMB, services.SkillAccessRuleHelper)
 	powerUserWorkspaces := handlers.NewPowerUserWorkspaceHandler(services.AccessControlRuleHelper, services.MCPSecretBindingAllowedLabel)
 	mcpWebhookValidations := handlers.NewMCPWebhookValidationHandler(services.MCPSessionManager)
@@ -439,6 +440,12 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	mux.HandleFunc("GET /api/skill-access-rules/{skill_access_rule_id}", skillAccessRules.Get)
 	mux.HandleFunc("PUT /api/skill-access-rules/{skill_access_rule_id}", skillAccessRules.Update)
 	mux.HandleFunc("DELETE /api/skill-access-rules/{skill_access_rule_id}", skillAccessRules.Delete)
+
+	mux.HandleFunc("GET /api/connector-access-requests", connectorAccessRequests.List)
+	mux.HandleFunc("POST /api/connector-access-requests", connectorAccessRequests.Create)
+	mux.HandleFunc("GET /api/connector-access-requests/{connector_access_request_id}", connectorAccessRequests.Get)
+	mux.HandleFunc("POST /api/connector-access-requests/{connector_access_request_id}/approve", connectorAccessRequests.Approve)
+	mux.HandleFunc("POST /api/connector-access-requests/{connector_access_request_id}/reject", connectorAccessRequests.Reject)
 
 	// OAuthClients
 	mux.HandleFunc("GET /api/oauth-clients", oauthClients.List)

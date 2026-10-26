@@ -827,6 +827,8 @@ export interface MCPCatalogEntryServerManifest {
 		deprecated?: string;
 		'allow-multiple'?: string;
 		displayNameZh?: string;
+		/** Pipe- or newline-separated example prompts, shown as 试试这样用. */
+		usageExamples?: string;
 	};
 
 	runtime: Runtime;
