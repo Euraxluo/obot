@@ -92,15 +92,17 @@
 	<div class="flex items-center justify-between gap-3">
 		<div
 			role="tablist"
-			class="flex items-center gap-1"
+			class="tabs tabs-box bg-base-100 shadow-sm dark:bg-base-300"
 			aria-label={m.identity_access_connector_approvals()}
 		>
 			{#each ['pending', 'all'] as option (option)}
 				<button
 					type="button"
-					class="rounded-full px-3 py-1.5 text-sm transition-colors {filter === option
-						? 'bg-base-100 dark:bg-base-300 font-medium shadow-sm'
-						: 'text-muted-content hover:text-base-content'}"
+					role="tab"
+					aria-selected={filter === option}
+					class="tab text-xs min-w-24 {filter === option
+						? 'tab-active bg-base-300 dark:bg-base-100'
+						: ''}"
 					onclick={() => switchFilter(option as Filter)}
 				>
 					{option === 'pending'
@@ -143,9 +145,12 @@
 							<td class="max-w-48 truncate" title={request.manifest.reason}>
 								{request.manifest.reason || '—'}
 							</td>
-							<td class="whitespace-nowrap">
+							<td
+								class="whitespace-nowrap"
+								title={request.created ? formatTimeAgo(request.created).fullDate : undefined}
+							>
 								{#if request.created}
-									{formatTimeAgo(request.created)}
+									{formatTimeAgo(request.created).relativeTime}
 								{/if}
 							</td>
 							<td>

@@ -1,5 +1,6 @@
 import { m } from '$lib/i18n';
 import type { ConnectorAccessRequest } from '$lib/services';
+import { formatTimeAgo } from '$lib/time';
 import { preparePageData } from '../../tests/helpers/pageData';
 import { worker } from '../../tests/mocks/worker';
 import ConnectorApprovalsView from './ConnectorApprovalsView.svelte';
@@ -46,6 +47,55 @@ function mockRequests(requests: ConnectorAccessRequest[]) {
 }
 
 describe('ConnectorApprovalsView', () => {
+	it('shows a relative request time with the full date as a tooltip', async () => {
+		const pending = requestFixture('car1-time', 'pending');
+		pending.created = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
+		mockRequests([pending]);
+
+		await renderView();
+
+		const timeCell = page.getByRole('row').filter({ hasText: 'enduser' }).getByRole('cell').nth(3);
+		await expect.element(timeCell).toHaveTextContent(m.core_time_days_ago_other({ count: 2 }));
+		await expect.element(timeCell).not.toHaveTextContent('[object Object]');
+		await expect
+			.element(timeCell)
+			.toHaveAttribute('title', formatTimeAgo(pending.created).fullDate);
+	});
+
+	it('uses boxed filter tabs and moves the active pill when switching filters', async () => {
+		mockRequests([]);
+
+		await renderView();
+
+		const filters = page.getByRole('tablist', {
+			name: m.identity_access_connector_approvals()
+		});
+		const pending = filters.getByRole('tab', {
+			name: m.identity_access_connector_approvals_filter_pending()
+		});
+		const all = filters.getByRole('tab', {
+			name: m.identity_access_connector_approvals_filter_all()
+		});
+
+		await expect.element(filters).toHaveClass(/\btabs-box\b/);
+		await expect.element(pending).toHaveClass(/\btab-active\b/);
+		await expect.element(pending).toHaveAttribute('aria-selected', 'true');
+		await expect.element(all).not.toHaveClass(/\btab-active\b/);
+		await expect.element(all).toHaveAttribute('aria-selected', 'false');
+
+		await all.click();
+
+		await expect.element(all).toHaveClass(/\btab-active\b/);
+		await expect.element(all).toHaveAttribute('aria-selected', 'true');
+		await expect.element(pending).not.toHaveClass(/\btab-active\b/);
+		await expect.element(pending).toHaveAttribute('aria-selected', 'false');
+
+		await pending.click();
+
+		await expect.element(pending).toHaveClass(/\btab-active\b/);
+		await expect.element(all).not.toHaveClass(/\btab-active\b/);
+	});
+
 	it('lists pending requests and approves them', async () => {
 		const pending = requestFixture('car1-pending', 'pending');
 		mockRequests([pending]);
@@ -118,7 +168,7 @@ describe('ConnectorApprovalsView', () => {
 			.not.toBeInTheDocument();
 
 		await page
-			.getByRole('button', { name: m.identity_access_connector_approvals_filter_all() })
+			.getByRole('tab', { name: m.identity_access_connector_approvals_filter_all() })
 			.click();
 
 		const rows = page.getByRole('row').filter({ hasText: 'enduser' });
