@@ -72,9 +72,9 @@ func connectorAccessRequestContext(t *testing.T, storageClient storage.Client, m
 
 func connectorAccessRequestEndUser() *kuser.DefaultInfo {
 	return &kuser.DefaultInfo{
-		UID:      "42",
-		Name:     "enduser",
-		Groups:   []string{types.GroupBasic, types.GroupAuthenticated},
+		UID:    "42",
+		Name:   "enduser",
+		Groups: []string{types.GroupBasic, types.GroupAuthenticated},
 		Extra: map[string][]string{
 			"email":       {"enduser@example.com"},
 			"obot_groups": {types.GroupBasic, types.GroupAuthenticated},

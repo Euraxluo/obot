@@ -4,6 +4,7 @@ import {
 	COMMUNITY_SIGNUP_BANNER_COPY,
 	ENTERPRISE_ENTITLEMENT
 } from '$lib/constants';
+import { m } from '$lib/i18n';
 import { Group } from '$lib/services';
 import type { AuthProvider, License } from '$lib/services/admin/types';
 import type { Profile, Version } from '$lib/services/user/types';
@@ -119,12 +120,13 @@ async function expectNoAdminOnlyNavigation() {
 }
 
 describe('Layout.svelte', () => {
-	it('gives all users access to shared sidebar navigation', async () => {
+	it('walls basic users down to the marketplace', async () => {
 		await renderLayout();
-		await expectSharedNavigation();
+		await expectLink('/market');
+		for (const href of [...sharedLinks, ...adminOnlyLinks]) {
+			await expectNoLink(href);
+		}
 		await expectNoLink('/dashboard');
-		await expectNoLink('/hosted-agents');
-		await expectNoAdminOnlyNavigation();
 	});
 
 	describe('LLM gateway navigation', () => {
@@ -133,7 +135,7 @@ describe('Layout.svelte', () => {
 			await expandSection('ai-resources', '/models');
 			await expect
 				.element(page.getByCSS('a.sidebar-link[href="/models"]'))
-				.toHaveTextContent('LLM Gateway Beta');
+				.toHaveTextContent(`${m.nav_llm_gateway()} ${m.common_beta()}`);
 		});
 	});
 
@@ -204,12 +206,13 @@ describe('Layout.svelte', () => {
 		});
 
 		describe('when the user is a basic user', () => {
-			it('hides MCP Servers and does not show administrator-only navigation', async () => {
+			it('shows only the marketplace, hiding MCP Servers and administrator navigation', async () => {
 				await renderLayout([Group.USER]);
-				await expectSharedNavigation();
+				await expectLink('/market');
+				for (const href of [...sharedLinks, ...adminOnlyLinks]) {
+					await expectNoLink(href);
+				}
 				await expectNoLink('/dashboard');
-				await expectNoLink('/mcp-servers');
-				await expectNoAdminOnlyNavigation();
 			});
 		});
 
@@ -260,7 +263,8 @@ describe('Layout.svelte', () => {
 			return renderLayout(groups, {}, communityLicense, profileOverrides);
 		}
 
-		const continueLink = () => page.getByRole('link', { name: 'Continue SCIM setup', exact: true });
+		const continueLink = () =>
+			page.getByRole('link', { name: m.identity_access_scim_continue_setup(), exact: true });
 
 		it('sends Owners to the SCIM tab until SCIM is enforced', async () => {
 			await renderWithAuthProviders([okta()]);
@@ -270,7 +274,7 @@ describe('Layout.svelte', () => {
 				.element(continueLink())
 				.toHaveAttribute('href', '/identity-access?view=auth-providers&subview=scim');
 			await expect
-				.element(page.getByText(/Okta provisions users and groups through SCIM/))
+				.element(page.getByText(m.identity_access_scim_setup_banner({ provider: 'Okta' })))
 				.toBeVisible();
 		});
 
@@ -378,14 +382,28 @@ describe('Layout.svelte', () => {
 			return renderLayout(groups, {}, communityLicense, profileOverrides);
 		}
 
-		const rotateLink = () => page.getByRole('link', { name: 'Rotate SCIM token', exact: true });
+		const rotateLink = () =>
+			page.getByRole('link', { name: m.identity_access_scim_rotate_token_action(), exact: true });
 		const dismissButton = () =>
-			page.getByRole('button', { name: 'Dismiss SCIM token banner', exact: true });
+			page.getByRole('button', {
+				name: m.identity_access_scim_dismiss_token_banner(),
+				exact: true
+			});
 
 		it('warns Owners within 30 days of the token expiring, and links to the SCIM tab', async () => {
-			await renderWithAuthProviders([oktaWithTokenExpiringIn(10 * day)]);
+			const expiring = oktaWithTokenExpiringIn(10 * day);
+			await renderWithAuthProviders([expiring]);
 
-			await expect.element(page.getByText(/The SCIM token for Okta expires on/)).toBeVisible();
+			await expect
+				.element(
+					page.getByText(
+						m.identity_access_scim_token_expiring_banner({
+							provider: 'Okta',
+							date: new Date(expiring.scimTokenExpiresAt as string).toLocaleDateString()
+						})
+					)
+				)
+				.toBeVisible();
 			await expect
 				.element(rotateLink())
 				.toHaveAttribute('href', '/identity-access?view=auth-providers&subview=scim');
@@ -393,11 +411,17 @@ describe('Layout.svelte', () => {
 		});
 
 		it('says that provisioning fails once the token has expired, until it is rotated', async () => {
-			await renderWithAuthProviders([oktaWithTokenExpiringIn(-day)]);
+			const expired = oktaWithTokenExpiringIn(-day);
+			await renderWithAuthProviders([expired]);
 
 			await expect
 				.element(
-					page.getByRole('alert').filter({ hasText: /expired on .*provisioning from Okta fails/ })
+					page.getByRole('alert').filter({
+						hasText: m.identity_access_scim_token_expired_banner({
+							provider: 'Okta',
+							date: new Date(expired.scimTokenExpiresAt as string).toLocaleDateString()
+						})
+					})
 				)
 				.toBeVisible();
 			await expect.element(rotateLink()).toBeVisible();
@@ -471,7 +495,10 @@ describe('Layout.svelte', () => {
 			await renderLayout([Group.ADMIN]);
 
 			await expect.element(page.getByText(copy, { exact: true })).toBeVisible();
-			const register = page.getByRole('link', { name: 'Register', exact: true });
+			const register = page.getByRole('link', {
+				name: m.platform_license_notice_register(),
+				exact: true
+			});
 			await expect.element(register).toBeVisible();
 			await expect.element(register).toHaveAttribute('href', '/admin/platform?view=license');
 		});
@@ -539,7 +566,7 @@ describe('Layout.svelte', () => {
 			await renderLayout([Group.ADMIN]);
 
 			const dismiss = page.getByRole('button', {
-				name: 'Dismiss community signup banner',
+				name: m.platform_license_notice_dismiss_banner(),
 				exact: true
 			});
 			await expect.element(dismiss).toBeVisible();
@@ -586,7 +613,9 @@ it.each([
 ])(
 	'shows Claude environments for $engine with enabled=$enabled',
 	async ({ engine, enabled, visible }) => {
-		await renderLayout([], { engine, claudeEnvironmentsEnabled: enabled });
+		// Basic users are walled off to the marketplace, so exercise the nav with
+		// a power user.
+		await renderLayout([Group.POWERUSER], { engine, claudeEnvironmentsEnabled: enabled });
 		if (visible) await expectLink('/claude-environments');
 		else await expectNoLink('/claude-environments');
 	}

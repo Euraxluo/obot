@@ -64,6 +64,10 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/obot-platform/obot/apiclient/types.CommonProviderStatus":                      schema_obot_platform_obot_apiclient_types_CommonProviderStatus(ref),
 		"github.com/obot-platform/obot/apiclient/types.ComponentServer":                           schema_obot_platform_obot_apiclient_types_ComponentServer(ref),
 		"github.com/obot-platform/obot/apiclient/types.CompositeRuntimeConfig":                    schema_obot_platform_obot_apiclient_types_CompositeRuntimeConfig(ref),
+		"github.com/obot-platform/obot/apiclient/types.ConnectorAccessRequest":                    schema_obot_platform_obot_apiclient_types_ConnectorAccessRequest(ref),
+		"github.com/obot-platform/obot/apiclient/types.ConnectorAccessRequestList":                schema_obot_platform_obot_apiclient_types_ConnectorAccessRequestList(ref),
+		"github.com/obot-platform/obot/apiclient/types.ConnectorAccessRequestManifest":            schema_obot_platform_obot_apiclient_types_ConnectorAccessRequestManifest(ref),
+		"github.com/obot-platform/obot/apiclient/types.ConnectorAccessReview":                     schema_obot_platform_obot_apiclient_types_ConnectorAccessReview(ref),
 		"github.com/obot-platform/obot/apiclient/types.ContainerizedRuntimeConfig":                schema_obot_platform_obot_apiclient_types_ContainerizedRuntimeConfig(ref),
 		"github.com/obot-platform/obot/apiclient/types.CustomS3Config":                            schema_obot_platform_obot_apiclient_types_CustomS3Config(ref),
 		"github.com/obot-platform/obot/apiclient/types.DefaultModelAlias":                         schema_obot_platform_obot_apiclient_types_DefaultModelAlias(ref),
@@ -405,6 +409,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		v1.AuthProviderSpec{}.OpenAPIModelName():                                                  schema_storage_apis_obotobotai_v1_AuthProviderSpec(ref),
 		v1.AuthProviderStatus{}.OpenAPIModelName():                                                schema_storage_apis_obotobotai_v1_AuthProviderStatus(ref),
 		v1.ClaudeSessionRepository{}.OpenAPIModelName():                                           schema_storage_apis_obotobotai_v1_ClaudeSessionRepository(ref),
+		v1.ConnectorAccessRequest{}.OpenAPIModelName():                                            schema_storage_apis_obotobotai_v1_ConnectorAccessRequest(ref),
+		v1.ConnectorAccessRequestList{}.OpenAPIModelName():                                        schema_storage_apis_obotobotai_v1_ConnectorAccessRequestList(ref),
+		v1.ConnectorAccessRequestSpec{}.OpenAPIModelName():                                        schema_storage_apis_obotobotai_v1_ConnectorAccessRequestSpec(ref),
 		v1.DefaultModelAlias{}.OpenAPIModelName():                                                 schema_storage_apis_obotobotai_v1_DefaultModelAlias(ref),
 		v1.DefaultModelAliasList{}.OpenAPIModelName():                                             schema_storage_apis_obotobotai_v1_DefaultModelAliasList(ref),
 		v1.DefaultModelAliasSpec{}.OpenAPIModelName():                                             schema_storage_apis_obotobotai_v1_DefaultModelAliasSpec(ref),
@@ -3054,6 +3061,204 @@ func schema_obot_platform_obot_apiclient_types_CompositeRuntimeConfig(ref common
 		},
 		Dependencies: []string{
 			"github.com/obot-platform/obot/apiclient/types.ComponentServer"},
+	}
+}
+
+func schema_obot_platform_obot_apiclient_types_ConnectorAccessRequest(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"id": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"created": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/obot-platform/obot/apiclient/types.Time"),
+						},
+					},
+					"deleted": {
+						SchemaProps: spec.SchemaProps{
+							Ref: ref("github.com/obot-platform/obot/apiclient/types.Time"),
+						},
+					},
+					"links": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"object"},
+							AdditionalProperties: &spec.SchemaOrBool{
+								Allows: true,
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"type": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"manifest": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/obot-platform/obot/apiclient/types.ConnectorAccessRequestManifest"),
+						},
+					},
+				},
+				Required: []string{"created"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/obot-platform/obot/apiclient/types.ConnectorAccessRequestManifest", "github.com/obot-platform/obot/apiclient/types.Time"},
+	}
+}
+
+func schema_obot_platform_obot_apiclient_types_ConnectorAccessRequestList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/obot-platform/obot/apiclient/types.ConnectorAccessRequest"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/obot-platform/obot/apiclient/types.ConnectorAccessRequest"},
+	}
+}
+
+func schema_obot_platform_obot_apiclient_types_ConnectorAccessRequestManifest(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"requesterUserID": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"requesterUsername": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"requesterEmail": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"connectorID": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"connectorName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"mcpCatalogID": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"reason": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"reviewerUserID": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"reviewerUsername": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"reviewComment": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+				Required: []string{"requesterUserID", "connectorID", "status"},
+			},
+		},
+	}
+}
+
+func schema_obot_platform_obot_apiclient_types_ConnectorAccessReview(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"comment": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -20296,6 +20501,121 @@ func schema_storage_apis_obotobotai_v1_ClaudeSessionRepository(ref common.Refere
 				Required: []string{"url"},
 			},
 		},
+	}
+}
+
+func schema_storage_apis_obotobotai_v1_ConnectorAccessRequest(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(v1.ConnectorAccessRequestSpec{}.OpenAPIModelName()),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(v1.EmptyStatus{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"metadata", "spec", "status"},
+			},
+		},
+		Dependencies: []string{
+			v1.ConnectorAccessRequestSpec{}.OpenAPIModelName(), v1.EmptyStatus{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_storage_apis_obotobotai_v1_ConnectorAccessRequestList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref(v1.ConnectorAccessRequest{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"metadata", "items"},
+			},
+		},
+		Dependencies: []string{
+			v1.ConnectorAccessRequest{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_storage_apis_obotobotai_v1_ConnectorAccessRequestSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"manifest": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/obot-platform/obot/apiclient/types.ConnectorAccessRequestManifest"),
+						},
+					},
+				},
+				Required: []string{"manifest"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/obot-platform/obot/apiclient/types.ConnectorAccessRequestManifest"},
 	}
 }
 

@@ -29,8 +29,9 @@ function requestFixture(
 }
 
 async function renderView() {
-	const data = await preparePageData();
-	return render(ConnectorApprovalsView, { data });
+	// ConnectorApprovalsView takes no props; preparePageData only initializes stores.
+	await preparePageData();
+	return render(ConnectorApprovalsView);
 }
 
 function mockRequests(requests: ConnectorAccessRequest[]) {

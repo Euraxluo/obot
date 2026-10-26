@@ -156,6 +156,21 @@ func (in ClaudeSessionRepository) OpenAPIModelName() string {
 }
 
 // OpenAPIModelName returns the OpenAPI model name for this type.
+func (in ConnectorAccessRequest) OpenAPIModelName() string {
+	return "com.github.obot-platform.obot.pkg.storage.apis.obot.obot.ai.v1.ConnectorAccessRequest"
+}
+
+// OpenAPIModelName returns the OpenAPI model name for this type.
+func (in ConnectorAccessRequestList) OpenAPIModelName() string {
+	return "com.github.obot-platform.obot.pkg.storage.apis.obot.obot.ai.v1.ConnectorAccessRequestList"
+}
+
+// OpenAPIModelName returns the OpenAPI model name for this type.
+func (in ConnectorAccessRequestSpec) OpenAPIModelName() string {
+	return "com.github.obot-platform.obot.pkg.storage.apis.obot.obot.ai.v1.ConnectorAccessRequestSpec"
+}
+
+// OpenAPIModelName returns the OpenAPI model name for this type.
 func (in DefaultModelAlias) OpenAPIModelName() string {
 	return "com.github.obot-platform.obot.pkg.storage.apis.obot.obot.ai.v1.DefaultModelAlias"
 }
