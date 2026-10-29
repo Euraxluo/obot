@@ -5,14 +5,13 @@
 	import McpContent from './McpContent.svelte';
 	import McpResult from './McpResult.svelte';
 	import TesterError from './TesterError.svelte';
-	import { Ban, MessageSquarePlus, Play } from '@lucide/svelte';
+	import { Ban, Play } from '@lucide/svelte';
 
 	interface Props {
 		session: MCPTesterSession;
-		onstaged: () => void;
 	}
 
-	let { session, onstaged }: Props = $props();
+	let { session }: Props = $props();
 	let inspector = $derived(session.inspectors.prompts);
 	let cache = $derived(session.cache.prompts);
 	let selected = $derived(cache.items.find((prompt) => prompt.name === inspector.selectedName));
@@ -29,47 +28,29 @@
 			(argument) => argument.required && !inspector.argumentsValue[argument.name]?.trim()
 		) ?? false
 	);
-	let promptSupported = $derived(
-		(inspector.result?.value?.messages.length ?? 0) > 0 &&
-			(inspector.result?.value?.messages.every((message) => message.content.type === 'text') ??
-				false)
-	);
 	let getActive = $derived(session.activeWorkflow?.label === 'prompt get');
 
 	function selectPrompt(name: string) {
 		inspector.selectedName = name;
 		inspector.argumentsValue = {};
 		inspector.result = undefined;
-		inspector.stageError = undefined;
 	}
 
 	function updateArgument(name: string, value: string) {
 		inspector.argumentsValue = { ...inspector.argumentsValue, [name]: value };
 		inspector.result = undefined;
-		inspector.stageError = undefined;
 	}
 
 	async function getPrompt() {
 		if (!selected || requiredMissing) return;
 		const name = selected.name;
 		inspector.result = undefined;
-		inspector.stageError = undefined;
 		const args = Object.fromEntries(
 			Object.entries(inspector.argumentsValue).filter(([, value]) => value.trim() !== '')
 		);
 		const result = await session.getPrompt(name, args);
 		if (inspector.selectedName !== name) return;
 		inspector.result = result;
-	}
-
-	function useInChat() {
-		if (!selected || !inspector.result?.value) return;
-		const staged = session.stagePrompt(selected.name, inspector.result.value);
-		if (!staged.ok) {
-			inspector.stageError = staged.message;
-			return;
-		}
-		onstaged();
 	}
 
 	$effect(() => {
@@ -185,27 +166,11 @@
 										<McpContent content={message.content} />
 									</div>
 								{/each}
-								{#if !promptSupported}
-									<p class="text-sm text-error" role="alert">
-										{m.mcps_tester_prompt_not_stageable()}
-									</p>
-								{/if}
 							</section>
 						{/if}
 
 						{#if inspector.result}
 							<McpResult result={inspector.result as DirectOperationResult<unknown>} />
-						{/if}
-
-						{#if inspector.stageError}<TesterError
-								title={m.mcps_tester_response_failed()}
-								message={inspector.stageError}
-							/>{/if}
-						{#if inspector.result?.status === 'success' && inspector.result.value && promptSupported}
-							<button class="btn btn-secondary" onclick={useInChat}>
-								<MessageSquarePlus class="size-4" aria-hidden="true" />
-								{m.mcps_tester_use_in_chat()}
-							</button>
 						{/if}
 					</div>
 				{:else}

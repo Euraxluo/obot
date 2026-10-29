@@ -1,13 +1,9 @@
 import { dev } from '$app/environment';
 import { getHttpStatusCode } from '$lib/errors';
 import {
-	AdminService,
-	Group,
 	UserService,
 	type AppNotification,
 	type AppPreferences,
-	type DefaultModelAlias,
-	type Model,
 	type Profile,
 	type Version
 } from '$lib/services';
@@ -99,23 +95,13 @@ export const load: LayoutLoad = async ({ fetch, url }) => {
 		throw redirect(303, `/change-password?rd=${encodeURIComponent(url.pathname + url.search)}`);
 	}
 
-	let defaultModelAliases: DefaultModelAlias[] | undefined;
-	let models: Model[] | undefined;
 	let appNotification: AppNotification | undefined;
-	// A restricted session is refused these requests, and the password page renders without them,
-	// so avoid guaranteed 403s on every load.
+	// A restricted session is refused this request, and the password page renders without it,
+	// so avoid a guaranteed 403 on every load.
 	if (!profile.unauthorized && !profile.requirePasswordChange) {
-		const [defaultModelAliasesResult, modelsResult, appNotificationResult] =
-			await Promise.allSettled([
-				UserService.listDefaultModelAliases({ fetch }),
-				UserService.listModels({ fetch }),
-				UserService.getAppNotification({ fetch })
-			]);
-		defaultModelAliases =
-			defaultModelAliasesResult.status === 'fulfilled'
-				? defaultModelAliasesResult.value
-				: undefined;
-		models = modelsResult.status === 'fulfilled' ? modelsResult.value : undefined;
+		const [appNotificationResult] = await Promise.allSettled([
+			UserService.getAppNotification({ fetch })
+		]);
 		appNotification =
 			appNotificationResult.status === 'fulfilled' ? appNotificationResult.value : undefined;
 	}
@@ -124,8 +110,6 @@ export const load: LayoutLoad = async ({ fetch, url }) => {
 		appPreferences,
 		profile,
 		version,
-		defaultModelAliases,
-		models,
 		appNotification
 	};
 };

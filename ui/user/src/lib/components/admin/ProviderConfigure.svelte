@@ -103,89 +103,7 @@
 		});
 	});
 
-	const isAzureOpenAIProvider = $derived(provider && provider.id === 'azure-openai-model-provider');
-
-	const collection = $derived.by(() => {
-		if (isAzureOpenAIProvider)
-			return {
-				title: m.models_providers_authentication_method(),
-				items: [
-					{
-						id: 'OBOT_AZURE_OPENAI_MODEL_PROVIDER_API_KEY',
-						name: m.models_providers_api_key()
-					},
-					{
-						id: 'OBOT_AZURE_OPENAI_MODEL_PROVIDER_ENDPOINT',
-						name: 'Microsoft Entra'
-					}
-				]
-			};
-		return undefined;
-	});
-	let defaultSelectedCollection = $derived.by(() => {
-		if (isAzureOpenAIProvider) {
-			if (values?.['OBOT_AZURE_OPENAI_MODEL_PROVIDER_API_KEY']) {
-				return 'OBOT_AZURE_OPENAI_MODEL_PROVIDER_API_KEY';
-			}
-
-			const hasMicrosoftEntraValues = [
-				'OBOT_AZURE_OPENAI_MODEL_PROVIDER_ENDPOINT',
-				'OBOT_AZURE_OPENAI_MODEL_PROVIDER_CLIENT_ID',
-				'OBOT_AZURE_OPENAI_MODEL_PROVIDER_CLIENT_SECRET',
-				'OBOT_AZURE_OPENAI_MODEL_PROVIDER_TENANT_ID',
-				'OBOT_AZURE_OPENAI_MODEL_PROVIDER_SUBSCRIPTION_ID',
-				'OBOT_AZURE_OPENAI_MODEL_PROVIDER_RESOURCE_GROUP'
-			].some((param) => Boolean(values?.[param]));
-
-			if (hasMicrosoftEntraValues) {
-				return 'OBOT_AZURE_OPENAI_MODEL_PROVIDER_ENDPOINT';
-			}
-
-			return undefined;
-		}
-		return undefined;
-	});
-	let selectedCollection: string | undefined = $derived(
-		defaultSelectedCollection ??
-			(isAzureOpenAIProvider ? 'OBOT_AZURE_OPENAI_MODEL_PROVIDER_API_KEY' : undefined)
-	);
-
 	const requiredConfigurationParameters = $derived.by(() => {
-		if (isAzureOpenAIProvider) {
-			const allParams = [
-				...(provider?.requiredConfigurationParameters ?? []),
-				...(provider?.optionalConfigurationParameters ?? [])
-			];
-
-			const asObject = allParams.reduce(
-				(acc, val) => {
-					acc[val.name] = val;
-					return acc;
-				},
-				{} as Record<string, ProviderParameter>
-			);
-
-			if (selectedCollection === 'OBOT_AZURE_OPENAI_MODEL_PROVIDER_API_KEY') {
-				const requiredParamsIds = [
-					'OBOT_AZURE_OPENAI_MODEL_PROVIDER_API_KEY',
-					'OBOT_AZURE_OPENAI_MODEL_PROVIDER_ENDPOINT',
-					'OBOT_AZURE_OPENAI_MODEL_PROVIDER_DEPLOYMENTS'
-				];
-				return requiredParamsIds.map((id) => asObject?.[id]).filter(Boolean) as ProviderParameter[];
-			}
-
-			const requiredParamsIds = [
-				'OBOT_AZURE_OPENAI_MODEL_PROVIDER_ENDPOINT',
-				'OBOT_AZURE_OPENAI_MODEL_PROVIDER_CLIENT_ID',
-				'OBOT_AZURE_OPENAI_MODEL_PROVIDER_CLIENT_SECRET',
-				'OBOT_AZURE_OPENAI_MODEL_PROVIDER_TENANT_ID',
-				'OBOT_AZURE_OPENAI_MODEL_PROVIDER_SUBSCRIPTION_ID',
-				'OBOT_AZURE_OPENAI_MODEL_PROVIDER_RESOURCE_GROUP'
-			];
-
-			return requiredParamsIds.map((id) => asObject?.[id]).filter(Boolean) as ProviderParameter[];
-		}
-
 		return (provider?.requiredConfigurationParameters?.filter(
 			(p) => !p.hidden && !isChoiceParameter(p)
 		) ?? []) as ProviderParameter[];
@@ -195,19 +113,6 @@
 		const optionalParams = (provider?.optionalConfigurationParameters?.filter(
 			(p) => !p.hidden && !isChoiceParameter(p)
 		) ?? []) as ProviderParameter[];
-
-		if (isAzureOpenAIProvider) {
-			// Only show the API version parameter as optional
-
-			const allParams = [
-				...(provider?.requiredConfigurationParameters ?? []),
-				...(provider?.optionalConfigurationParameters ?? [])
-			];
-
-			return allParams.filter(
-				(param) => param.name === 'OBOT_AZURE_OPENAI_MODEL_PROVIDER_API_VERSION'
-			) as ProviderParameter[];
-		}
 
 		return optionalParams;
 	});
@@ -270,31 +175,6 @@
 		showRequired = false;
 	}
 
-	function reset() {
-		showRequired = false;
-		form = {};
-
-		if (isAzureOpenAIProvider) {
-			// Check if the selected collection is the same as the default one
-			if (defaultSelectedCollection === selectedCollection) {
-				// Reset to initial values
-				onOpen();
-				return;
-			} else {
-				// Clear form values
-				for (const param of requiredConfigurationParameters ?? []) {
-					form[param.name] = '';
-				}
-
-				for (const param of optionalConfigurationParameters ?? []) {
-					form[param.name] = '';
-				}
-			}
-		} else {
-			onOpen();
-		}
-	}
-
 	export function open() {
 		dialog?.open();
 	}
@@ -342,8 +222,7 @@
 		'OBOT_GITHUB_AUTH_PROVIDER_ALLOW_USERS',
 		'OBOT_GITHUB_AUTH_PROVIDER_TEAMS',
 		'OBOT_GITHUB_AUTH_PROVIDER_REPO',
-		'OBOT_AUTH_PROVIDER_EMAIL_DOMAINS',
-		'OBOT_AZURE_OPENAI_MODEL_PROVIDER_DEPLOYMENTS'
+		'OBOT_AUTH_PROVIDER_EMAIL_DOMAINS'
 	]);
 
 	const booleanInputs = new Set(['OBOT_AUTH_PROVIDER_ENABLE_LOGGING']);
@@ -410,10 +289,10 @@
 					bind:value={form[parameter.name]}
 					id={parameter.name}
 					labels={parameter.name === 'OBOT_AUTH_PROVIDER_EMAIL_DOMAINS'
-						? { '*': m.models_providers_all_domains() }
+						? { '*': m.identity_access_provider_all_domains() }
 						: {}}
 					class={['text-input-filled', error && 'error'].filter(Boolean).join(' ')}
-					placeholder={m.models_providers_hit_enter_to_insert()}
+					placeholder={m.identity_access_provider_hit_enter_to_insert()}
 					disabled={readonly}
 				/>
 			{:else if parameter.multiline}
@@ -481,7 +360,7 @@
 			{:else}
 				<img src={provider?.icon} alt={provider?.name} class="bg-base-200 size-9 rounded-md p-1" />
 			{/if}
-			{title ?? m.models_providers_set_up_named({ name: provider?.name ?? '' })}
+			{title ?? m.identity_access_provider_set_up_named({ name: provider?.name ?? '' })}
 		</div>
 	{/snippet}
 	{#if provider}
@@ -512,9 +391,9 @@
 				>
 					<CircleAlert class="mt-0.5 size-6 shrink-0 text-error" />
 					<p class="min-w-0 flex flex-col text-sm font-light">
-						<span class="font-semibold">{m.models_providers_an_error_occurred()}</span>
+						<span class="font-semibold">{m.identity_access_provider_an_error_occurred()}</span>
 						<span class="max-h-28 overflow-auto wrap-break-word whitespace-pre-line pr-1">
-							{m.models_providers_config_failed_validation()}
+							{m.identity_access_provider_config_failed_validation()}
 							<b class="break-all font-semibold">{error}</b>
 						</span>
 					</p>
@@ -526,33 +405,9 @@
 
 			{#if requiredConfigurationParameters.length > 0}
 				<div class="flex flex-col gap-4">
-					{#if collection}
-						<div class="mb-4 flex flex-col gap-2">
-							<h4 class="text-lg font-semibold">{collection.title}</h4>
-							<ul class="flex gap-2">
-								{#each collection.items as item, i (i)}
-									{@const isSelected = selectedCollection === item.id}
-									<li>
-										<button
-											class={twMerge(
-												'bg-base-200 hover:bg-base-400 text-gray rounded-md px-4 py-2 text-sm font-medium transition-all duration-200',
-												isSelected &&
-													'bg-primary hover:bg-primary/90 active:bg-primary text-white shadow-sm'
-											)}
-											type="button"
-											onclick={() => {
-												selectedCollection = item.id;
-												// Reset form values
-												reset();
-											}}>{item.name}</button
-										>
-									</li>
-								{/each}
-							</ul>
-						</div>
-					{/if}
-
-					<h4 class="text-lg font-semibold">{m.models_providers_required_configuration()}</h4>
+					<h4 class="text-lg font-semibold">
+						{m.identity_access_provider_required_configuration()}
+					</h4>
 
 					<ul class="flex flex-col gap-4">
 						{#each requiredConfigurationParameters as parameter (parameter.name)}
@@ -615,7 +470,9 @@
 
 			{#if optionalConfigurationParameters.length > 0}
 				<div class="flex flex-col gap-2">
-					<h4 class="text-lg font-semibold">{m.models_providers_optional_configuration()}</h4>
+					<h4 class="text-lg font-semibold">
+						{m.identity_access_provider_optional_configuration()}
+					</h4>
 					<ul class="flex flex-col gap-4">
 						{#each optionalConfigurationParameters as parameter (parameter.name)}
 							{#if parameter.name in form}

@@ -42,7 +42,6 @@
 	"data_permissions_create_native": "쿼리 빌더 + Native",
 	"data_permissions_create_no": "불가",
 	"data_permissions_revision": "현재 그래프 리비전: {revision}",
-	"data_permissions_changed": "변경됨",
 	"data_permissions_permissions_saved": "권한을 저장했습니다.",
 	"data_permissions_add_to_env": "환경에 추가",
 	"data_permissions_add_to_env_done": "환경에 추가했습니다.",

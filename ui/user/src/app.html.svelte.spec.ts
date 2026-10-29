@@ -3,9 +3,9 @@ import { beforeEach, describe, expect, it } from 'vitest';
 
 function runLocaleDefaultScript() {
 	const parsed = new DOMParser().parseFromString(appHtml, 'text/html');
-	const source = [...parsed.querySelectorAll('script')]
-		.find((script) => script.textContent?.includes('ztocc_locale_default_v1'))
-		?.textContent;
+	const source = [...parsed.querySelectorAll('script')].find((script) =>
+		script.textContent?.includes('ztocc_locale_default_v1')
+	)?.textContent;
 
 	if (!source) {
 		throw new Error('The locale default script is missing from app.html');

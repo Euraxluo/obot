@@ -1,16 +1,13 @@
-// Client for Obot's guardrails API. Guardrails configure the checkers, from built-in regex and
-// secrets detection to external services. Guardrail policies decide which LLM gateway requests
-// are checked, by which guardrails, and whether findings block, redact or are logged; MCP
-// guardrail filters do the same for MCP tool calls.
+// Client for Obot's MCP guardrail API. Guardrails configure the checkers, from built-in regex
+// and secrets detection to external services; MCP filters apply them to tool calls.
 import { m } from '$lib/i18n';
 import { doDelete, doGet, doPost, doPut, type Fetcher } from '../http';
 
 type Opts = { fetch?: Fetcher; signal?: AbortSignal; dontLogErrors?: boolean };
 
-const B = '/llm-gateway/guardrails';
-const P = '/llm-gateway/guardrail-policies';
+const B = '/guardrails';
 
-export type GuardrailTarget = 'llm' | 'mcp';
+export type GuardrailTarget = 'mcp';
 export type GuardrailStage = 'input' | 'output';
 export type GuardrailApplyTo = GuardrailStage | 'both';
 export type GuardrailAction = 'block' | 'redact' | 'log';
@@ -65,26 +62,6 @@ export interface GuardrailProvider {
 	redacts: boolean;
 }
 
-export interface GuardrailPolicy {
-	id?: string;
-	name: string;
-	description?: string;
-	enabled: boolean;
-	target: GuardrailTarget;
-	applyTo: GuardrailApplyTo;
-	action: GuardrailAction;
-	condition?: string;
-	samplingRate: number;
-	inputScope?: GuardrailInputScope;
-	failClosed: boolean;
-	blockMessage?: string;
-	guardrailIDs: string[];
-	// The gateway profile the policy belongs to; it applies to that profile's users.
-	profileID: string;
-	created?: string;
-	updated?: string;
-}
-
 export interface Guardrail {
 	id?: string;
 	name: string;
@@ -111,11 +88,6 @@ export interface GuardrailTestResult {
 	error?: string;
 }
 
-export const TARGET_LABELS: Record<GuardrailTarget, string> = {
-	llm: 'LLM',
-	mcp: 'MCP'
-};
-
 export const APPLY_TO_LABELS: Record<GuardrailApplyTo, string> = {
 	input: m.core_col_input(),
 	output: m.core_col_output(),
@@ -138,38 +110,6 @@ export const OUTCOME_LABELS: Record<GuardrailOutcome, string> = {
 export async function listGuardrailProviders(opts?: Opts): Promise<GuardrailProvider[]> {
 	const resp = (await doGet(`${B}/providers`, opts)) as { items: GuardrailProvider[] | null };
 	return resp.items ?? [];
-}
-
-// listGuardrailPolicies lists the guardrail policies of one profile, or every policy.
-export async function listGuardrailPolicies(
-	opts?: Opts & { profileID?: string }
-): Promise<GuardrailPolicy[]> {
-	const query = opts?.profileID ? `?profileID=${encodeURIComponent(opts.profileID)}` : '';
-	const resp = (await doGet(`${P}${query}`, opts)) as { items: GuardrailPolicy[] | null };
-	return resp.items ?? [];
-}
-
-export async function getGuardrailPolicy(id: string, opts?: Opts): Promise<GuardrailPolicy> {
-	return (await doGet(`${P}/${encodeURIComponent(id)}`, opts)) as GuardrailPolicy;
-}
-
-export async function createGuardrailPolicy(
-	policy: GuardrailPolicy,
-	opts?: Opts
-): Promise<GuardrailPolicy> {
-	return (await doPost(P, policy, opts)) as GuardrailPolicy;
-}
-
-export async function updateGuardrailPolicy(
-	id: string,
-	policy: GuardrailPolicy,
-	opts?: Opts
-): Promise<GuardrailPolicy> {
-	return (await doPut(`${P}/${encodeURIComponent(id)}`, policy, opts)) as GuardrailPolicy;
-}
-
-export async function deleteGuardrailPolicy(id: string, opts?: Opts): Promise<void> {
-	await doDelete(`${P}/${encodeURIComponent(id)}`, opts);
 }
 
 export async function validateGuardrailCondition(

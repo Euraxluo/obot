@@ -1,7 +1,5 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import Confirm from '$lib/components/Confirm.svelte';
-	import Chat from '$lib/components/mcp/tester/Chat.svelte';
 	import LogsInspector from '$lib/components/mcp/tester/LogsInspector.svelte';
 	import PromptsInspector from '$lib/components/mcp/tester/PromptsInspector.svelte';
 	import ResourcesInspector from '$lib/components/mcp/tester/ResourcesInspector.svelte';
@@ -10,7 +8,6 @@
 	import { m } from '$lib/i18n';
 	import Loading from '$lib/icons/Loading.svelte';
 	import { type MCPCatalogServer } from '$lib/services';
-	import { MCPTesterChat } from '$lib/services/mcp/tester-chat.svelte';
 	import {
 		MCPTesterSession,
 		normalizeTesterSection,
@@ -21,15 +18,13 @@
 	} from '$lib/services/mcp/tester.svelte';
 	import { version } from '$lib/stores';
 	import { setUrlParamAndUpdateUrl } from '$lib/url';
-	import { KeyRound, MessageSquarePlus, RotateCw, TriangleAlert } from '@lucide/svelte';
+	import { KeyRound, RotateCw, TriangleAlert } from '@lucide/svelte';
 	import { onDestroy, untrack, type Snippet } from 'svelte';
 	import { twMerge } from 'tailwind-merge';
 
 	interface Props {
 		server?: MCPCatalogServer;
 		serverName: string;
-		chatAvailable: boolean;
-		chatUnavailableMessage: string;
 		active?: boolean;
 		loading?: boolean;
 		icon?: Snippet;
@@ -46,8 +41,6 @@
 	let {
 		server,
 		serverName,
-		chatAvailable,
-		chatUnavailableMessage,
 		active = true,
 		loading = false,
 		icon,
@@ -62,8 +55,6 @@
 	}: Props = $props();
 
 	let session = $state<MCPTesterSession>();
-	let chat = $state<MCPTesterChat>();
-	let confirmNewChat = $state(false);
 	let activeSection = $derived(normalizeTesterSection(page.url.searchParams.get('tab')));
 	let statusLabel = $derived(
 		session
@@ -76,29 +67,11 @@
 		{ id: 'tools', label: m.mcps_tester_tools() },
 		{ id: 'prompts', label: m.mcps_tester_prompts() },
 		{ id: 'resources', label: m.mcps_tester_resources() },
-		{ id: 'chat', label: m.mcps_tester_chat() },
 		{ id: 'logs', label: m.mcps_tester_mcp_log() }
 	];
 
 	const CARD_CLASS =
 		'dark:bg-base-200 dark:border-base-400 bg-base-100 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-transparent p-4 shadow-sm';
-
-	function showStagedChat(): void {
-		setUrlParamAndUpdateUrl(page.url, 'tab', 'chat');
-	}
-
-	function requestNewChat(): void {
-		if (chat?.hasDiscardableState) {
-			confirmNewChat = true;
-			return;
-		}
-		chat?.newChat();
-	}
-
-	function startNewChat(): void {
-		confirmNewChat = false;
-		chat?.newChat();
-	}
 
 	export function reconnect(): void {
 		void session?.initialize(true);
@@ -112,22 +85,18 @@
 			return;
 		}
 
-		const previousChat = untrack(() => chat);
 		const previousSession = untrack(() => session);
-		previousChat?.close();
 		previousSession?.close();
 		mountedConnectionKey = nextKey;
 
 		if (!nextKey) {
 			session = undefined;
-			chat = undefined;
 			return;
 		}
 
 		const target = untrack(() => server);
 		if (!target) {
 			session = undefined;
-			chat = undefined;
 			return;
 		}
 
@@ -140,7 +109,6 @@
 			fetch
 		);
 		session = mountedSession;
-		chat = new MCPTesterChat(mountedSession, target.id, fetch);
 		void mountedSession.initialize();
 	});
 
@@ -151,7 +119,6 @@
 	});
 
 	onDestroy(() => {
-		chat?.close();
 		session?.close();
 	});
 </script>
@@ -184,12 +151,6 @@
 				</p>
 			</div>
 			<div class="flex shrink-0 items-center gap-2">
-				{#if activeSection === 'chat' && chatAvailable && chat}
-					<button type="button" class="btn btn-secondary btn-sm" onclick={requestNewChat}>
-						<MessageSquarePlus class="size-4" aria-hidden="true" />
-						{m.mcps_tester_new_chat()}
-					</button>
-				{/if}
 				{#if headerActions}
 					{@render headerActions()}
 				{/if}
@@ -212,9 +173,6 @@
 					aria-current={activeSection === section.id ? 'page' : undefined}
 				>
 					{section.label}
-					{#if section.id === 'chat' && chat?.approvalNeeded}
-						<span class="badge badge-warning badge-sm ml-2">{m.mcps_tester_approval_needed()}</span>
-					{/if}
 				</button>
 			{/each}
 		</nav>
@@ -316,35 +274,14 @@
 			</TesterError>
 		{:else if session.status === 'ready'}
 			<section class={CARD_CLASS}>
-				{#if activeSection === 'chat'}
-					{#if chatAvailable && chat}
-						<Chat {chat} {session} />
-					{:else}
-						<h2 class="shrink-0 text-lg font-semibold">{m.mcps_tester_chat()}</h2>
-						<div class="bg-base-200 dark:bg-base-300 mt-4 rounded-lg p-4" role="status">
-							<h3 class="font-medium">{m.mcps_tester_chat_unavailable()}</h3>
-							<p class="mt-1 text-sm text-muted-content">{chatUnavailableMessage}</p>
-						</div>
-					{/if}
-				{:else if activeSection === 'tools'}
+				{#if activeSection === 'tools'}
 					<ToolsInspector {session} />
 				{:else if activeSection === 'prompts'}
-					<PromptsInspector {session} onstaged={showStagedChat} />
+					<PromptsInspector {session} />
 				{:else if activeSection === 'resources'}
-					<ResourcesInspector {session} onstaged={showStagedChat} />
+					<ResourcesInspector {session} />
 				{/if}
 			</section>
 		{/if}
 	{/if}
 </div>
-
-<Confirm
-	show={confirmNewChat}
-	title={m.mcps_tester_new_chat_title()}
-	msg={m.mcps_tester_new_chat_msg()}
-	note={m.mcps_tester_new_chat_note()}
-	type="info"
-	submitText={m.mcps_tester_new_chat_submit()}
-	onsuccess={startNewChat}
-	oncancel={() => (confirmNewChat = false)}
-/>

@@ -1,3 +1,4 @@
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import type { MCPCatalogServer } from '$lib/services';
 import { MCPTesterSession } from '$lib/services/mcp/tester.svelte';
 import { worker } from '../../../../tests/mocks/worker';
@@ -8,6 +9,8 @@ import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
+
+overwriteGetLocale(() => 'en');
 
 const server = {
 	id: 'ms1capabilities',
@@ -62,10 +65,7 @@ for (const section of ['prompts', 'resources'] as const) {
 			);
 			session = new MCPTesterSession(server, { name: 'obot-mcp-tester', version: 'test' });
 			await session.initialize();
-			render(section === 'prompts' ? PromptsInspector : ResourcesInspector, {
-				session,
-				onstaged: vi.fn()
-			});
+			render(section === 'prompts' ? PromptsInspector : ResourcesInspector, { session });
 			return listRequest;
 		}
 

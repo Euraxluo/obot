@@ -14,7 +14,6 @@
 	"vmcps_allow_all_access": "모든 액세스 허용",
 	"vmcps_allow_all_access_description": "vMCP에 적용된 모든 MCP 서버와 활성화된 도구에 대한 액세스 권한을 부여합니다.",
 	"vmcps_allow_all_access_future": "현재 MCP 서버와 향후 추가되는 모든 MCP 서버가 포함됩니다.",
-	"vmcps_already_added_to_vmcp": "이미 vMCP에 추가됨",
 	"vmcps_as_is": "그대로 사용",
 	"vmcps_as_is_description": "MCP 서버를 그대로 사용합니다. 도구와 해당 정의는 소스의 향후 변경 사항을 포함하여 자동으로 전달됩니다. 설정 중에는 인증이 필요하지 않습니다.",
 	"vmcps_ask_admin_configure_oauth": "관리자에게 이 MCP 서버의 OAuth 구성을 요청하세요.",
@@ -80,7 +79,6 @@
 	"vmcps_connection_url": "연결 URL",
 	"vmcps_continue_with_update": "업데이트를 계속하시겠습니까?",
 	"vmcps_copy_connect_url": "연결 URL 복사",
-	"vmcps_could_not_find_server": "vMCP에서 해당 서버를 찾을 수 없습니다.",
 	"vmcps_could_not_load_server_tools": "도구를 수정하기 위해 이 서버를 불러올 수 없습니다.",
 	"vmcps_count_vmcps": "vMCP {count}개",
 	"vmcps_count_vmcps_deleted": "vMCP {count}개를 삭제했습니다.",
@@ -347,7 +345,7 @@
 	"vmcps_test_vmcp": "vMCP 테스트",
 	"vmcps_tester_requires_oauth_setup": "이 vMCP를 시작하려면 관리자가 {name}의 OAuth를 설정해야 합니다.",
 	"vmcps_tester_session_start_failed": "세션을 시작하는 중 문제가 발생했습니다. 구성을 확인하거나 문제가 계속되면 지원팀에 문의하세요.",
-	"vmcps_tester_start_prompt": "vMCP를 시작하여 채팅을 사용하고 도구를 검사하세요.",
+	"vmcps_tester_start_prompt": "vMCP를 시작해 도구, 프롬프트, 리소스를 검사하세요.",
 	"vmcps_tester_update_required": "이 vMCP 검사를 계속하려면 업데이트가 필요합니다.",
 	"vmcps_this_profile": "이 프로필",
 	"vmcps_this_server": "이 서버",
@@ -424,7 +422,6 @@
 	"connectors_marketplace_config_short": "구성 항목",
 	"connectors_marketplace_use_in_vmcp": "vMCP에서 사용",
 	"connectors_marketplace_open_details": "전체 세부 정보 열기",
-	"connectors_marketplace_view": "보기",
 	"connectors_marketplace_custom_connector": "사용자 지정 커넥터",
 	"connectors_marketplace_no_name": "제목 없는 커넥터"
 }

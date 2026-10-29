@@ -12,7 +12,7 @@
 	import { AdminService, UserService, Group, Role, type OrgUser } from '$lib/services';
 	import { userRoleOptions } from '$lib/services/admin/constants';
 	import type { OrgUserStatus } from '$lib/services/user/types';
-	import { profile, version } from '$lib/stores';
+	import { profile } from '$lib/stores';
 	import { formatTimeAgo } from '$lib/time';
 	import { replaceState } from '$lib/url';
 	import {

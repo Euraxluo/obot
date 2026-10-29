@@ -4,7 +4,6 @@
 	import Loading from '$lib/icons/Loading.svelte';
 	import {
 		DEFAULT_METABASE_URL,
-		loadSettings,
 		saveSettings,
 		testConnection,
 		type MetabaseSettings

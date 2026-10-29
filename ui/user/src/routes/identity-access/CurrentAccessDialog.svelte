@@ -7,9 +7,6 @@
 	import { m } from '$lib/i18n';
 	import {
 		AdminService,
-		ModelAliasLabels,
-		type Model,
-		type ModelAlias,
 		type OrgUser,
 		UserService,
 		type SkillRepository,
@@ -43,14 +40,12 @@
 
 	const emptySections = (): CurrentAccessSections => ({
 		mcp: [],
-		models: [],
 		skills: [],
 		vmcps: []
 	});
 
 	const idleLoading = (): Record<SectionKey, boolean> => ({
 		mcp: false,
-		models: false,
 		skills: false,
 		vmcps: false
 	});
@@ -65,7 +60,6 @@
 	let resourceQuery = $state('');
 	let search = $state<ReturnType<typeof Search>>();
 
-	let models = $state<Model[]>([]);
 	let skills = $state<Skill[]>([]);
 	let skillRepositories = $state<SkillRepository[]>([]);
 	let mcpOwners = $state<OrgUser[]>([]);
@@ -169,9 +163,6 @@
 					]);
 					break;
 				}
-				case 'models':
-					models = await AdminService.listModels({ all: true });
-					break;
 				case 'skills':
 					[skills, skillRepositories] = await Promise.all([
 						AdminService.listAllSkills(),
@@ -193,7 +184,6 @@
 	const mcpServersMap = $derived(
 		new Map(mcpServersAndEntries.current.servers.map((server) => [server.id, server]))
 	);
-	const modelsMap = $derived(new Map(models.map((model) => [model.id, model])));
 	const skillsMap = $derived(new Map(skills.map((skill) => [skill.id, skill])));
 	const skillRepositoriesMap = $derived(
 		new Map(skillRepositories.map((repository) => [repository.id, repository]))
@@ -213,23 +203,6 @@
 					name: server?.alias || server?.manifest?.name || resource.id,
 					typeLabel: m.identity_access_current_access_type_mcp_server()
 				};
-			}
-			case 'model': {
-				if (resource.id.startsWith('obot://')) {
-					const alias = resource.id.replace('obot://', '') as ModelAlias;
-					return {
-						name: ModelAliasLabels[alias] || alias,
-						typeLabel: m.identity_access_current_access_type_model_alias()
-					};
-				}
-				if (resource.id.endsWith('*')) {
-					return {
-						name: resource.id,
-						typeLabel: m.identity_access_current_access_type_model_pattern()
-					};
-				}
-				const model = modelsMap.get(resource.id);
-				return { name: model?.displayName || model?.name || resource.id };
 			}
 			case 'skill':
 				return { name: skillsMap.get(resource.id)?.name || resource.id };
@@ -257,11 +230,6 @@
 			label: m.nav_mcp_servers(),
 			value: 'mcp' as const,
 			noun: m.identity_access_current_access_noun_mcp_servers()
-		},
-		{
-			label: m.nav_models(),
-			value: 'models' as const,
-			noun: m.identity_access_current_access_noun_models()
 		},
 		{
 			label: m.nav_skills(),
@@ -298,10 +266,6 @@
 
 	function sectionCatalog(section: SectionKey): AccessPolicyResource[] {
 		switch (section) {
-			case 'models':
-				return models
-					.filter((model) => model.usage === 'llm')
-					.map((model) => ({ type: 'model', id: model.id }));
 			case 'skills':
 				return [
 					...skills.map((skill) => ({ type: 'skill' as const, id: skill.id })),
@@ -373,7 +337,6 @@
 	const everythingLabel: Record<SectionKey, string> = {
 		vmcps: m.identity_access_current_access_all_vmcps(),
 		mcp: m.identity_access_current_access_all_mcp_servers(),
-		models: m.identity_access_current_access_all_models(),
 		skills: m.identity_access_current_access_all_skills()
 	};
 

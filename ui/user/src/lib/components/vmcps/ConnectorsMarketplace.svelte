@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import Search from '$lib/components/Search.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
@@ -105,7 +106,7 @@
 				class="h-11 rounded-lg border-base-300/70 bg-base-100 shadow-sm"
 			/>
 			<a
-				href="/mcp-servers?view=entries&new=true"
+				href={resolve('/mcp-servers?view=entries&new=true')}
 				class="btn btn-primary h-11 rounded-lg px-5 text-sm whitespace-nowrap"
 			>
 				{m.connectors_marketplace_custom_connector()}
@@ -198,7 +199,10 @@
 						{m.connectors_marketplace_use_in_vmcp()}
 						<ArrowRight class="size-4" />
 					</button>
-					<a class="btn btn-secondary" href={`/mcp-servers/c/${selectedEntry.id}?from=connectors`}>
+					<a
+						class="btn btn-secondary"
+						href={resolve(`/mcp-servers/c/${selectedEntry.id}?from=connectors`)}
+					>
 						{m.connectors_marketplace_open_details()}
 					</a>
 					<button class="btn btn-ghost" onclick={closeDetails}>

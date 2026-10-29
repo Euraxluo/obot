@@ -4,13 +4,10 @@
 		type AppNotification,
 		type GitCredential,
 		type ImagePullSecret,
-		type ImagePullSecretCapability,
-		type ModelProxySettings,
-		type ModelProxyUsage
+		type ImagePullSecretCapability
 	} from '$lib/services';
 	import { profile } from '$lib/stores';
 	import GitCredentialsView from './GitCredentialsView.svelte';
-	import ModelProxyView from './ModelProxyView.svelte';
 	import NotificationsView from './NotificationsView.svelte';
 	import RegistryConnectionsView from './RegistryConnectionsView.svelte';
 	import { Plus } from '@lucide/svelte';
@@ -21,8 +18,6 @@
 		capability: ImagePullSecretCapability;
 		gitCredentials: GitCredential[];
 		imagePullSecrets: ImagePullSecret[];
-		modelProxySettings?: ModelProxySettings;
-		modelProxyUsage?: ModelProxyUsage;
 		showRegistryConnections?: boolean;
 	}
 
@@ -31,31 +26,24 @@
 		capability = $bindable(),
 		gitCredentials = $bindable(),
 		imagePullSecrets = $bindable(),
-		modelProxySettings,
-		modelProxyUsage,
 		showRegistryConnections = false
 	}: Props = $props();
 
 	let notificationsView = $state<ReturnType<typeof NotificationsView>>();
-	let modelProxyView = $state<ReturnType<typeof ModelProxyView>>();
 	let registryView = $state<ReturnType<typeof RegistryConnectionsView>>();
 	let gitCredentialsView = $state<ReturnType<typeof GitCredentialsView>>();
 
 	let notificationsDirty = $state(false);
-	let modelProxyDirty = $state(false);
 	let registryDirty = $state(false);
 	let gitCredentialsDirty = $state(false);
 	let saving = $state(false);
 
 	let isAdminReadonly = $derived(profile.current.isAdminReadonly?.());
-	let isDirty = $derived(
-		notificationsDirty || modelProxyDirty || registryDirty || gitCredentialsDirty
-	);
+	let isDirty = $derived(notificationsDirty || registryDirty || gitCredentialsDirty);
 	let canCreateGitCredential = $derived(!isAdminReadonly);
 
 	const descriptions: Record<string, string | Snippet> = {
 		notifications: m.platform_settings_notifications_description(),
-		modelProxy: m.platform_settings_model_proxy_description(),
 		registryConnections: m.platform_settings_registry_description(),
 		gitCredentials: m.platform_settings_git_description()
 	};
@@ -80,9 +68,6 @@
 				registryDirty ? registryView?.save() : undefined,
 				gitCredentialsDirty ? gitCredentialsView?.save() : undefined
 			]);
-			if (modelProxyDirty) {
-				await modelProxyView?.save();
-			}
 		} finally {
 			saving = false;
 		}
@@ -90,7 +75,6 @@
 
 	function handleCancel() {
 		notificationsView?.reset();
-		modelProxyView?.reset();
 		registryView?.reset();
 		gitCredentialsView?.reset();
 	}
@@ -104,14 +88,6 @@
 			descriptions.notifications,
 			notifications
 		)}
-		{#if modelProxySettings}
-			{@render section(
-				m.platform_settings_model_proxy(),
-				'model-proxy',
-				descriptions.modelProxy,
-				modelProxy
-			)}
-		{/if}
 	</form>
 
 	{#if showRegistryConnections}
@@ -192,18 +168,6 @@
 		{appNotification}
 		{saving}
 	/>
-{/snippet}
-
-{#snippet modelProxy()}
-	{#if modelProxySettings}
-		<ModelProxyView
-			bind:this={modelProxyView}
-			bind:dirty={modelProxyDirty}
-			settings={modelProxySettings}
-			usage={modelProxyUsage}
-			{saving}
-		/>
-	{/if}
 {/snippet}
 
 {#snippet registryConnections()}

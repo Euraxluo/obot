@@ -66,7 +66,6 @@
 	"skills_no_skills": "現在スキルはありません。",
 	"skills_no_skills_desc_line1": "Git ソース URL を追加すると、",
 	"skills_no_skills_desc_line2": "検出されたスキルをここで確認できます。",
-	"skills_no_skills_found": "スキルが見つかりません。",
 	"skills_no_source_urls": "現在 Git ソース URL はありません。",
 	"skills_no_source_urls_added": "Git ソース URL は追加されていません。",
 	"skills_no_source_urls_desc_line1": "Git ソース URL を追加すると、",

@@ -18,7 +18,7 @@
 		type OrgGroup,
 		type OrgUser
 	} from '$lib/services';
-	import { guardrailTypeLabel } from '$lib/services/llm-gateway/guardrail-text';
+	import { guardrailTypeLabel } from '$lib/services/guardrails/guardrail-text';
 	import { convertSubjectsToTableData, resolveSubjects } from '$lib/subjectResolver';
 	import Select from '../Select.svelte';
 	import Toggle from '../Toggle.svelte';
@@ -334,7 +334,7 @@
 						</p>
 					</div>
 					<div class="flex shrink-0 items-center gap-3">
-						<a href={resolve('/models?view=guardrails')} class="text-link text-xs"
+						<a href={resolve('/mcp-servers?view=filters')} class="text-link text-xs"
 							>{m.guardrails_manage()}</a
 						>
 						{#if !readonly}

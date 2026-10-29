@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import { page } from '$app/state';
 	import Confirm from '$lib/components/Confirm.svelte';
 	import { m } from '$lib/i18n';
 	import Loading from '$lib/icons/Loading.svelte';
@@ -21,7 +21,7 @@
 		settings: MetabaseSettings;
 	}
 
-	let { settings } = $props();
+	let { settings }: Props = $props();
 	let keys = $state<MetabaseApiKey[]>([]);
 	let loading = $state(false);
 	let creating = $state(false);

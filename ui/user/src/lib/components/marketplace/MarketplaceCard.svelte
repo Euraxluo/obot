@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { resolve } from '$app/paths';
 	import { Plus } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import { twMerge } from 'tailwind-merge';
@@ -11,7 +12,7 @@
 		icon: Snippet;
 		metadata?: Snippet;
 		onAction?: (event: MouseEvent) => void;
-		href?: string;
+		href?: `/${string}`;
 		disabled?: boolean;
 	}
 
@@ -32,7 +33,7 @@
 </script>
 
 {#if href && !disabled}
-	<a {href} data-testid={testId} class={rootClass}>
+	<a href={resolve(href)} data-testid={testId} class={rootClass}>
 		{@render icon()}
 		<span class="min-w-0 flex-1">
 			<span class="block truncate text-sm font-semibold" {title}>{title}</span>

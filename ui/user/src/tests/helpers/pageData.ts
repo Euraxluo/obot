@@ -1,23 +1,13 @@
 import { Group } from '$lib/services';
 import type { Profile } from '$lib/services/user/types';
-import {
-	accessibleModels,
-	appNotification,
-	appPreferences,
-	defaultModelAliases,
-	profile,
-	userDeviceSettings,
-	version
-} from '$lib/stores';
+import { appNotification, appPreferences, profile, userDeviceSettings, version } from '$lib/stores';
 import { compileAppPreferences } from '$lib/stores/appPreferences.svelte';
 import type { LayoutData } from '../../routes/$types';
 import {
 	getAppNotificationResponse,
 	getProfileResponse,
 	getVersionResponse,
-	listAppPreferencesResponse,
-	listDefaultModelAliasesResponse,
-	listModelsResponse
+	listAppPreferencesResponse
 } from '../mocks/data';
 
 type PageDataOverrides = Partial<LayoutData> & Record<string, unknown>;
@@ -54,8 +44,6 @@ export function createPageData<T = LayoutData>(overrides: PageDataOverrides = {}
 		appPreferences: compileAppPreferences(listAppPreferencesResponse),
 		profile: createMockProfile(),
 		version: getVersionResponse,
-		defaultModelAliases: listDefaultModelAliasesResponse,
-		models: listModelsResponse,
 		appNotification: getAppNotificationResponse,
 		...overrides
 	} as T;
@@ -78,12 +66,6 @@ export async function initializePageStores(data: LayoutData) {
 	}
 	if (data.appNotification) {
 		await appNotification.initialize(data.appNotification);
-	}
-	if (data.defaultModelAliases) {
-		await defaultModelAliases.initialize(data.defaultModelAliases);
-	}
-	if (data.models) {
-		await accessibleModels.initialize(data.models);
 	}
 }
 

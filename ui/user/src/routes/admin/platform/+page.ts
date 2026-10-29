@@ -6,9 +6,7 @@ import {
 	type GitCredential,
 	type ImagePullSecret,
 	type ImagePullSecretCapability,
-	type K8sSettings,
-	type ModelProxySettings,
-	type ModelProxyUsage
+	type K8sSettings
 } from '$lib/services';
 import { defaultAppNotification } from '$lib/stores/appNotification.svelte';
 import type { PageLoad } from './$types';
@@ -17,7 +15,7 @@ const views = new Set(['branding', 'settings', 'mcp-config']);
 
 let hasHydratedAppNotification = false;
 
-export const load: PageLoad = async ({ depends, fetch, parent, url }) => {
+export const load: PageLoad = async ({ fetch, parent, url }) => {
 	const {
 		profile,
 		version,
@@ -32,12 +30,9 @@ export const load: PageLoad = async ({ depends, fetch, parent, url }) => {
 	let capability: ImagePullSecretCapability = { available: false };
 	let imagePullSecrets: ImagePullSecret[] = [];
 	let gitCredentials: GitCredential[] = [];
-	let modelProxySettings: ModelProxySettings | undefined;
-	let modelProxyUsage: ModelProxyUsage | undefined;
 
 	switch (view) {
 		case 'settings':
-			depends('model-proxy:usage');
 			await Promise.all([
 				(async () => {
 					try {
@@ -59,35 +54,6 @@ export const load: PageLoad = async ({ depends, fetch, parent, url }) => {
 						};
 					} catch (err) {
 						handleRouteError(err, '/admin/platform?view=settings', profile);
-					}
-				})(),
-				(async () => {
-					try {
-						modelProxySettings = await AdminService.getModelProxySettings({
-							fetch,
-							dontLogErrors: true
-						});
-					} catch (err) {
-						handleRouteError(err, '/admin/platform?view=settings', profile);
-					}
-
-					// The model proxy is only used when it's enabled, no model provider is configured,
-					// and its installation credential is available, so don't contact it otherwise.
-					if (
-						modelProxySettings?.enabled !== true ||
-						version?.hasModelProvider !== false ||
-						version?.mcpTesterModelProxyAvailable !== true
-					) {
-						return;
-					}
-
-					try {
-						modelProxyUsage = await AdminService.getModelProxyUsage({
-							fetch,
-							dontLogErrors: true
-						});
-					} catch {
-						modelProxyUsage = undefined;
 					}
 				})(),
 				(async () => {
@@ -126,8 +92,6 @@ export const load: PageLoad = async ({ depends, fetch, parent, url }) => {
 		k8sSettings,
 		capability,
 		imagePullSecrets,
-		gitCredentials,
-		modelProxySettings,
-		modelProxyUsage
+		gitCredentials
 	};
 };

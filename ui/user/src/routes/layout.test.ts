@@ -27,9 +27,6 @@ function createFetch(groups: string[]) {
 					effectiveRole: 1,
 					groups
 				});
-			case '/api/default-model-aliases':
-			case '/api/models':
-				return response({ items: [] });
 			case '/api/app-notification':
 				return response({});
 			default:
@@ -54,8 +51,6 @@ describe('root layout', () => {
 		const data = await loadWith(fetch);
 
 		expect(data.version).toEqual({});
-		expect(data.defaultModelAliases).toEqual([]);
-		expect(data.models).toEqual([]);
 		expect(data.appNotification).toEqual({});
 	});
 });

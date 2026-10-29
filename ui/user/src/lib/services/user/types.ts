@@ -402,7 +402,6 @@ export type ClaudeRuntime = {
 	image: string;
 	workerImage: string;
 	allowAllEgress?: boolean;
-	llmProxy?: boolean;
 	egressHosts: string[];
 	worker: {
 		workerReplicas: number;
@@ -960,67 +959,6 @@ export interface MCP {
 	type: string;
 }
 
-// Models
-
-export interface ModelProvider {
-	id: string;
-	name: string;
-	description?: string;
-	icon?: string;
-	iconDark?: string;
-	configured: boolean;
-	modelsBackPopulated?: boolean;
-	requiredConfigurationParameters?: {
-		name: string;
-		friendlyName?: string;
-		description?: string;
-		sensitive?: boolean;
-		hidden?: boolean;
-	}[];
-	missingConfigurationParameters?: string[];
-	created: string;
-	optionalConfigurationParameters?: {
-		name: string;
-		friendlyName?: string;
-		description?: string;
-		sensitive?: boolean;
-		hidden?: boolean;
-	}[];
-	image: string;
-	port: number;
-	path?: string;
-	dialect?: string;
-	type: 'modelprovider';
-}
-export interface Model {
-	id: string;
-	active: boolean;
-	alias?: string;
-	aliasAssigned: boolean;
-	created: number;
-	modelProvider: string;
-	modelProviderName: string;
-	name: string;
-	displayName: string;
-	targetModel: string;
-	dialect?: string;
-	usage: string;
-	icon?: string;
-	iconDark?: string;
-}
-export const ModelAlias = {
-	Llm: 'llm',
-	LlmMini: 'llm-mini',
-	TextEmbedding: 'text-embedding',
-	ImageGeneration: 'image-generation',
-	Vision: 'vision'
-} as const;
-export type ModelAlias = (typeof ModelAlias)[keyof typeof ModelAlias];
-export interface DefaultModelAlias {
-	alias: ModelAlias;
-	model: string;
-}
-
 // Organization
 
 export interface OrgUser {
@@ -1155,8 +1093,6 @@ export interface ToolReferenceList {
 // Version
 
 export interface Version {
-	hasModelProvider?: boolean | null;
-	mcpTesterModelProxyAvailable?: boolean;
 	sessionStore?: string;
 	obot?: string;
 	authEnabled?: boolean;

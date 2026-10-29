@@ -4,11 +4,10 @@ import { AdminService, Group } from '$lib/services';
 import { profile, version } from '$lib/stores';
 import { adminConfigStore } from '$lib/stores/adminConfig.svelte';
 import { createMockProfile } from '../../../tests/helpers/pageData';
-import { getGatewayStatusResponse, getVersionResponse } from '../../../tests/mocks/data';
+import { getVersionResponse } from '../../../tests/mocks/data';
 import { worker } from '../../../tests/mocks/worker';
 import SetupSplashDialog from './SetupSplashDialog.svelte';
 import { http, HttpResponse } from 'msw';
-import { get } from 'svelte/store';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
@@ -26,9 +25,6 @@ function setUrl(path = '/') {
 async function configureCompletedWelcome() {
 	worker.use(
 		http.get('/api/auth-providers', () => HttpResponse.json({ items: [{ configured: true }] })),
-		http.get('/api/llm-gateway/status', () =>
-			HttpResponse.json({ ...getGatewayStatusResponse, hasProviders: true })
-		),
 		http.get('/api/eula', () => HttpResponse.json({ accepted: true }))
 	);
 	await adminConfigStore.fetchData(true);
@@ -52,7 +48,6 @@ describe('SetupSplashDialog', () => {
 		adminConfigStore.updateAuthProviders([
 			{ configured: true } as Awaited<ReturnType<typeof AdminService.listAuthProviders>>[number]
 		]);
-		adminConfigStore.setModelProviderConfigured(true);
 		adminConfigStore.updateEula(true);
 	});
 
@@ -62,9 +57,6 @@ describe('SetupSplashDialog', () => {
 		localStorage.removeItem('seenSplashDialog');
 		worker.use(
 			http.get('/api/auth-providers', () => HttpResponse.json({ items: [{ configured: true }] })),
-			http.get('/api/llm-gateway/status', () =>
-				HttpResponse.json({ ...getGatewayStatusResponse, hasProviders: true })
-			),
 			http.get('/api/eula', () => HttpResponse.json({ accepted: false }))
 		);
 		await adminConfigStore.fetchData(true);
@@ -79,22 +71,5 @@ describe('SetupSplashDialog', () => {
 		await renderWelcome([Group.USER]);
 
 		await expect.element(page.getByCSS('dialog')).not.toBeVisible();
-	});
-
-	it('does not treat a gateway that is still starting as having no providers', async () => {
-		adminConfigStore.setModelProviderConfigured(true);
-		worker.use(
-			http.get('/api/auth-providers', () => HttpResponse.json({ items: [{ configured: true }] })),
-			http.get('/api/llm-gateway/status', () =>
-				HttpResponse.json({ ...getGatewayStatusResponse, ready: false, hasProviders: false })
-			),
-			http.get('/api/eula', () => HttpResponse.json({ accepted: true }))
-		);
-		await adminConfigStore.fetchData(true);
-
-		const state = get(adminConfigStore);
-		expect(state.modelProviderConfigured).toBe(true);
-		expect(state.lastFetched).not.toBeNull();
-		expect(state.modelProviderKnown).toBe(false);
 	});
 });

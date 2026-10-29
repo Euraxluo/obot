@@ -23,12 +23,13 @@
 	} from './permissions.svelte';
 	import { RefreshCcw, Save, UserPlus } from '@lucide/svelte';
 	import { onMount } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 
 	interface Props {
 		settings: MetabaseSettings;
 	}
 
-	let { settings } = $props();
+	let { settings }: Props = $props();
 	let groups = $state<MetabaseGroup[]>([]);
 	let databases = $state<MetabaseDatabase[]>([]);
 	let graph = $state<PermissionGraph>();
@@ -40,7 +41,7 @@
 	let newGroupName = $state('');
 	let error = $state('');
 	let notice = $state('');
-	let expanded = $state<Set<number>>(new Set());
+	let expanded = new SvelteSet<number>();
 
 	let rows = $derived(
 		graph && selectedGroupId
@@ -50,7 +51,7 @@
 			: []
 	);
 	let changedDatabaseIds = $derived(
-		graph && originalGraph ? databasesWithChanges(graph, originalGraph) : new Set<number>()
+		graph && originalGraph ? databasesWithChanges(graph, originalGraph) : new SvelteSet<number>()
 	);
 	let hasChanges = $derived(changedDatabaseIds.size > 0);
 
@@ -79,7 +80,7 @@
 			} else if (!selectedGroupId && groups.length > 0) {
 				selectedGroupId = String(groups[0].id);
 			}
-			expanded = new Set();
+			expanded.clear();
 		} catch (err) {
 			error = formatError(err);
 		} finally {
@@ -98,11 +99,11 @@
 	}
 
 	function toggleDatabase(databaseId: number) {
-		expanded = new Set(
-			expanded.has(databaseId)
-				? [...expanded].filter((id) => id !== databaseId)
-				: [...expanded, databaseId]
-		);
+		if (expanded.has(databaseId)) {
+			expanded.delete(databaseId);
+		} else {
+			expanded.add(databaseId);
+		}
 	}
 
 	async function save() {

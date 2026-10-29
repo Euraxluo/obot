@@ -1,5 +1,6 @@
 import { page as appPage } from '$app/state';
 import { CATALOG_SERVER_FIELD_IDS } from '$lib/constants';
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import { Group } from '$lib/services';
 import { mcpServersAndEntries } from '$lib/stores';
 import { createMockProfile, preparePageData } from '../../tests/helpers/pageData';
@@ -11,6 +12,8 @@ import { http, HttpResponse } from 'msw';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
+
+overwriteGetLocale(() => 'en');
 
 vi.mock('$app/state', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('$app/state')>();
@@ -194,11 +197,10 @@ describe('MCP Servers Page', () => {
 		beforeEach(() => {
 			resetMcpServersAndEntriesStore();
 			worker.use(
-				http.get('/api/llm-gateway/guardrails', () =>
+				http.get('/api/guardrails', () =>
 					HttpResponse.json({ items: [{ id: 'gp1secrets', name: 'Secrets', type: 'secrets' }] })
 				),
-				http.get('/api/llm-gateway/guardrails/providers', () => HttpResponse.json({ items: [] })),
-				http.get('/api/llm-gateway/guardrail-policies', () => HttpResponse.json({ items: [] })),
+				http.get('/api/guardrails/providers', () => HttpResponse.json({ items: [] })),
 				http.get('/api/mcp-webhook-validations', () =>
 					HttpResponse.json({
 						items: [
@@ -233,7 +235,7 @@ describe('MCP Servers Page', () => {
 				.toBeEnabled();
 		});
 
-		it('has no Guardrails tab; guardrails are managed under LLM Gateway', async () => {
+		it('has no separate Guardrails tab; guardrail filters stay on Filters', async () => {
 			await renderMcpServersPage({ view: 'filters' });
 
 			await expect

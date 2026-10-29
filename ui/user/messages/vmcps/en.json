@@ -14,7 +14,6 @@
 	"vmcps_allow_all_access": "Allow All Access",
 	"vmcps_allow_all_access_description": "Grants access to all MCP servers and enabled tools applied to the vMCP.",
 	"vmcps_allow_all_access_future": "This includes current and any MCP servers added in the future.",
-	"vmcps_already_added_to_vmcp": "Already added to vMCP",
 	"vmcps_as_is": "As-is",
 	"vmcps_as_is_description": "Use the MCP server as-is. Tools and their definitions are passed through automatically, including future changes from the source. No authentication is required during setup.",
 	"vmcps_ask_admin_configure_oauth": "Ask an administrator to configure OAuth for this MCP server.",
@@ -80,7 +79,6 @@
 	"vmcps_connection_url": "Connection URL",
 	"vmcps_continue_with_update": "Continue with update?",
 	"vmcps_copy_connect_url": "Copy Connect URL",
-	"vmcps_could_not_find_server": "Could not find that server on the vMCP.",
 	"vmcps_could_not_load_server_tools": "Could not load this server to modify its tools.",
 	"vmcps_count_vmcps": "{count} vMCPs",
 	"vmcps_count_vmcps_deleted": "{count} vMCPs deleted.",
@@ -347,7 +345,7 @@
 	"vmcps_test_vmcp": "Test vMCP",
 	"vmcps_tester_requires_oauth_setup": "{name} requires administrator OAuth setup before this vMCP can start.",
 	"vmcps_tester_session_start_failed": "There was an issue starting the session. Please verify configuration or contact support if the issue persists.",
-	"vmcps_tester_start_prompt": "Start your vMCP to use chat and inspect tools.",
+	"vmcps_tester_start_prompt": "Start your vMCP to inspect tools, prompts, and resources.",
 	"vmcps_tester_update_required": "Before you can continue inspecting this vMCP, an update is required.",
 	"vmcps_this_profile": "this profile",
 	"vmcps_this_server": "this server",
@@ -424,7 +422,6 @@
 	"connectors_marketplace_config_short": "config fields",
 	"connectors_marketplace_use_in_vmcp": "Use in vMCP",
 	"connectors_marketplace_open_details": "Open full details",
-	"connectors_marketplace_view": "View",
 	"connectors_marketplace_custom_connector": "Custom connector",
 	"connectors_marketplace_no_name": "Untitled connector"
 }

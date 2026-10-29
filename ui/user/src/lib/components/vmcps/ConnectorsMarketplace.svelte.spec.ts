@@ -1,9 +1,12 @@
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import { mcpServersAndEntries } from '$lib/stores';
 import { createMCPCatalogEntry } from '../../../tests/helpers/mcp';
 import ConnectorsMarketplace from './ConnectorsMarketplace.svelte';
 import { tick } from 'svelte';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+
+overwriteGetLocale(() => 'en');
 
 vi.mock('$lib/url', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('$lib/url')>();

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { m } from '$lib/i18n';
 	import {
-		isTextualMimeType,
 		type DirectOperationResult,
 		type MCPTesterSession
 	} from '$lib/services/mcp/tester.svelte';
@@ -9,15 +8,14 @@
 	import McpContent from './McpContent.svelte';
 	import McpResult from './McpResult.svelte';
 	import TesterError from './TesterError.svelte';
-	import { Ban, MessageSquarePlus } from '@lucide/svelte';
+	import { Ban } from '@lucide/svelte';
 	import type { ResourceContents } from '@modelcontextprotocol/sdk/types.js';
 
 	interface Props {
 		session: MCPTesterSession;
-		onstaged: () => void;
 	}
 
-	let { session, onstaged }: Props = $props();
+	let { session }: Props = $props();
 	let inspector = $derived(session.inspectors.resources);
 	let cache = $derived(session.cache.resources);
 	let selected = $derived(cache.items.find((resource) => resource.uri === inspector.selectedURI));
@@ -30,14 +28,6 @@
 		}))
 	);
 	let readActive = $derived(session.activeWorkflow?.label === 'resource read');
-	let resourceStageable = $derived(
-		(inspector.result?.value?.contents.length ?? 0) > 0 &&
-			(inspector.result?.value?.contents.every(
-				(content) => 'text' in content && isTextualMimeType(content.mimeType)
-			) ??
-				false)
-	);
-
 	function renderedContent(content: ResourceContents): unknown {
 		if ('text' in content) return { type: 'text', text: content.text };
 		if ('blob' in content && content.mimeType?.startsWith('image/')) {
@@ -52,7 +42,6 @@
 	async function selectResource(uri: string) {
 		inspector.selectedURI = uri;
 		inspector.result = undefined;
-		inspector.stageError = undefined;
 		if (session.activeWorkflow) return;
 		await readResource(uri);
 	}
@@ -60,7 +49,6 @@
 	async function retryRead() {
 		if (!inspector.selectedURI || session.activeWorkflow) return;
 		inspector.result = undefined;
-		inspector.stageError = undefined;
 		await readResource(inspector.selectedURI);
 	}
 
@@ -68,19 +56,6 @@
 		const result = await session.readResource(uri);
 		if (inspector.selectedURI !== uri) return;
 		inspector.result = result;
-	}
-
-	function useInChat() {
-		if (!selected || !inspector.result?.value) return;
-		const staged = session.stageResource(
-			selected.title || selected.name || selected.uri,
-			inspector.result.value
-		);
-		if (!staged.ok) {
-			inspector.stageError = staged.message;
-			return;
-		}
-		onstaged();
 	}
 
 	$effect(() => {
@@ -168,11 +143,6 @@
 										<McpContent content={renderedContent(content)} />
 									</div>
 								{/each}
-								{#if !resourceStageable}
-									<p class="text-sm text-muted-content">
-										{m.mcps_tester_resource_not_stageable()}
-									</p>
-								{/if}
 							</div>
 						{/if}
 
@@ -183,17 +153,6 @@
 									>{m.mcps_tester_retry_read()}</button
 								>
 							{/if}
-						{/if}
-
-						{#if inspector.stageError}<TesterError
-								title={m.mcps_tester_response_failed()}
-								message={inspector.stageError}
-							/>{/if}
-						{#if inspector.result?.status === 'success' && inspector.result.value && resourceStageable}
-							<button class="btn btn-secondary" onclick={useInChat}>
-								<MessageSquarePlus class="size-4" aria-hidden="true" />
-								{m.mcps_tester_use_in_chat()}
-							</button>
 						{/if}
 					</div>
 				{:else}

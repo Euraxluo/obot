@@ -17,7 +17,6 @@
 	import Loading from '$lib/icons/Loading.svelte';
 	import { parseMultiValue, serializeMultiValue } from '$lib/multiValue';
 	import {
-		type LLMAuditLogURLFilters,
 		type AuditLogFilterOption,
 		type OrgUser,
 		type ScheduledAuditLogExport,
@@ -38,15 +37,14 @@
 		onSubmit: (result?: ScheduledAuditLogExport) => void;
 		mode?: 'create' | 'view' | 'edit';
 		initialData?: ScheduledAuditLogExport;
-		logType?: 'mcp' | 'llm';
 	}
 
-	let { onCancel, onSubmit, mode = 'create', initialData, logType = 'mcp' }: Props = $props();
+	let { onCancel, onSubmit, mode = 'create', initialData }: Props = $props();
 
 	let defaultTimezone = $state(Intl.DateTimeFormat().resolvedOptions().timeZone);
 	let showAdvancedOptions = $state(false);
 	let isViewMode = $derived(mode === 'view');
-	let defaultKeyPrefix = $derived(logType === 'llm' ? 'llm-audit-logs' : 'mcp-audit-logs');
+	let defaultKeyPrefix = 'mcp-audit-logs';
 
 	// Form state. Every log source starts selected so a new schedule covers everything by default;
 	// the user narrows it by unchecking.
@@ -83,19 +81,14 @@
 			client_ip: '',
 			response_status: '',
 			session_id: '',
-			user_agent: '',
-			client_session_id: '',
-			model_provider: '',
 			outcome: '',
-			request_path: '',
-			target_model: '',
 			agent_provider: '',
 			status: '',
 			tool_name: '',
 			tool_kind: '',
 			device_id: '',
 			query: ''
-		} as Partial<AuditLogURLFilters & LLMAuditLogURLFilters>
+		} as Partial<AuditLogURLFilters>
 	});
 
 	let creating = $state(false);
@@ -128,24 +121,6 @@
 			}
 
 			// Populate filters if they exist
-			if (logType === 'llm' && initialData.llmFilters) {
-				const filters = initialData.llmFilters;
-				form.filters = {
-					api_key_id: filters.apiKeyIDs?.join(',') ?? '',
-					user_id: filters.userIDs ? filters.userIDs.join(',') : '',
-					model_provider: filters.modelProviders ? filters.modelProviders.join(',') : '',
-					target_model: filters.targetModels ? filters.targetModels.join(',') : '',
-					request_path: filters.requestPaths ? filters.requestPaths.join(',') : '',
-					response_status: filters.responseStatuses ? filters.responseStatuses.join(',') : '',
-					outcome: filters.outcomes ? filters.outcomes.join(',') : '',
-					user_agent: filters.userAgents ? filters.userAgents.join(',') : '',
-					client_session_id: filters.clientSessionIDs ? filters.clientSessionIDs.join(',') : '',
-					query: filters.query ?? ''
-				};
-				showAdvancedOptions = true;
-				return;
-			}
-
 			if (initialData.filters) {
 				const filters = initialData.filters;
 				form.filters = {
@@ -183,55 +158,39 @@
 		} else if (mode === 'create') {
 			// Populate from URL parameters for create mode
 			const params = page.url.searchParams;
-			if (logType === 'mcp') {
-				// The audit-logs page omits event_type when no Source filter is applied; in that case
-				// the all-sources default stands.
-				const sourceTypes = sourceTypesFromEventTypeParam(params.get('event_type'));
-				if (sourceTypes) {
-					form.sourceTypes = sourceTypes;
-				}
+			// The audit-logs page omits event_type when no Source filter is applied; in that case
+			// the all-sources default stands.
+			const sourceTypes = sourceTypesFromEventTypeParam(params.get('event_type'));
+			if (sourceTypes) {
+				form.sourceTypes = sourceTypes;
 			}
 
-			const mappedField =
-				logType === 'llm'
-					? ({
-							api_key_id: 'api_key_id',
-							user_id: 'user_id',
-							user_agent: 'user_agent',
-							client_session_id: 'client_session_id',
-							model_provider: 'model_provider',
-							outcome: 'outcome',
-							request_path: 'request_path',
-							response_status: 'response_status',
-							target_model: 'target_model',
-							query: 'query'
-						} satisfies Record<string, keyof LLMAuditLogURLFilters>)
-					: ({
-							api_key_id: 'api_key_id',
-							actor: 'actor',
-							operation: 'operation',
-							mcp_server: 'mcp_server',
-							tool: 'tool',
-							outcome: 'outcome',
-							client: 'client',
-							user_id: 'user_id',
-							mcp_id: 'mcp_id',
-							mcp_server_display_name: 'mcp_server_display_name',
-							mcp_server_catalog_entry_name: 'mcp_server_catalog_entry_name',
-							call_type: 'call_type',
-							call_identifier: 'call_identifier',
-							response_status: 'response_status',
-							session_id: 'session_id',
-							client_name: 'client_name',
-							client_version: 'client_version',
-							client_ip: 'client_ip',
-							agent_provider: 'agent_provider',
-							status: 'status',
-							tool_name: 'tool_name',
-							tool_kind: 'tool_kind',
-							device_id: 'device_id',
-							query: 'query'
-						} satisfies Record<string, keyof AuditLogURLFilters>);
+			const mappedField = {
+				api_key_id: 'api_key_id',
+				actor: 'actor',
+				operation: 'operation',
+				mcp_server: 'mcp_server',
+				tool: 'tool',
+				outcome: 'outcome',
+				client: 'client',
+				user_id: 'user_id',
+				mcp_id: 'mcp_id',
+				mcp_server_display_name: 'mcp_server_display_name',
+				mcp_server_catalog_entry_name: 'mcp_server_catalog_entry_name',
+				call_type: 'call_type',
+				call_identifier: 'call_identifier',
+				response_status: 'response_status',
+				session_id: 'session_id',
+				client_name: 'client_name',
+				client_version: 'client_version',
+				client_ip: 'client_ip',
+				agent_provider: 'agent_provider',
+				status: 'status',
+				tool_name: 'tool_name',
+				tool_kind: 'tool_kind',
+				device_id: 'device_id',
+				query: 'query'
+			} satisfies Record<string, keyof AuditLogURLFilters>;
 
 			let hasFilters = false;
 			for (const [key, value] of Object.entries(mappedField)) {
@@ -274,18 +233,7 @@
 		'tool_kind',
 		'device_id'
 	];
-	let llmFiltersIds = [
-		'api_key_id',
-		'user_id',
-		'user_agent',
-		'client_session_id',
-		'model_provider',
-		'outcome',
-		'request_path',
-		'response_status',
-		'target_model'
-	];
-	let filtersIds = $derived(logType === 'llm' ? llmFiltersIds : mcpFiltersIds);
+	let filtersIds = mcpFiltersIds;
 
 	let usersMap = new SvelteMap<string, OrgUser>();
 	let filtersOptions: Record<string, AuditLogFilterOption[]> = $state({});
@@ -301,12 +249,6 @@
 	$effect(() => {
 		const event_type = eventTypeParamFromSourceTypes(form.sourceTypes);
 		filtersIds.forEach((id) => {
-			if (logType === 'llm') {
-				AdminService.listLLMAuditLogFilterOptions(id).then((res) => {
-					filtersOptions[id] = res.options ?? [];
-				});
-				return;
-			}
 			// Only fetch options for the filters actually visible in the current source selection.
 			if (
 				!isExportFilterKeyVisible(
@@ -342,12 +284,7 @@
 			| 'session_id'
 			| 'client_ip'
 			| 'mcp_server_catalog_entry_name'
-			| 'user_agent'
-			| 'client_session_id'
-			| 'model_provider'
 			| 'outcome'
-			| 'request_path'
-			| 'target_model'
 			| 'agent_provider'
 			| 'status'
 			| 'tool_name'
@@ -365,74 +302,6 @@
 				: id;
 		const sameLabel = (d: AuditLogFilterOption) =>
 			toAuditLogFilterSelectOption(d, resolveUserDisplayName);
-		if (logType === 'llm') {
-			return [
-				{
-					fieldId: 'api_key_id',
-					filterKey: 'api_key_id',
-					label: m.audit_usage_exports_filter_title_api_keys(),
-					description: m.audit_usage_exports_filter_desc_api_keys_used(),
-					options: filtersOptions['api_key_id']?.map?.(sameLabel) ?? []
-				},
-				{
-					fieldId: 'user_id',
-					filterKey: 'user_id',
-					label: m.audit_usage_exports_filter_title_users(),
-					description: m.audit_usage_exports_filter_desc_csv_user_ids(),
-					options: toStringFilterSelectOptions(filtersOptions['user_id'], resolveUserDisplayName)
-				},
-				{
-					fieldId: 'model_provider',
-					filterKey: 'model_provider',
-					label: m.audit_usage_exports_filter_title_model_providers(),
-					description: m.audit_usage_exports_filter_desc_csv_model_providers(),
-					options: filtersOptions['model_provider']?.map?.(sameLabel) ?? []
-				},
-				{
-					fieldId: 'target_model',
-					filterKey: 'target_model',
-					label: m.audit_usage_exports_filter_title_target_models(),
-					description: m.audit_usage_exports_filter_desc_csv_target_models(),
-					options: filtersOptions['target_model']?.map?.(sameLabel) ?? []
-				},
-				{
-					fieldId: 'request_path',
-					filterKey: 'request_path',
-					label: m.audit_usage_exports_filter_title_request_paths(),
-					description: m.audit_usage_exports_filter_desc_csv_request_paths(),
-					options: filtersOptions['request_path']?.map?.(sameLabel) ?? []
-				},
-				{
-					fieldId: 'response_status',
-					filterKey: 'response_status',
-					label: m.audit_usage_exports_filter_title_response_status(),
-					description: m.audit_usage_exports_filter_desc_csv_http_status_codes(),
-					options: filtersOptions['response_status']?.map?.(sameLabel) ?? []
-				},
-				{
-					fieldId: 'outcome',
-					filterKey: 'outcome',
-					label: m.audit_usage_exports_filter_title_outcomes(),
-					description: m.audit_usage_exports_filter_desc_csv_outcomes(),
-					options: filtersOptions['outcome']?.map?.(sameLabel) ?? []
-				},
-				{
-					fieldId: 'user_agent',
-					filterKey: 'user_agent',
-					label: m.audit_usage_exports_filter_title_user_agents(),
-					description: m.audit_usage_exports_filter_desc_csv_user_agents(),
-					options: filtersOptions['user_agent']?.map?.(sameLabel) ?? []
-				},
-				{
-					fieldId: 'client_session_id',
-					filterKey: 'client_session_id',
-					label: m.audit_usage_exports_filter_title_client_session_ids(),
-					description: m.audit_usage_exports_filter_desc_csv_client_session_ids(),
-					options: filtersOptions['client_session_id']?.map?.(sameLabel) ?? []
-				}
-			];
-		}
-
 		return [
 			// Common cross-source filters. Shown only when more than one log source is selected.
 			{
@@ -611,43 +480,6 @@
 				split(value)
 					.map((s) => Number(s))
 					.filter((n) => !Number.isNaN(n));
-
-			if (logType === 'llm') {
-				const request = {
-					name: form.name,
-					type: 'llm' as const,
-					bucket: form.bucket,
-					keyPrefix: form.keyPrefix,
-					enabled: form.enabled,
-					schedule: form.schedule,
-					retentionPeriodInDays: form.retentionPeriodInDays,
-					llmFilters: {
-						apiKeyIDs: splitNumbers(form.filters.api_key_id),
-						userIDs: split(form.filters.user_id),
-						modelProviders: split(form.filters.model_provider),
-						targetModels: split(form.filters.target_model),
-						requestPaths: split(form.filters.request_path),
-						responseStatuses: splitNumbers(form.filters.response_status),
-						outcomes: split(form.filters.outcome),
-						userAgents: split(form.filters.user_agent),
-						clientSessionIDs: split(form.filters.client_session_id),
-						query: form.filters.query ?? ''
-					}
-				};
-
-				let result: ScheduledAuditLogExport | undefined = undefined;
-				if (mode === 'edit' && initialData?.id) {
-					result = (await AdminService.updateScheduledAuditLogExport(initialData.id, request, {
-						dontLogErrors: true
-					})) as ScheduledAuditLogExport;
-				} else {
-					result = (await AdminService.createScheduledAuditLogExport(request, {
-						dontLogErrors: true
-					})) as ScheduledAuditLogExport;
-				}
-				onSubmit(result);
-				return;
-			}
 
 			if (form.sourceTypes.length === 0) {
 				throw new Error(m.audit_usage_exports_source_required());
@@ -861,7 +693,7 @@
 				</p>
 			</div>
 
-			{#if logType === 'mcp'}
+			{#if true}
 				<div class="flex flex-col gap-1">
 					<span class="text-sm font-medium">{m.audit_usage_exports_log_sources()}</span>
 					<div class="flex flex-col gap-2 py-1">

@@ -39,7 +39,6 @@ import {
 	type ClaudeEnvironmentPayload,
 	type ClaudeOrganizationAccount,
 	type ClaudeSession,
-	type DefaultModelAlias,
 	type DeviceCodeVerificationResponse,
 	type DeviceScan,
 	type DeviceScanListFilters,
@@ -51,7 +50,6 @@ import {
 	type MCPServerPrompt,
 	type McpServerResource,
 	type MCPServerTool,
-	type Model,
 	type OrgGroup,
 	type OrgGroupPage,
 	type OrgUser,
@@ -450,18 +448,6 @@ export async function getBootstrapStatus(): Promise<BootstrapStatus> {
 	return (await doGet('/bootstrap')) as BootstrapStatus;
 }
 
-// Default model aliases
-
-export async function listDefaultModelAliases(opts?: {
-	fetch?: Fetcher;
-}): Promise<DefaultModelAlias[]> {
-	const response = (await doGet(
-		'/default-model-aliases',
-		opts
-	)) as ItemsResponse<DefaultModelAlias>;
-	return response.items ?? [];
-}
-
 // Device login
 
 export async function verifyDeviceCode(code: string): Promise<DeviceCodeVerificationResponse> {
@@ -730,13 +716,6 @@ export async function listSingleOrRemoteMcpServerResources(
 		}
 		throw error;
 	}
-}
-
-// Models
-
-export async function listModels(opts?: { fetch?: Fetcher }): Promise<Model[]> {
-	const response = (await doGet('/models', opts)) as ItemsResponse<Model>;
-	return response.items ?? [];
 }
 
 // Organization

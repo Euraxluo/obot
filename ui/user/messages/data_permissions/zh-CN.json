@@ -42,7 +42,6 @@
 	"data_permissions_create_native": "查询构建器 + Native",
 	"data_permissions_create_no": "不可创建",
 	"data_permissions_revision": "当前权限图版本：{revision}",
-	"data_permissions_changed": "已变更",
 	"data_permissions_permissions_saved": "权限已保存。",
 	"data_permissions_add_to_env": "一键添加到环境",
 	"data_permissions_add_to_env_done": "已添加到环境。",

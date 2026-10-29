@@ -13,14 +13,9 @@ import {
 } from '../http';
 import { AUDIT_LOG_FILTER_OPTIONS_LIMIT } from '../user/constants';
 import type {
-	AuditLogFilterOption,
-	ModelProvider,
 	MCPCatalogServer,
 	MCPServerInstance,
 	MCPServerTool,
-	Model,
-	ModelAlias,
-	DefaultModelAlias,
 	BootstrapStatus,
 	AppPreferences,
 	AppNotification,
@@ -39,11 +34,6 @@ import type {
 	MCPCatalogEntryServerManifest,
 	MCPCatalogManifest,
 	MCPCatalogServerManifest,
-	ModelAccessPolicy,
-	ModelAccessPolicyManifest,
-	ModelProxySettings,
-	ModelProxySettingsUpdateManifest,
-	ModelProxyUsage,
 	AuthProvider,
 	ResidualGroupData,
 	SCIMConnection,
@@ -86,11 +76,6 @@ import type {
 	MCPCapacityInfo,
 	MCPServerOAuthCredentialRequest,
 	MCPServerOAuthCredentialStatus,
-	TokenUsageStats,
-	TokenUsageStatsFilters,
-	TokenUsageTimeRange,
-	TotalTokenUsage,
-	TokenUsage,
 	SkillRepository,
 	SkillRepositoryManifest,
 	SkillAccessPolicy,
@@ -118,8 +103,6 @@ import type {
 	OAuthToken,
 	AppPreferencesManifest,
 	AppNotificationManifest,
-	LLMAuditLog,
-	LLMAuditLogURLFilters,
 	EgressAuditLog,
 	EgressAuditLogURLFilters,
 	EnforcementDecisionAllowlistCheck,
@@ -289,38 +272,6 @@ export async function updateScheduledAuditLogExport(
 
 export async function deleteScheduledAuditLogExport(name: string, opts?: { signal?: AbortSignal }) {
 	await doDelete(`/scheduled-audit-log-exports/${name}`, { signal: opts?.signal });
-}
-
-// LLM audit logs
-
-export async function getLLMAuditLog(id: string, opts?: { fetch?: Fetcher; signal?: AbortSignal }) {
-	const response = (await doGet(`/llm-audit-logs/detail/${id}`, opts)) as LLMAuditLog;
-	return response;
-}
-
-export async function listLLMAuditLogs(
-	filters?: LLMAuditLogURLFilters,
-	opts?: { fetch?: Fetcher; signal?: AbortSignal }
-) {
-	const queryString = buildQueryString(filters ?? {});
-	const response = (await doGet(
-		`/llm-audit-logs${queryString ? `?${queryString}` : ''}`,
-		opts
-	)) as PaginatedResponse<LLMAuditLog>;
-	return response;
-}
-
-export async function listLLMAuditLogFilterOptions(
-	filter: string,
-	opts?: { fetch?: Fetcher; signal?: AbortSignal } & Partial<LLMAuditLogURLFilters>
-) {
-	const { fetch: fetchFn, signal, ...filters } = opts ?? {};
-	const queryString = buildQueryString({ ...filters, limit: AUDIT_LOG_FILTER_OPTIONS_LIMIT });
-	const response = (await doGet(
-		`/llm-audit-logs/filter-options/${filter}${queryString ? `?${queryString}` : ''}`,
-		{ fetch: fetchFn, signal }
-	)) as { options: AuditLogFilterOption[] };
-	return response;
 }
 
 // Egress audit logs
@@ -1499,11 +1450,10 @@ export async function restartMCPFilter(id: string, opts?: { fetch?: Fetcher }): 
 	await doPost(`/mcp-webhook-validations/${id}/restart`, {}, opts);
 }
 
-// Guardrail filters run in-process with guardrails, which are managed under the LLM gateway
-// guardrails API.
+// Guardrail filters run in-process with the MCP guardrails API.
 
 export async function listMCPGuardrails(opts?: { fetch?: Fetcher }): Promise<MCPGuardrail[]> {
-	const response = (await doGet('/llm-gateway/guardrails', opts)) as {
+	const response = (await doGet('/guardrails', opts)) as {
 		items: MCPGuardrail[] | null;
 	};
 	return response.items ?? [];
@@ -1512,7 +1462,7 @@ export async function listMCPGuardrails(opts?: { fetch?: Fetcher }): Promise<MCP
 export async function listMCPGuardrailProviders(opts?: {
 	fetch?: Fetcher;
 }): Promise<MCPGuardrailProvider[]> {
-	const response = (await doGet('/llm-gateway/guardrails/providers', opts)) as {
+	const response = (await doGet('/guardrails/providers', opts)) as {
 		items: MCPGuardrailProvider[] | null;
 	};
 	return response.items ?? [];
@@ -1522,11 +1472,10 @@ export async function validateMCPGuardrailCondition(
 	condition: string,
 	opts?: { dontLogErrors?: boolean }
 ): Promise<{ valid: boolean; error?: string }> {
-	return (await doPost(
-		'/llm-gateway/guardrails/validate-condition',
-		{ target: 'mcp', condition },
-		opts
-	)) as { valid: boolean; error?: string };
+	return (await doPost('/guardrails/validate-condition', { target: 'mcp', condition }, opts)) as {
+		valid: boolean;
+		error?: string;
+	};
 }
 
 export async function getMCPFilterDetails(
@@ -1637,87 +1586,6 @@ export async function updateMCPTunnel(
 	opts?: RequestOptions
 ): Promise<MCPTunnel> {
 	return (await doPut(`/mcp-tunnels/${id}`, input, opts)) as MCPTunnel;
-}
-
-// Model access policies
-
-export async function listModelAccessPolicies(opts?: {
-	fetch?: Fetcher;
-}): Promise<ModelAccessPolicy[]> {
-	const response = (await doGet(
-		'/model-access-policies',
-		opts
-	)) as ItemsResponse<ModelAccessPolicy>;
-	return response.items ?? [];
-}
-
-export async function getModelAccessPolicy(
-	id: string,
-	opts?: { fetch?: Fetcher }
-): Promise<ModelAccessPolicy> {
-	const response = (await doGet(`/model-access-policies/${id}`, opts)) as ModelAccessPolicy;
-	return response;
-}
-
-export async function createModelAccessPolicy(
-	rule: ModelAccessPolicyManifest
-): Promise<ModelAccessPolicy> {
-	const response = (await doPost('/model-access-policies', rule)) as ModelAccessPolicy;
-	return response;
-}
-
-export async function updateModelAccessPolicy(
-	id: string,
-	rule: ModelAccessPolicyManifest
-): Promise<ModelAccessPolicy> {
-	return (await doPut(`/model-access-policies/${id}`, rule)) as ModelAccessPolicy;
-}
-
-export async function deleteModelAccessPolicy(id: string): Promise<void> {
-	await doDelete(`/model-access-policies/${id}`);
-}
-
-// Model providers
-
-export async function listModelProviders(opts?: { fetch?: Fetcher }): Promise<ModelProvider[]> {
-	const response = (await doGet('/model-providers', opts)) as ItemsResponse<ModelProvider>;
-	return response.items ?? [];
-}
-
-// Model proxy
-
-export async function getModelProxySettings(opts?: RequestOptions): Promise<ModelProxySettings> {
-	return (await doGet('/model-proxy', opts)) as ModelProxySettings;
-}
-
-export async function getModelProxyUsage(opts?: RequestOptions): Promise<ModelProxyUsage> {
-	return (await doGet('/model-proxy/usage', opts)) as ModelProxyUsage;
-}
-
-export async function updateModelProxySettings(
-	settings: ModelProxySettingsUpdateManifest,
-	opts?: RequestOptions
-): Promise<ModelProxySettings> {
-	return (await doPut('/model-proxy', settings, opts)) as ModelProxySettings;
-}
-
-// Models
-
-export async function listModels(opts?: { fetch?: Fetcher; all?: boolean }): Promise<Model[]> {
-	const url = opts?.all ? '/models?all=true' : '/models';
-	const response = (await doGet(url, opts)) as ItemsResponse<Model>;
-	return response.items ?? [];
-}
-
-export async function updateModel(modelID: string, model: Model): Promise<void> {
-	await doPut(`/models/${modelID}`, model);
-}
-
-export async function updateDefaultModelAlias(
-	alias: ModelAlias,
-	defaultModelAlias: DefaultModelAlias
-): Promise<void> {
-	await doPut(`/default-model-aliases/${alias}`, defaultModelAlias);
 }
 
 // Setup
@@ -2092,74 +1960,6 @@ export async function getSystemMCPServerTools(
 	opts?: { fetch?: Fetcher }
 ): Promise<MCPServerTool[]> {
 	return (await doGet(`/system-mcp-servers/${id}/tools`, opts)) as MCPServerTool[];
-}
-
-// Token usage
-
-function formatTokenUsageDate(d: Date | string): string {
-	return typeof d === 'string' ? d : d.toISOString();
-}
-
-function tokenUsageQueryString(timeRange: TokenUsageTimeRange): string {
-	const parts = [
-		`start=${encodeURIComponent(formatTokenUsageDate(timeRange.start))}`,
-		`end=${encodeURIComponent(formatTokenUsageDate(timeRange.end))}`
-	];
-	return parts.join('&');
-}
-
-/** Returns token usage for all users in the time range as a flat list. */
-
-function unwrapTokenUsageList(response: unknown): TokenUsage[] {
-	if (Array.isArray(response)) return response;
-	const list = response as { items?: TokenUsage[] };
-	return list?.items ?? [];
-}
-
-export async function listTotalTokenUsage(
-	timeRange: TokenUsageTimeRange,
-	opts?: { fetch?: Fetcher; signal?: AbortSignal }
-) {
-	const queryString = tokenUsageQueryString(timeRange);
-	const response = await doGet(`/total-token-usage?${queryString}`, opts);
-	return response as TotalTokenUsage;
-}
-
-export async function listTokenUsage(
-	timeRange: TokenUsageTimeRange,
-	opts?: { fetch?: Fetcher; signal?: AbortSignal }
-): Promise<TokenUsage[]> {
-	const queryString = tokenUsageQueryString(timeRange);
-	const response = await doGet(`/token-usage?${queryString}`, opts);
-	return unwrapTokenUsageList(response);
-}
-
-/** Returns request, latency, token and spend statistics for LLM gateway requests in the time range. */
-export async function getTokenUsageStats(
-	timeRange: TokenUsageTimeRange,
-	filters: TokenUsageStatsFilters = {},
-	opts?: { fetch?: Fetcher; signal?: AbortSignal }
-): Promise<TokenUsageStats> {
-	const params = new URLSearchParams(tokenUsageQueryString(timeRange));
-	for (const id of filters.userIDs ?? []) params.append('user_id', id);
-	for (const model of filters.models ?? []) params.append('model', model);
-	for (const id of filters.apiKeyIDs ?? []) params.append('api_key_id', id);
-	return (await doGet(`/token-usage-stats?${params}`, opts)) as TokenUsageStats;
-}
-
-export async function listTotalTokenUsageForUser(userId: string, opts?: { fetch?: Fetcher }) {
-	const response = await doGet(`/users/${userId}/total-token-usage`, opts);
-	return response;
-}
-
-export async function listTokenUsageForUser(
-	userId: string,
-	timeRange: TokenUsageTimeRange,
-	opts?: { fetch?: Fetcher; signal?: AbortSignal }
-): Promise<TokenUsage[]> {
-	const queryString = tokenUsageQueryString(timeRange);
-	const response = await doGet(`/users/${userId}/token-usage?${queryString}`, opts);
-	return unwrapTokenUsageList(response);
 }
 
 // User default role settings

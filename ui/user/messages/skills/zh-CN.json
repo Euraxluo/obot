@@ -66,7 +66,6 @@
 	"skills_no_skills": "当前没有技能。",
 	"skills_no_skills_desc_line1": "添加 Git 来源 URL 后，",
 	"skills_no_skills_desc_line2": "即可在此查看发现的技能。",
-	"skills_no_skills_found": "未找到技能。",
 	"skills_no_source_urls": "当前没有 Git 来源 URL。",
 	"skills_no_source_urls_added": "尚未添加 Git 来源 URL。",
 	"skills_no_source_urls_desc_line1": "添加 Git 来源 URL 后，",

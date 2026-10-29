@@ -14,7 +14,6 @@
 	"vmcps_allow_all_access": "允许所有访问",
 	"vmcps_allow_all_access_description": "授予对 vMCP 上所有 MCP 服务器和已启用工具的访问权限。",
 	"vmcps_allow_all_access_future": "包括当前的以及将来添加的所有 MCP 服务器。",
-	"vmcps_already_added_to_vmcp": "已添加到 vMCP",
 	"vmcps_as_is": "原样使用",
 	"vmcps_as_is_description": "按原样使用 MCP 服务器。工具及其定义会自动透传，包括来自源的后续变更。设置期间无需身份验证。",
 	"vmcps_ask_admin_configure_oauth": "请联系管理员为此 MCP 服务器配置 OAuth。",
@@ -80,7 +79,6 @@
 	"vmcps_connection_url": "连接 URL",
 	"vmcps_continue_with_update": "是否继续更新？",
 	"vmcps_copy_connect_url": "复制连接 URL",
-	"vmcps_could_not_find_server": "在 vMCP 上找不到该服务器。",
 	"vmcps_could_not_load_server_tools": "无法加载此服务器以修改其工具。",
 	"vmcps_count_vmcps": "{count} 个 vMCP",
 	"vmcps_count_vmcps_deleted": "已删除 {count} 个 vMCP。",
@@ -347,7 +345,7 @@
 	"vmcps_test_vmcp": "测试 vMCP",
 	"vmcps_tester_requires_oauth_setup": "此 vMCP 启动前，需要管理员为 {name} 设置 OAuth。",
 	"vmcps_tester_session_start_failed": "启动会话时出现问题。请检查配置，如果问题仍然存在，请联系支持人员。",
-	"vmcps_tester_start_prompt": "启动 vMCP 以使用聊天并检查工具。",
+	"vmcps_tester_start_prompt": "启动 vMCP 以检查工具、提示和资源。",
 	"vmcps_tester_update_required": "需要更新后才能继续检查此 vMCP。",
 	"vmcps_this_profile": "此配置文件",
 	"vmcps_this_server": "此服务器",
@@ -424,7 +422,6 @@
 	"connectors_marketplace_config_short": "个配置项",
 	"connectors_marketplace_use_in_vmcp": "用于 vMCP",
 	"connectors_marketplace_open_details": "打开完整详情",
-	"connectors_marketplace_view": "查看",
 	"connectors_marketplace_custom_connector": "自定义连接器",
 	"connectors_marketplace_no_name": "未命名连接器"
 }

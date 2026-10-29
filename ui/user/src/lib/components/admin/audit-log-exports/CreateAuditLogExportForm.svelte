@@ -24,7 +24,6 @@
 		UserService,
 		type AuditLogExport,
 		type AuditLogFilterOption,
-		type LLMAuditLogURLFilters,
 		type OrgUser,
 		type AuditLogURLFilters
 	} from '$lib/services';
@@ -61,17 +60,6 @@
 		| 'tool_name'
 		| 'tool_kind'
 		| 'device_id';
-	type LLMAuditLogExportMultiSelectFilterKey =
-		| 'api_key_id'
-		| 'user_id'
-		| 'user_agent'
-		| 'client_session_id'
-		| 'model_provider'
-		| 'outcome'
-		| 'request_path'
-		| 'response_status'
-		| 'target_model';
-
 	type AuditLogExportFilterFieldConfig<T extends string = string> = {
 		filterKey: T;
 		title: string;
@@ -203,69 +191,18 @@
 				description: m.audit_usage_exports_filter_desc_list_enrolled_device_ids()
 			}
 		];
-	const LLM_AUDIT_LOG_EXPORT_FILTER_FIELDS: AuditLogExportFilterFieldConfig<LLMAuditLogExportMultiSelectFilterKey>[] =
-		[
-			{
-				filterKey: 'api_key_id',
-				title: m.audit_usage_exports_filter_title_api_keys(),
-				description: m.audit_usage_exports_filter_desc_api_keys_used()
-			},
-			{
-				filterKey: 'user_id',
-				title: m.audit_usage_exports_filter_title_users(),
-				description: m.audit_usage_exports_filter_desc_list_users(),
-				useUserDisplayNames: true
-			},
-			{
-				filterKey: 'model_provider',
-				title: m.audit_usage_exports_filter_title_model_providers(),
-				description: m.audit_usage_exports_filter_desc_list_model_providers()
-			},
-			{
-				filterKey: 'target_model',
-				title: m.audit_usage_exports_filter_title_target_models(),
-				description: m.audit_usage_exports_filter_desc_list_target_models()
-			},
-			{
-				filterKey: 'request_path',
-				title: m.audit_usage_exports_filter_title_request_paths(),
-				description: m.audit_usage_exports_filter_desc_list_request_paths()
-			},
-			{
-				filterKey: 'response_status',
-				title: m.audit_usage_exports_filter_title_response_status(),
-				description: m.audit_usage_exports_filter_desc_list_http_status_codes()
-			},
-			{
-				filterKey: 'outcome',
-				title: m.audit_usage_exports_filter_title_outcomes(),
-				description: m.audit_usage_exports_filter_desc_list_outcomes()
-			},
-			{
-				filterKey: 'user_agent',
-				title: m.audit_usage_exports_filter_title_user_agents(),
-				description: m.audit_usage_exports_filter_desc_list_user_agents()
-			},
-			{
-				filterKey: 'client_session_id',
-				title: m.audit_usage_exports_filter_title_client_session_ids(),
-				description: m.audit_usage_exports_filter_desc_list_client_session_ids()
-			}
-		];
-
 	interface Props {
 		onCancel: () => void;
 		onSubmit: (result?: AuditLogExport) => void;
 		mode?: 'create' | 'view' | 'edit';
 		initialData?: AuditLogExport;
-		logType?: 'mcp' | 'llm';
 	}
 
-	let { onCancel, onSubmit, mode = 'create', initialData, logType = 'mcp' }: Props = $props();
+	let { onCancel, onSubmit, mode = 'create', initialData }: Props = $props();
 
 	let showAdvancedOptions = $state(false);
 	let isViewMode = $derived(mode === 'view');
-	let defaultKeyPrefix = $derived(logType === 'llm' ? 'llm-audit-logs' : 'mcp-audit-logs');
+	let defaultKeyPrefix = 'mcp-audit-logs';
 
 	const hasAuditorPermissions = $derived(profile.current.groups.includes(Group.AUDITOR));
 
@@ -298,17 +235,14 @@
 			session_id: '',
 			user_agent: '',
 			client_session_id: '',
-			model_provider: '',
 			outcome: '',
-			request_path: '',
-			target_model: '',
 			agent_provider: '',
 			status: '',
 			tool_name: '',
 			tool_kind: '',
 			device_id: '',
 			query: ''
-		} as Partial<AuditLogURLFilters & LLMAuditLogURLFilters>
+		} as Partial<AuditLogURLFilters>
 	});
 
 	let creating = $state(false);
@@ -339,18 +273,7 @@
 		'tool_kind',
 		'device_id'
 	];
-	let llmFiltersIds = [
-		'api_key_id',
-		'user_id',
-		'user_agent',
-		'client_session_id',
-		'model_provider',
-		'outcome',
-		'request_path',
-		'response_status',
-		'target_model'
-	];
-	let filtersIds = $derived(logType === 'llm' ? llmFiltersIds : mcpFiltersIds);
+	let filtersIds = mcpFiltersIds;
 
 	let usersMap = new SvelteMap<string, OrgUser>();
 	let filtersOptions: Record<string, AuditLogFilterOption[]> = $state({});
@@ -362,24 +285,6 @@
 			form.keyPrefix = initialData.keyPrefix || '';
 			form.startTime = initialData.startTime ? new Date(initialData.startTime) : form.startTime;
 			form.endTime = initialData.endTime ? new Date(initialData.endTime) : form.endTime;
-
-			if (logType === 'llm' && initialData.llmFilters) {
-				const filters = initialData.llmFilters;
-				form.filters = {
-					api_key_id: join(filters.apiKeyIDs),
-					user_id: join(filters.userIDs),
-					model_provider: join(filters.modelProviders),
-					target_model: join(filters.targetModels),
-					request_path: join(filters.requestPaths),
-					response_status: join(filters.responseStatuses?.map(String)),
-					outcome: join(filters.outcomes),
-					user_agent: join(filters.userAgents),
-					client_session_id: join(filters.clientSessionIDs),
-					query: filters.query ?? ''
-				};
-				showAdvancedOptions = true;
-				return;
-			}
 
 			if (initialData.filters) {
 				const filters = initialData.filters;
@@ -426,17 +331,15 @@
 				form.endTime = new Date(endTime);
 			}
 
-			if (logType === 'mcp') {
-				// The audit-logs page omits event_type when no Source filter is applied; in that case
-				// the all-sources default stands.
-				const sourceTypes = sourceTypesFromEventTypeParam(params.get('event_type'));
-				if (sourceTypes) {
-					form.sourceTypes = sourceTypes;
-				}
+			// The audit-logs page omits event_type when no Source filter is applied; in that case
+			// the all-sources default stands.
+			const sourceTypes = sourceTypesFromEventTypeParam(params.get('event_type'));
+			if (sourceTypes) {
+				form.sourceTypes = sourceTypes;
 			}
 
 			// Set filters if provided
-			const filterKeys = logType === 'llm' ? llmFiltersIds : mcpFiltersIds;
+			const filterKeys = mcpFiltersIds;
 
 			let hasFilters = false;
 			filterKeys.forEach((key) => {
@@ -470,12 +373,6 @@
 	$effect(() => {
 		const event_type = eventTypeParamFromSourceTypes(form.sourceTypes);
 		filtersIds.forEach((id) => {
-			if (logType === 'llm') {
-				AdminService.listLLMAuditLogFilterOptions(id).then((res) => {
-					filtersOptions[id] = res.options ?? [];
-				});
-				return;
-			}
 			// Only fetch options for the filters actually visible in the current source selection.
 			if (
 				!isExportFilterKeyVisible(
@@ -560,33 +457,6 @@
 			}
 			if (!form.bucket) {
 				throw new Error(m.audit_usage_exports_bucket_required());
-			}
-
-			if (logType === 'llm') {
-				const request = {
-					name: form.name,
-					type: 'llm' as const,
-					bucket: form.bucket,
-					keyPrefix: form.keyPrefix,
-					startTime: form.startTime.toISOString(),
-					endTime: form.endTime.toISOString(),
-					llmFilters: {
-						apiKeyIDs: splitNumbers(form.filters.api_key_id),
-						userIDs: split(form.filters.user_id),
-						modelProviders: split(form.filters.model_provider),
-						targetModels: split(form.filters.target_model),
-						requestPaths: split(form.filters.request_path),
-						responseStatuses: splitNumbers(form.filters.response_status),
-						outcomes: split(form.filters.outcome),
-						userAgents: split(form.filters.user_agent),
-						clientSessionIDs: split(form.filters.client_session_id),
-						query: form.filters.query ?? ''
-					}
-				};
-
-				const result = (await AdminService.createAuditLogExport(request)) as AuditLogExport;
-				onSubmit(result);
-				return;
 			}
 
 			if (form.sourceTypes.length === 0) {
@@ -774,29 +644,27 @@
 				/>
 			</div>
 
-			{#if logType === 'mcp'}
-				<div class="flex flex-col gap-1">
-					<span class="text-sm font-medium">{m.audit_usage_exports_log_sources()}</span>
-					<div class="flex flex-col gap-2 py-1">
-						{#each ALL_SOURCE_TYPES as sourceType (sourceType)}
-							<label class="flex items-center gap-2 text-sm">
-								<input
-									type="checkbox"
-									checked={form.sourceTypes.includes(sourceType)}
-									disabled={isViewMode}
-									onchange={(e) => toggleSourceType(sourceType, e.currentTarget.checked)}
-								/>
-								{sourceTypeLabels[sourceType]}
-							</label>
-						{/each}
-					</div>
-					{#if !isViewMode}
-						<p class="text-muted-content text-xs">
-							{m.audit_usage_exports_log_sources_help()}
-						</p>
-					{/if}
+			<div class="flex flex-col gap-1">
+				<span class="text-sm font-medium">{m.audit_usage_exports_log_sources()}</span>
+				<div class="flex flex-col gap-2 py-1">
+					{#each ALL_SOURCE_TYPES as sourceType (sourceType)}
+						<label class="flex items-center gap-2 text-sm">
+							<input
+								type="checkbox"
+								checked={form.sourceTypes.includes(sourceType)}
+								disabled={isViewMode}
+								onchange={(e) => toggleSourceType(sourceType, e.currentTarget.checked)}
+							/>
+							{sourceTypeLabels[sourceType]}
+						</label>
+					{/each}
 				</div>
-			{/if}
+				{#if !isViewMode}
+					<p class="text-muted-content text-xs">
+						{m.audit_usage_exports_log_sources_help()}
+					</p>
+				{/if}
+			</div>
 		</div>
 
 		<!-- Advanced Options -->
@@ -843,7 +711,7 @@
 					</div>
 
 					{#snippet auditLogExportFilterSelect(
-						filterKey: AuditLogExportMultiSelectFilterKey | LLMAuditLogExportMultiSelectFilterKey,
+						filterKey: AuditLogExportMultiSelectFilterKey,
 						title: string,
 						description: string,
 						selectOptions: { id: string; label: string }[]
@@ -873,7 +741,7 @@
 					{/snippet}
 
 					<div class="grid grid-cols-1 gap-4 md:grid-cols-2">
-						{#each logType === 'llm' ? LLM_AUDIT_LOG_EXPORT_FILTER_FIELDS : visibleAuditLogExportFields as field (field.filterKey)}
+						{#each visibleAuditLogExportFields as field (field.filterKey)}
 							{@render auditLogExportFilterSelect(
 								field.filterKey,
 								field.title,

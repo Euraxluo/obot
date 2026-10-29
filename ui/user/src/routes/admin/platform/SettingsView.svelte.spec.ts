@@ -1,11 +1,6 @@
 import { invalidate } from '$app/navigation';
 import { overwriteGetLocale } from '$lib/paraglide/runtime';
-import {
-	Group,
-	type GitCredential,
-	type ImagePullSecret,
-	type ModelProxySettings
-} from '$lib/services';
+import { Group, type GitCredential, type ImagePullSecret } from '$lib/services';
 import { errors, profile } from '$lib/stores';
 import { defaultAppNotification } from '$lib/stores/appNotification.svelte';
 import { success } from '$lib/stores/success';
@@ -31,17 +26,13 @@ vi.mock('$lib/url', async (importOriginal) => ({
 	setUrlParamAndUpdateUrl: vi.fn()
 }));
 
-const proxyUrl = 'https://model-service.obot.ai';
-
 function renderSettings({
 	gitCredentials = [],
 	imagePullSecrets = [],
-	modelProxySettings = { enabled: false, url: proxyUrl },
 	showRegistryConnections = false
 }: {
 	gitCredentials?: GitCredential[];
 	imagePullSecrets?: ImagePullSecret[];
-	modelProxySettings?: ModelProxySettings;
 	showRegistryConnections?: boolean;
 } = {}) {
 	return render(SettingsView, {
@@ -49,7 +40,6 @@ function renderSettings({
 		capability: { available: showRegistryConnections },
 		gitCredentials,
 		imagePullSecrets,
-		modelProxySettings,
 		showRegistryConnections
 	});
 }
@@ -64,12 +54,7 @@ describe('Platform settings view', () => {
 	it('groups the former tabs into named sections with one save and cancel', async () => {
 		await renderSettings({ showRegistryConnections: true });
 
-		for (const name of [
-			'Notifications',
-			'Model Proxy',
-			'Registry Connections',
-			'Git Credentials'
-		]) {
+		for (const name of ['Notifications', 'Registry Connections', 'Git Credentials']) {
 			await expect.element(page.getByRole('heading', { name, exact: true })).toBeVisible();
 		}
 

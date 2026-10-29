@@ -3,7 +3,7 @@
 	import TabLayout from '$lib/components/TabLayout.svelte';
 	import { m } from '$lib/i18n';
 	import type { GitCredential, ImagePullSecret, ImagePullSecretCapability } from '$lib/services';
-	import { profile, version } from '$lib/stores';
+	import { version } from '$lib/stores';
 	import { defaultAppNotification } from '$lib/stores/appNotification.svelte';
 	import { compileAppPreferences } from '$lib/stores/appPreferences.svelte';
 	import BrandingConfigurationSidebar from './BrandingConfigurationSidebar.svelte';
@@ -74,8 +74,6 @@
 {#snippet settings()}
 	<SettingsView
 		appNotification={data.appNotification ?? defaultAppNotification}
-		modelProxySettings={data.modelProxySettings}
-		modelProxyUsage={data.modelProxyUsage}
 		{showRegistryConnections}
 		bind:capability
 		bind:imagePullSecrets

@@ -42,7 +42,6 @@
 	"data_permissions_create_native": "Query builder + native",
 	"data_permissions_create_no": "No",
 	"data_permissions_revision": "Current graph revision: {revision}",
-	"data_permissions_changed": "Changed",
 	"data_permissions_permissions_saved": "Permissions saved.",
 	"data_permissions_add_to_env": "Add to Environment",
 	"data_permissions_add_to_env_done": "Added to environment.",

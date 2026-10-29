@@ -7,7 +7,6 @@ const ADMIN_SKILLS_PREFIX = '/admin/skills';
 const ADMIN_DASHBOARD_PREFIX = '/admin/dashboard';
 const ADMIN_DEVICES_PREFIX = '/admin/devices';
 const ADMIN_MCP_AUDIT_LOGS_PREFIX = '/admin/audit-logs/exports';
-const ADMIN_LLM_AUDIT_LOGS_PREFIX = '/admin/llm-audit-logs/exports';
 
 export const reroute: Reroute = ({ url }) => {
 	const { pathname } = url;
@@ -48,9 +47,5 @@ export const reroute: Reroute = ({ url }) => {
 
 	if (pathname.startsWith(ADMIN_MCP_AUDIT_LOGS_PREFIX)) {
 		return pathname.replace(ADMIN_MCP_AUDIT_LOGS_PREFIX, '/audit-logs/mcp/exports');
-	}
-
-	if (pathname.startsWith(ADMIN_LLM_AUDIT_LOGS_PREFIX)) {
-		return pathname.replace(ADMIN_LLM_AUDIT_LOGS_PREFIX, '/audit-logs/llm/exports');
 	}
 };

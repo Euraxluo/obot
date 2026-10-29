@@ -212,51 +212,6 @@ describe('VMcpTester', () => {
 			.not.toBeInTheDocument();
 	});
 
-	it('offers Chat through the model service when no model provider is configured', async () => {
-		await renderVMcpTester(
-			{
-				models: [],
-				defaultModelAliases: [],
-				version: {
-					hasModelProvider: false,
-					mcpTesterModelProxyAvailable: true
-				}
-			},
-			{ tab: 'chat' }
-		);
-
-		await expect.element(page.getByRole('region', { name: 'Chat composer' })).toBeVisible();
-	});
-
-	it('shows an unavailable message when the model service is unavailable', async () => {
-		await renderVMcpTester(
-			{
-				models: [],
-				defaultModelAliases: [],
-				version: { hasModelProvider: false, mcpTesterModelProxyAvailable: false }
-			},
-			{ tab: 'chat' }
-		);
-
-		await expect.element(page.getByText('Chat unavailable', { exact: true })).toBeVisible();
-	});
-
-	it('keeps the default model alias message when a model provider is configured', async () => {
-		await renderVMcpTester(
-			{
-				models: [],
-				defaultModelAliases: [],
-				version: { hasModelProvider: true }
-			},
-			{ tab: 'chat' }
-		);
-
-		await expect.element(page.getByText('Chat unavailable', { exact: true })).toBeVisible();
-		await expect
-			.element(page.getByText('No default llm model is configured. Configure one to use Chat.'))
-			.toBeVisible();
-	});
-
 	it('keeps starting session while an unconfigured instance is still loading', async () => {
 		const instance = createInstance({
 			configured: false,
@@ -308,7 +263,7 @@ describe('VMcpTester', () => {
 		await renderVMcpTester({}, { instance: null, onLaunch });
 
 		await expect
-			.element(page.getByText('Start your vMCP to use chat and inspect tools.'))
+			.element(page.getByText('Start your vMCP to inspect tools, prompts, and resources.'))
 			.toBeVisible();
 		await page.getByRole('button', { name: 'Start Session' }).click();
 		expect(onLaunch).toHaveBeenCalledOnce();

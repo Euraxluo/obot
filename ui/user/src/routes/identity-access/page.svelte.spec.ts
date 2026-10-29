@@ -374,7 +374,6 @@ describe('Identity & Access Page', () => {
 			userId: Number(listUsersResponse[0].id),
 			name: 'Test Agent Scope',
 			canAccessAPI: false,
-			canAccessLLMProxy: true,
 			canAccessSkills: false,
 			canAccessDeviceScans: false,
 			createdAt: '2026-01-01T00:00:00.000Z'

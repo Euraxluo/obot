@@ -120,8 +120,9 @@ async function requestJson<T>(
 	try {
 		response = await metabaseFetch(path, settings, init);
 	} catch (error) {
-		if (isLikelyCorsOrNetworkError(error))
-			throw new Error('Metabase request blocked (CORS or network)');
+		if (isLikelyCorsOrNetworkError(error)) {
+			throw new Error('Metabase request blocked (CORS or network)', { cause: error });
+		}
 		throw error;
 	}
 	if (!response.ok) {

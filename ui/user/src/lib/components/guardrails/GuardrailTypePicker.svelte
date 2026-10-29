@@ -5,13 +5,13 @@
 	import {
 		guardrailTypeDescription,
 		guardrailTypeLabel
-	} from '$lib/services/llm-gateway/guardrail-text';
+	} from '$lib/services/guardrails/guardrail-text';
 	import {
 		GUARDRAIL_CATEGORY_BUILT_IN,
 		guardrailCategoryLabel,
 		type Guardrail,
 		type GuardrailProvider
-	} from '$lib/services/llm-gateway/guardrails';
+	} from '$lib/services/guardrails/guardrails';
 
 	interface Props {
 		providers: GuardrailProvider[];

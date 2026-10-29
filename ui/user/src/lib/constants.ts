@@ -36,10 +36,6 @@ export function isSCIMView(searchParams: URLSearchParams): boolean {
 
 export const SEEN_SPLASH_DIALOG_KEY = 'seenSplashDialog';
 
-export const CommonModelProviderIds = {
-	LLM_GATEWAY: 'llm-gateway-model-provider'
-};
-
 export const PROJECT_MCP_SERVER_NAME = 'MCP Servers';
 export const DEFAULT_MCP_CATALOG_ID = 'default';
 export const MCP_NAV_SOURCE_PARAM = 'from';

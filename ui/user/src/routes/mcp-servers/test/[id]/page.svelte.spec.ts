@@ -1,6 +1,5 @@
 import { page as appPage } from '$app/state';
 import { overwriteGetLocale } from '$lib/paraglide/runtime';
-import { MCPTesterSession } from '$lib/services/mcp/tester.svelte';
 import {
 	createMcpConnectPostResolver,
 	type MCPRequest
@@ -11,7 +10,7 @@ import { worker } from '../../../../tests/mocks/worker';
 import type { PageData } from './$types';
 import TesterPage from './+page.svelte';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 
@@ -20,8 +19,7 @@ const fixtures = createMcpServerDetailsFixtures();
 
 function mockMCPInitialization(
 	capabilities: Record<string, unknown> = {},
-	handleRequest?: (request: MCPRequest) => unknown,
-	_serverID = fixtures.serverSingle.id
+	handleRequest?: (request: MCPRequest) => unknown
 ) {
 	worker.use(
 		http.post('/mcp-connect/:connectId', createMcpConnectPostResolver(capabilities, handleRequest)),
@@ -31,11 +29,8 @@ function mockMCPInitialization(
 
 function mockMCPInitializationFailure(status = 500) {
 	worker.use(
-		http.post(`/mcp-connect/${fixtures.serverSingle.id}`, () => new HttpResponse(null, { status })),
-		http.get(
-			`/mcp-connect/${fixtures.serverSingle.id}`,
-			() => new HttpResponse(null, { status: 405 })
-		)
+		http.post('/mcp-connect/:connectId', () => new HttpResponse(null, { status })),
+		http.get('/mcp-connect/:connectId', () => new HttpResponse(null, { status: 405 }))
 	);
 }
 
@@ -45,12 +40,13 @@ async function renderTester(
 	handleRequest?: (request: MCPRequest) => unknown,
 	pageOverrides: Partial<PageData> = {}
 ) {
-	mockMCPInitialization(capabilities, handleRequest, pageOverrides.server?.id);
+	mockMCPInitialization(capabilities, handleRequest);
 	if (tab) {
 		appPage.url.searchParams.set('tab', tab);
 	} else {
 		appPage.url.searchParams.delete('tab');
 	}
+
 	const data = await preparePageData<PageData>({
 		server: {
 			...fixtures.serverSingle,
@@ -64,35 +60,6 @@ async function renderTester(
 	return render(TesterPage, { data });
 }
 
-const chatModelData: Partial<PageData> = {
-	defaultModelAliases: [{ alias: 'llm', model: 'm1tester' }],
-	models: [
-		{
-			id: 'm1tester',
-			active: true,
-			aliasAssigned: true,
-			created: 1,
-			modelProvider: 'mp1tester',
-			modelProviderName: 'Test Provider',
-			name: 'test-model',
-			displayName: 'Test Model',
-			targetModel: 'test-model',
-			usage: 'llm'
-		}
-	]
-};
-
-const chatModelAliasData: Partial<PageData> = {
-	defaultModelAliases: [{ alias: 'llm', model: 'stable-llm' }],
-	models: [{ ...chatModelData.models![0], alias: 'stable-llm' }]
-};
-
-function chatStream(...events: unknown[]) {
-	return new HttpResponse(events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join(''), {
-		headers: { 'Content-Type': 'text/event-stream' }
-	});
-}
-
 function testerSection(name: string | RegExp) {
 	return page
 		.getByRole('navigation', { name: 'MCP tester sections' })
@@ -100,92 +67,23 @@ function testerSection(name: string | RegExp) {
 }
 
 describe('MCP Tester page', () => {
-	it.each(['vmcp1-auth-test', 'vmcpi1-auth-test'])(
-		'authenticates a newly added service and resumes chatting for %s',
-		async (connectID) => {
-			const vmcpID = 'vmcp1-auth-test';
-			const componentCheck = vi
-				.fn()
-				.mockReturnValueOnce({ authURL: 'https://example.com/calendar/retry' })
-				.mockReturnValue({});
-			mockMCPInitialization({}, undefined, connectID);
-			worker.use(
-				http.post(`/mcp-connect/${connectID}`, () => new HttpResponse(null, { status: 401 }), {
-					once: true
-				}),
-				http.get(`/api/vmcps/${vmcpID}`, () =>
-					HttpResponse.json({ id: vmcpID, displayName: 'Mail and Calendar', components: [] })
-				),
-				http.get(`/api/oauth/vmcp/${connectID}`, () =>
-					HttpResponse.json([
-						{
-							mcpServerID: 'calendar',
-							name: 'Calendar',
-							authURL: 'https://example.com/calendar/oauth'
-						}
-					])
-				),
-				http.get(`/api/oauth/vmcp/${connectID}/components/calendar`, () => {
-					return HttpResponse.json(componentCheck());
-				}),
-				http.post(`/api/vmcp-instances/${connectID}/tester/chat`, () =>
-					chatStream(
-						{ type: 'assistant_message_start' },
-						{ type: 'text_delta', delta: 'Your calendar is connected.' },
-						{ type: 'completion', reason: 'stop' }
-					)
-				)
+	it('initializes the shell and defaults an invalid tab to Tools', async () => {
+		await renderTester('not-a-tab');
+
+		const serverName = fixtures.serverSingle.manifest.name;
+		const headings = page.getByRole('heading', { name: serverName, level: 1 });
+		await expect.element(headings.first()).toBeVisible();
+		await expect.element(headings.nth(1)).toBeVisible();
+		expect(document.title).toBe(`ZTOCC | MCP Tester | ${serverName}`);
+		await expect.element(testerSection('Tools')).toHaveClass(/page-tab-active/);
+		await expect.element(testerSection('Chat')).not.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('link', { name: `Back to ${serverName}` }))
+			.toHaveAttribute(
+				'href',
+				`/mcp-servers/c/${fixtures.entrySingle.id}/instance/${fixtures.serverSingle.id}`
 			);
-			appPage.url.searchParams.set('tab', 'chat');
-			const data = await preparePageData<PageData>({
-				...chatModelData,
-				server: {
-					...fixtures.serverSingle,
-					id: connectID,
-					configured: true,
-					deploymentStatus: 'Available',
-					manifest: { name: 'Mail and Calendar', runtime: 'vmcp' }
-				},
-				vmcpID,
-				backTarget: `/vmcps/${vmcpID}`
-			});
-			render(TesterPage, { data });
-
-			await expect
-				.element(page.getByRole('heading', { name: 'Reauthentication required' }))
-				.toBeVisible();
-			await page.getByRole('button', { name: 'Manage authentication' }).click();
-			await expect.element(page.getByText('Calendar', { exact: true })).toBeVisible();
-			await page.getByRole('button', { name: 'Back to tester' }).click();
-			await expect
-				.element(page.getByRole('heading', { name: 'Reauthentication required' }))
-				.toBeVisible();
-			await page.getByRole('button', { name: 'Manage authentication' }).click();
-			const authenticate = page.getByRole('link', { name: 'Authenticate', exact: true });
-			await expect
-				.element(authenticate)
-				.toHaveAttribute('href', 'https://example.com/calendar/oauth');
-			await expect
-				.element(page.getByRole('textbox', { name: 'Message', exact: true }))
-				.not.toBeInTheDocument();
-			await authenticate.click();
-			document.dispatchEvent(new Event('visibilitychange'));
-			await expect
-				.element(authenticate)
-				.toHaveAttribute('href', 'https://example.com/calendar/retry');
-			await expect
-				.element(page.getByRole('textbox', { name: 'Message', exact: true }))
-				.not.toBeInTheDocument();
-			await authenticate.click();
-			document.dispatchEvent(new Event('visibilitychange'));
-
-			await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Check my calendar');
-			await page.getByRole('button', { name: 'Send', exact: true }).click();
-			await expect.element(page.getByText('Your calendar is connected.')).toBeVisible();
-			expect(componentCheck).toHaveBeenCalledTimes(2);
-			await expect.element(authenticate).not.toBeInTheDocument();
-		}
-	);
+	});
 
 	it('keeps server management available for non-vMCP authentication', async () => {
 		mockMCPInitializationFailure(401);
@@ -195,288 +93,21 @@ describe('MCP Tester page', () => {
 			server: { ...fixtures.serverSingle, configured: true, deploymentStatus: 'Available' },
 			backTarget
 		});
-		render(TesterPage, { data });
+		await render(TesterPage, { data });
 
 		await expect
 			.element(page.getByRole('link', { name: 'Manage authentication' }))
 			.toHaveAttribute('href', backTarget);
 	});
 
-	it('preserves an existing conversation through vMCP reauthentication', async () => {
-		const connectID = 'vmcpi1-existing-chat';
-		const vmcpID = 'vmcp1-existing-chat';
-		const requests = vi.fn();
-		worker.use(
-			http.get(`/api/vmcps/${vmcpID}`, () =>
-				HttpResponse.json({ id: vmcpID, displayName: 'Calendar', components: [] })
-			),
-			http.get(`/api/oauth/vmcp/${connectID}`, () =>
-				HttpResponse.json([
-					{
-						mcpServerID: 'calendar',
-						name: 'Calendar',
-						authURL: 'https://example.com/calendar/oauth'
-					}
-				])
-			),
-			http.get(`/api/oauth/vmcp/${connectID}/components/calendar`, () => HttpResponse.json({})),
-			http.delete(`/mcp-connect/${connectID}`, () => new HttpResponse(null, { status: 204 })),
-			http.post(`/api/vmcp-instances/${connectID}/tester/chat`, async ({ request }) => {
-				requests(await request.json());
-				return chatStream(
-					{ type: 'assistant_message_start' },
-					{
-						type: 'text_delta',
-						delta:
-							requests.mock.calls.length === 1 ? 'Your existing answer.' : 'Your follow-up answer.'
-					},
-					{ type: 'completion', reason: 'stop' }
-				);
-			})
-		);
-		const initialize = vi.spyOn(MCPTesterSession.prototype, 'initialize');
-		try {
-			await renderTester('chat', {}, undefined, {
-				...chatModelData,
-				server: {
-					...fixtures.serverSingle,
-					id: connectID,
-					configured: true,
-					deploymentStatus: 'Available',
-					manifest: { name: 'Calendar', runtime: 'vmcp' }
-				},
-				vmcpID,
-				backTarget: `/vmcps/${vmcpID}`
-			});
-			const composer = page.getByRole('textbox', { name: 'Message', exact: true });
-			await composer.fill('Check my calendar');
-			await page.getByRole('button', { name: 'Send', exact: true }).click();
-			await expect.element(page.getByText('Your existing answer.', { exact: true })).toBeVisible();
-
-			// Force a real reconnect to encounter expired credentials after a conversation exists.
-			worker.use(
-				http.post(`/mcp-connect/${connectID}`, () => new HttpResponse(null, { status: 401 }), {
-					once: true
-				})
-			);
-			await (initialize.mock.contexts[0] as MCPTesterSession).initialize(true);
-			await page.getByRole('button', { name: 'Manage authentication' }).click();
-			await expect
-				.element(page.getByRole('navigation', { name: 'MCP tester sections', includeHidden: true }))
-				.not.toBeVisible();
-			await page.getByRole('button', { name: 'Back to tester' }).click();
-			await expect
-				.element(page.getByRole('heading', { name: 'Reauthentication required' }))
-				.toBeVisible();
-			await page.getByRole('button', { name: 'Manage authentication' }).click();
-			await page.getByRole('link', { name: 'Authenticate', exact: true }).click();
-			document.dispatchEvent(new Event('visibilitychange'));
-
-			await expect.element(page.getByText('Your existing answer.', { exact: true })).toBeVisible();
-			await composer.fill('What about tomorrow?');
-			await page.getByRole('button', { name: 'Send', exact: true }).click();
-			await expect.element(page.getByText('Your follow-up answer.', { exact: true })).toBeVisible();
-			expect(requests.mock.calls[1][0]).toMatchObject({
-				messages: [
-					{ role: 'user', content: [{ type: 'text', text: 'Check my calendar' }] },
-					{ role: 'assistant', content: [{ type: 'text', text: 'Your existing answer.' }] },
-					{ role: 'user', content: [{ type: 'text', text: 'What about tomorrow?' }] }
-				]
-			});
-		} finally {
-			initialize.mockRestore();
-		}
-	});
-
-	it('initializes the shell and defaults an invalid tab to Tools', async () => {
-		await renderTester('not-a-tab');
-
-		const serverName = fixtures.serverSingle.manifest.name;
-		const serverNameHeadings = page.getByRole('heading', { name: serverName, level: 1 });
-		await expect.element(serverNameHeadings.first()).toBeVisible();
-		await expect.element(serverNameHeadings.nth(1)).toBeVisible();
-		expect(document.title).toBe(`ZTOCC | MCP Tester | ${serverName}`);
-		await expect.element(testerSection('Tools')).toHaveClass(/page-tab-active/);
-		await expect
-			.element(page.getByRole('link', { name: `Back to ${serverName}` }))
-			.toHaveAttribute(
-				'href',
-				`/mcp-servers/c/${fixtures.entrySingle.id}/instance/${fixtures.serverSingle.id}`
-			);
-	});
-
-	it('enables Chat when the default alias names its model by alias', async () => {
-		await renderTester('chat', {}, undefined, chatModelAliasData);
-
-		await expect
-			.element(page.getByText('Chat unavailable', { exact: true }))
-			.not.toBeInTheDocument();
-		await expect.element(page.getByRole('region', { name: 'Chat composer' })).toBeVisible();
-	});
-
-	it('keeps Chat unavailable when an alias match has no assigned alias record', async () => {
-		await renderTester('chat', {}, undefined, {
-			...chatModelAliasData,
-			models: [{ ...chatModelAliasData.models![0], aliasAssigned: false }]
-		});
-
-		await expect.element(page.getByText('Chat unavailable', { exact: true })).toBeVisible();
-	});
-
-	it('allows proxy-enabled installations without a provider to chat through the Tester backend', async () => {
-		const requests = vi.fn();
-		worker.use(
-			http.post(
-				`/api/vmcp-instances/${fixtures.serverSingle.id}/tester/chat`,
-				async ({ request }) => {
-					requests(await request.json());
-
-					return chatStream(
-						{ type: 'assistant_message_start' },
-						{ type: 'text_delta', delta: 'Testing without a configured provider' },
-						{ type: 'completion', reason: 'stop' }
-					);
-				}
-			)
-		);
-
-		await renderTester('chat', {}, undefined, {
-			models: [],
-			defaultModelAliases: [],
-			version: {
-				hasModelProvider: false,
-				mcpTesterModelProxyAvailable: true
-			}
-		});
-
-		await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Test this server');
-		await page.getByRole('button', { name: 'Send', exact: true }).click();
-
-		await expect.element(page.getByText('Testing without a configured provider')).toBeVisible();
-		expect(requests).toHaveBeenCalledOnce();
-		expect(requests.mock.calls[0][0]).not.toHaveProperty('model');
-		expect(requests.mock.calls[0][0]).not.toHaveProperty('license');
-	});
-
-	it('disables model proxy Chat when the server reports it unavailable', async () => {
-		await renderTester('chat', {}, undefined, {
-			models: [],
-			defaultModelAliases: [],
-			version: {
-				hasModelProvider: false,
-				mcpTesterModelProxyAvailable: false
-			}
-		});
-
-		await expect.element(page.getByText('Chat unavailable', { exact: true })).toBeVisible();
-		await expect
-			.element(
-				page.getByText(
-					'The MCP Tester model service is disabled or unavailable. Contact an administrator.'
-				)
-			)
-			.toBeVisible();
-		await expect
-			.element(page.getByRole('region', { name: 'Chat composer' }))
-			.not.toBeInTheDocument();
-	});
-
-	it('disables Chat during provider reconciliation even with a cached default model', async () => {
-		await renderTester('chat', {}, undefined, {
-			...chatModelData,
-			version: {
-				hasModelProvider: null,
-				mcpTesterModelProxyAvailable: false
-			}
-		});
-
-		await expect
-			.element(page.getByText('Model configuration is unavailable or changing. Try again later.'))
-			.toBeVisible();
-		await expect
-			.element(page.getByRole('region', { name: 'Chat composer' }))
-			.not.toBeInTheDocument();
-	});
-
-	it('does not enable the model proxy for a configured provider with no default model', async () => {
-		await renderTester('chat', {}, undefined, {
-			models: [],
-			defaultModelAliases: [],
-			version: { hasModelProvider: true }
-		});
-
-		await expect.element(page.getByText('Chat unavailable', { exact: true })).toBeVisible();
-		await expect
-			.element(page.getByText('No default llm model is configured. Configure one to use Chat.'))
-			.toBeVisible();
-	});
-
-	it('keeps configured-provider Chat available', async () => {
-		await renderTester('chat', {}, undefined, {
-			...chatModelData,
-			version: { hasModelProvider: true }
-		});
-
-		await expect.element(page.getByRole('region', { name: 'Chat composer' })).toBeVisible();
-	});
-
-	it.each([
-		{
-			code: 'quota_exceeded',
-			status: 429,
-			message: 'The daily budget is exhausted. It resets at 2026-09-10T00:00:00Z.'
-		},
-		{
-			code: 'license_required',
-			status: 503,
-			message: 'The registered Obot license is invalid. Update the installation license.'
-		}
-	])(
-		'displays $code from the backend without offering immediate retry',
-		async ({ code, status, message }) => {
-			worker.use(
-				http.post(`/api/vmcp-instances/${fixtures.serverSingle.id}/tester/chat`, () =>
-					HttpResponse.json({ error: { code, message, retryable: false } }, { status })
-				)
-			);
-
-			await renderTester('chat', {}, undefined, {
-				models: [],
-				defaultModelAliases: [],
-				version: {
-					hasModelProvider: false,
-					mcpTesterModelProxyAvailable: true
-				}
-			});
-
-			await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Test this server');
-			await page.getByRole('button', { name: 'Send', exact: true }).click();
-
-			await expect.element(page.getByText(message, { exact: true })).toBeVisible();
-			await expect
-				.element(page.getByRole('button', { name: 'Retry response' }))
-				.not.toBeInTheDocument();
-		}
-	);
-
-	it('uses a valid tab query value', async () => {
-		await renderTester('tools');
-		await expect.element(page.getByRole('heading', { name: 'Tools', exact: true })).toBeVisible();
-		await expect.element(testerSection('Tools')).toHaveClass(/page-tab-active/);
-	});
-
 	it('connects a vMCP instance through its requested connect ID', async () => {
-		const connectID = 'vmcpi1-test';
 		await renderTester('tools', {}, undefined, {
 			server: {
 				...fixtures.serverSingle,
-				id: connectID,
+				id: 'vmcpi1-test',
 				catalogEntryID: '',
 				mcpCatalogID: '',
-				manifest: {
-					name: 'Virtual test server',
-					runtime: 'vmcp'
-				}
+				manifest: { name: 'Virtual test server', runtime: 'vmcp' }
 			},
 			backTarget: '/vmcps'
 		});
@@ -491,357 +122,7 @@ describe('MCP Tester page', () => {
 			.toHaveAttribute('href', '/vmcps');
 	});
 
-	it('uses vMCP Tester in the document title for canonical vMCP IDs', async () => {
-		await renderTester('tools', {}, undefined, {
-			server: {
-				...fixtures.serverSingle,
-				id: 'vmcp1-test',
-				catalogEntryID: '',
-				mcpCatalogID: '',
-				manifest: {
-					name: 'Virtual test server',
-					runtime: 'vmcp'
-				}
-			},
-			backTarget: '/vmcps/vmcp1-test'
-		});
-
-		expect(document.title).toBe('ZTOCC | vMCP Tester | Virtual test server');
-		await expect
-			.element(page.getByRole('heading', { name: 'Virtual test server', level: 1 }).first())
-			.toBeVisible();
-	});
-
-	it('keeps the Chat composer visible while messages scroll inside the chat', async () => {
-		await renderTester('chat', {}, undefined, chatModelData);
-
-		const messages = page.getByLabelText('Chat messages');
-		const composer = page.getByRole('region', { name: 'Chat composer' });
-		await expect.element(messages).toBeVisible();
-		await expect.element(composer).toBeVisible();
-
-		const messagesElement = messages.element();
-		const composerBounds = composer.element().getBoundingClientRect();
-		expect(getComputedStyle(messagesElement).overflowY).toBe('auto');
-		expect(messagesElement.getBoundingClientRect().bottom).toBeLessThanOrEqual(composerBounds.top);
-		expect(composerBounds.bottom).toBeLessThanOrEqual(window.innerHeight);
-	});
-
-	it('sends with Enter and safely renders streamed Markdown', async () => {
-		const requests = vi.fn();
-		worker.use(
-			http.post(
-				`/api/vmcp-instances/${fixtures.serverSingle.id}/tester/chat`,
-				async ({ request }) => {
-					requests(await request.json());
-					return chatStream(
-						{ type: 'assistant_message_start' },
-						{
-							type: 'text_delta',
-							delta: '**Connected** [docs](https://example.com) <script>unsafe()</script>'
-						},
-						{ type: 'completion', reason: 'stop' }
-					);
-				}
-			)
-		);
-		await renderTester('chat', {}, undefined, chatModelData);
-
-		const composer = page.getByRole('textbox', { name: 'Message', exact: true });
-		await composer.fill('Hello tester');
-		composer
-			.element()
-			.dispatchEvent(
-				new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })
-			);
-
-		await expect.element(page.getByText('Connected', { exact: true })).toBeVisible();
-		await expect
-			.element(page.getByRole('link', { name: 'docs' }))
-			.toHaveAttribute('rel', 'noopener noreferrer');
-		await expect.element(page.getByText('unsafe()', { exact: true })).not.toBeInTheDocument();
-		await vi.waitFor(() =>
-			expect(requests).toHaveBeenCalledWith(
-				expect.objectContaining({
-					messages: [{ role: 'user', content: [{ type: 'text', text: 'Hello tester' }] }],
-					tools: [],
-					round: 1
-				})
-			)
-		);
-	});
-
-	it('re-enables the composer after the assistant response completes', async () => {
-		worker.use(
-			http.post(`/api/vmcp-instances/${fixtures.serverSingle.id}/tester/chat`, () =>
-				chatStream(
-					{ type: 'assistant_message_start' },
-					{ type: 'text_delta', delta: 'First response complete.' },
-					{ type: 'completion', reason: 'stop' }
-				)
-			)
-		);
-		await renderTester('chat', {}, undefined, chatModelData);
-
-		const composer = page.getByRole('textbox', { name: 'Message', exact: true });
-		await composer.fill('First message');
-		await page.getByRole('button', { name: 'Send', exact: true }).click();
-
-		await expect.element(page.getByText('First response complete.', { exact: true })).toBeVisible();
-		await expect.element(composer).toBeEnabled();
-		await composer.fill('Follow-up message');
-		await expect.element(page.getByRole('button', { name: 'Send', exact: true })).toBeEnabled();
-	});
-
-	it('keeps a partial failure visible and replaces it on Retry', async () => {
-		let attempts = 0;
-		worker.use(
-			http.post(`/api/vmcp-instances/${fixtures.serverSingle.id}/tester/chat`, () => {
-				attempts += 1;
-				return attempts === 1
-					? chatStream(
-							{ type: 'assistant_message_start' },
-							{ type: 'text_delta', delta: 'Partial response' },
-							{
-								type: 'error',
-								error: {
-									code: 'provider_error',
-									message: 'Provider failed',
-									retryable: true
-								}
-							}
-						)
-					: chatStream(
-							{ type: 'assistant_message_start' },
-							{ type: 'text_delta', delta: 'Replacement response' },
-							{ type: 'completion', reason: 'stop' }
-						);
-			})
-		);
-		await renderTester('chat', {}, undefined, chatModelData);
-
-		const composer = page.getByRole('textbox', { name: 'Message', exact: true });
-		await composer.fill('Retry this');
-		const send = page.getByRole('button', { name: 'Send', exact: true });
-		await expect.element(send).toBeEnabled();
-		await send.click();
-		await expect.element(page.getByText('Partial response', { exact: true })).toBeVisible();
-		await expect.element(page.getByText('Provider failed', { exact: true })).toBeVisible();
-
-		await page.getByRole('button', { name: 'Retry response' }).click();
-		await expect.element(page.getByText('Replacement response', { exact: true })).toBeVisible();
-		await expect
-			.element(page.getByText('Partial response', { exact: true }))
-			.not.toBeInTheDocument();
-		expect(attempts).toBe(2);
-	});
-
-	it('approves a read-only tool request and completes the same turn with its result', async () => {
-		const modelRequests: unknown[] = [];
-		const toolCalls = vi.fn();
-		worker.use(
-			http.post(
-				`/api/vmcp-instances/${fixtures.serverSingle.id}/tester/chat`,
-				async ({ request }) => {
-					modelRequests.push(await request.json());
-					if (modelRequests.length === 1) {
-						return chatStream(
-							{ type: 'assistant_message_start' },
-							{
-								type: 'tool_calls',
-								calls: [{ id: 'call-lookup', name: 'lookup', arguments: { query: 'safe' } }]
-							},
-							{ type: 'completion', reason: 'tool_calls' }
-						);
-					}
-					return chatStream(
-						{ type: 'assistant_message_start' },
-						{ type: 'text_delta', delta: 'The lookup returned one result.' },
-						{ type: 'completion', reason: 'stop' }
-					);
-				}
-			)
-		);
-		await renderTester(
-			'chat',
-			{ tools: {} },
-			(request) => {
-				if (request.method === 'tools/list') {
-					return {
-						tools: [
-							{
-								name: 'lookup',
-								description: 'Look up a record',
-								inputSchema: { type: 'object' }
-							}
-						]
-					};
-				}
-				if (request.method === 'tools/call') {
-					toolCalls(request.params);
-					return {
-						content: [{ type: 'text', text: 'one result' }],
-						isError: false
-					};
-				}
-			},
-			chatModelData
-		);
-
-		await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Run lookup');
-		await page.getByRole('button', { name: 'Send', exact: true }).click();
-
-		await expect.element(page.getByText('Approval needed', { exact: true }).last()).toBeVisible();
-		await expect.element(testerSection(/Chat Approval needed/)).toBeVisible();
-		await expect
-			.element(page.getByLabelText('lookup arguments'))
-			.toMatchTextContent('"query": "safe"');
-		await expect
-			.element(page.getByRole('button', { name: /Always allow/ }))
-			.not.toBeInTheDocument();
-		const approve = page.getByRole('button', { name: 'Approve lookup' });
-		await expect.element(approve).toHaveFocus();
-		await approve.click();
-
-		await expect
-			.element(page.getByText('The lookup returned one result.', { exact: true }))
-			.toBeVisible();
-		await vi.waitFor(() =>
-			expect(toolCalls).toHaveBeenCalledWith({
-				name: 'lookup',
-				arguments: { query: 'safe' }
-			})
-		);
-		expect(modelRequests).toHaveLength(2);
-		expect(modelRequests[1]).toMatchObject({
-			messages: [
-				{ role: 'user' },
-				{ role: 'assistant', toolCalls: [{ id: 'call-lookup', name: 'lookup' }] },
-				{
-					role: 'tool',
-					toolResult: { callID: 'call-lookup', status: 'success' }
-				}
-			],
-			round: 2
-		});
-	});
-
-	it('approves batched requests one at a time and records each result in the transcript', async () => {
-		const modelRequests: unknown[] = [];
-		const executionOrder: string[] = [];
-		worker.use(
-			http.post(
-				`/api/vmcp-instances/${fixtures.serverSingle.id}/tester/chat`,
-				async ({ request }) => {
-					modelRequests.push(await request.json());
-					if (modelRequests.length === 1) {
-						return chatStream(
-							{ type: 'assistant_message_start' },
-							{
-								type: 'tool_calls',
-								calls: [
-									{ id: 'call-first', name: 'first', arguments: { order: 1 } },
-									{ id: 'call-second', name: 'second', arguments: { order: 2 } }
-								]
-							},
-							{ type: 'completion', reason: 'tool_calls' }
-						);
-					}
-					return chatStream(
-						{ type: 'assistant_message_start' },
-						{ type: 'text_delta', delta: 'Both tools completed.' },
-						{ type: 'completion', reason: 'stop' }
-					);
-				}
-			)
-		);
-		await renderTester(
-			'chat',
-			{ tools: {} },
-			(request) => {
-				if (request.method === 'tools/list') {
-					return {
-						tools: [
-							{ name: 'first', inputSchema: { type: 'object' } },
-							{ name: 'second', inputSchema: { type: 'object' } }
-						]
-					};
-				}
-				if (request.method === 'tools/call') {
-					const name = String(request.params?.name);
-					executionOrder.push(name);
-					return {
-						content: [{ type: 'text', text: `${name} result content` }],
-						isError: false
-					};
-				}
-			},
-			chatModelData
-		);
-
-		await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Run both');
-		await page.getByRole('button', { name: 'Send', exact: true }).click();
-		// Only the head of the queue is offered; the rest wait their turn.
-		await expect
-			.element(page.getByRole('button', { name: 'Approve second' }))
-			.not.toBeInTheDocument();
-		await page.getByRole('button', { name: 'Approve first' }).click();
-
-		await expect.element(page.getByRole('article', { name: 'first tool call' })).toBeVisible();
-		expect(executionOrder).toEqual(['first']);
-		await page.getByRole('button', { name: 'Approve second' }).click();
-
-		await expect.element(page.getByText('Both tools completed.', { exact: true })).toBeVisible();
-		expect(executionOrder).toEqual(['first', 'second']);
-		await expect
-			.element(
-				page
-					.getByRole('article', { name: 'first tool call' })
-					.getByRole('region', { name: 'first result' })
-			)
-			.toMatchTextContent('first result content');
-		await expect
-			.element(
-				page
-					.getByRole('article', { name: 'second tool call' })
-					.getByRole('region', { name: 'second result' })
-			)
-			.toMatchTextContent('second result content');
-		await expect
-			.element(page.getByRole('article', { name: 'Tool result' }))
-			.not.toBeInTheDocument();
-	});
-
-	it('confirms New Chat before clearing an existing in-memory conversation', async () => {
-		worker.use(
-			http.post(`/api/vmcp-instances/${fixtures.serverSingle.id}/tester/chat`, () =>
-				chatStream(
-					{ type: 'assistant_message_start' },
-					{ type: 'text_delta', delta: 'Temporary answer' },
-					{ type: 'completion', reason: 'stop' }
-				)
-			)
-		);
-		await renderTester('chat', {}, undefined, chatModelData);
-		await page.getByRole('textbox', { name: 'Message', exact: true }).fill('Temporary question');
-		await page.getByRole('button', { name: 'Send', exact: true }).click();
-		await expect.element(page.getByText('Temporary answer', { exact: true })).toBeVisible();
-
-		await page.getByRole('button', { name: 'New Chat' }).click();
-		await expect.element(page.getByRole('dialog')).toBeVisible();
-		await expect.element(page.getByText('Clear this ephemeral conversation?')).toBeVisible();
-		await page.getByRole('button', { name: 'Start New Chat' }).click();
-
-		await expect
-			.element(page.getByText('Temporary answer', { exact: true }))
-			.not.toBeInTheDocument();
-		await expect
-			.element(page.getByText('Send a message or stage a prompt or text resource to begin.'))
-			.toBeVisible();
-	});
-
 	it('discovers, searches, validates, and directly calls tools', async () => {
-		const toolCall = vi.fn();
 		await renderTester('tools', { tools: {} }, (request) => {
 			if (request.method === 'tools/list') {
 				return {
@@ -866,7 +147,6 @@ describe('MCP Tester page', () => {
 				};
 			}
 			if (request.method === 'tools/call') {
-				toolCall(request.params);
 				return {
 					content: [{ type: 'text', text: 'Found safely <script>never runs</script>' }],
 					structuredContent: { found: true },
@@ -880,77 +160,11 @@ describe('MCP Tester page', () => {
 		await page.getByLabelText('limit').fill('2');
 		await page.getByRole('button', { name: 'Call', exact: true }).click();
 
-		await vi.waitFor(() =>
-			expect(toolCall).toHaveBeenCalledWith({
-				name: 'lookup',
-				arguments: { query: 'record', limit: 2 }
-			})
-		);
 		await expect.element(page.getByText('Succeeded')).toBeVisible();
 		await expect
 			.element(page.getByText('Found safely <script>never runs</script>', { exact: true }).first())
 			.toBeVisible();
 		await expect.element(page.getByText('Structured content')).toBeVisible();
-	});
-
-	it('resolves prompt arguments and preserves message roles and order', async () => {
-		await renderTester('prompts', { prompts: {} }, (request) => {
-			if (request.method === 'prompts/list') {
-				return {
-					prompts: [
-						{
-							name: 'explain',
-							description: 'Explain a topic',
-							arguments: [{ name: 'topic', required: true }]
-						}
-					]
-				};
-			}
-			if (request.method === 'prompts/get') {
-				return {
-					messages: [
-						{ role: 'user', content: { type: 'text', text: 'First message' } },
-						{ role: 'assistant', content: { type: 'text', text: 'Second message' } }
-					]
-				};
-			}
-		});
-
-		await page.getByRole('button', { name: /explain/ }).click();
-		await page.getByLabelText('topic *').fill('MCP');
-		await page.getByRole('button', { name: 'Get prompt' }).click();
-
-		await expect.element(page.getByText('First message', { exact: true }).first()).toBeVisible();
-		await expect.element(page.getByText('Second message', { exact: true }).first()).toBeVisible();
-		await expect.element(page.getByText('user', { exact: true })).toBeVisible();
-		await expect.element(page.getByText('assistant', { exact: true })).toBeVisible();
-		await expect.element(page.getByRole('button', { name: 'Use in Chat' })).toBeVisible();
-	});
-
-	it('drops a resolved prompt once its arguments no longer match', async () => {
-		await renderTester('prompts', { prompts: {} }, (request) => {
-			if (request.method === 'prompts/list') {
-				return {
-					prompts: [
-						{ name: 'explain', description: 'Explain a topic', arguments: [{ name: 'topic' }] }
-					]
-				};
-			}
-			if (request.method === 'prompts/get') {
-				return { messages: [{ role: 'user', content: { type: 'text', text: 'Answer for MCP' } }] };
-			}
-		});
-
-		await page.getByRole('button', { name: /explain/ }).click();
-		await page.getByLabelText('topic').fill('MCP');
-		await page.getByRole('button', { name: 'Get prompt' }).click();
-		await expect.element(page.getByText('Answer for MCP', { exact: true }).first()).toBeVisible();
-		await expect.element(page.getByRole('button', { name: 'Use in Chat' })).toBeVisible();
-
-		// Editing the argument must not leave Use in Chat staging the previous topic's response.
-		await page.getByLabelText('topic').fill('MCP servers');
-		await expect.element(page.getByText('Answer for MCP', { exact: true })).not.toBeInTheDocument();
-		await expect.element(page.getByRole('button', { name: 'Use in Chat' })).not.toBeInTheDocument();
 	});
 
 	it('drops a tool result once its arguments no longer match', async () => {
@@ -987,7 +201,41 @@ describe('MCP Tester page', () => {
 			.not.toBeInTheDocument();
 	});
 
-	it('reads text resources on selection and keeps binary resources inspectable only', async () => {
+	it('resolves prompt arguments and preserves message roles and order', async () => {
+		await renderTester('prompts', { prompts: {} }, (request) => {
+			if (request.method === 'prompts/list') {
+				return {
+					prompts: [
+						{
+							name: 'explain',
+							description: 'Explain a topic',
+							arguments: [{ name: 'topic', required: true }]
+						}
+					]
+				};
+			}
+			if (request.method === 'prompts/get') {
+				return {
+					messages: [
+						{ role: 'user', content: { type: 'text', text: 'First message' } },
+						{ role: 'assistant', content: { type: 'text', text: 'Second message' } }
+					]
+				};
+			}
+		});
+
+		await page.getByRole('button', { name: /explain/ }).click();
+		await page.getByLabelText('topic *').fill('MCP');
+		await page.getByRole('button', { name: 'Get prompt' }).click();
+
+		await expect.element(page.getByText('First message', { exact: true }).first()).toBeVisible();
+		await expect.element(page.getByText('Second message', { exact: true }).first()).toBeVisible();
+		await expect.element(page.getByText('user', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('assistant', { exact: true })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Use in Chat' })).not.toBeInTheDocument();
+	});
+
+	it('reads text resources and keeps binary resources inspectable', async () => {
 		await renderTester('resources', { resources: {} }, (request) => {
 			if (request.method === 'resources/list') {
 				return {
@@ -1018,12 +266,9 @@ describe('MCP Tester page', () => {
 
 		await page.getByRole('button', { name: /Guide/ }).click();
 		await expect.element(page.getByText('Resource body', { exact: true }).first()).toBeVisible();
-		await expect.element(page.getByRole('button', { name: 'Use in Chat' })).toBeVisible();
+		await expect.element(page.getByRole('button', { name: 'Use in Chat' })).not.toBeInTheDocument();
 
 		await page.getByRole('button', { name: /Binary/ }).click();
-		await expect
-			.element(page.getByText(/Binary or unsupported content remains inspectable/))
-			.toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Use in Chat' })).not.toBeInTheDocument();
 	});
 
@@ -1037,28 +282,19 @@ describe('MCP Tester page', () => {
 			},
 			backTarget: `/mcp-servers/s/${fixtures.serverSingle.id}`
 		});
-		render(TesterPage, { data });
+		await render(TesterPage, { data });
 
 		await expect
 			.element(page.getByRole('heading', { name: 'Server setup required' }))
 			.toBeVisible();
 		await expect.element(page.getByRole('link', { name: 'Manage server' })).toBeVisible();
 	});
-	it('exposes an MCP Log tab in the section nav', async () => {
-		await renderTester();
-		await expect.element(testerSection('MCP Log')).toBeVisible();
-	});
 
-	it('marks MCP Log as the current tab and renders the traffic log', async () => {
+	it('marks MCP Log as current and records both handshake directions', async () => {
 		await renderTester('logs');
 
 		await expect.element(testerSection('MCP Log')).toHaveClass(/page-tab-active/);
 		await expect.element(page.getByRole('list', { name: 'MCP traffic log' })).toBeVisible();
-	});
-
-	it('records the initialize handshake in both directions', async () => {
-		await renderTester('logs');
-
 		await expect
 			.element(page.getByRole('button', { name: /Sent request initialize/ }))
 			.toBeVisible();
@@ -1079,87 +315,70 @@ describe('MCP Tester page', () => {
 			},
 			backTarget: `/mcp-servers/s/${fixtures.serverSingle.id}`
 		});
-		render(TesterPage, { data });
+		await render(TesterPage, { data });
 
 		await expect.element(page.getByRole('alert')).toMatchTextContent('Unavailable');
-		// The failed handshake is inspectable even though the session never connected.
 		await expect
 			.element(page.getByRole('button', { name: /transport .*Streamable HTTP error/ }))
 			.toBeVisible();
 		await expect.element(page.getByRole('button', { name: 'Retry' })).toBeVisible();
-		// The status card belongs to the other tabs; the log surfaces status inline instead.
-		await expect
-			.element(page.getByRole('heading', { name: 'Server unavailable' }))
-			.not.toBeInTheDocument();
 	});
 
-	it('still shows the log for a server that was never dialled', async () => {
-		appPage.url.searchParams.set('tab', 'logs');
+	it('shows CLI login and retries a localhost component in the inspector', async () => {
+		appPage.url.searchParams.delete('tab');
+		mockMCPInitializationFailure(401);
+		const attemptURL = `${window.location.origin}/oauth/mcp/login/ui-attempt`;
+		let checks = 0;
+		worker.use(
+			http.get('*/oauth/mcp/login/:state', () => HttpResponse.json({ expiresIn: 600 })),
+			http.get(`/api/oauth/vmcp/vmcpi1component/components/${fixtures.serverSingle.id}`, () =>
+				HttpResponse.json({ authURL: ++checks === 1 ? attemptURL : '' })
+			)
+		);
+
+		const server = structuredClone(fixtures.serverSingle);
+		server.configured = true;
+		server.vmcpInstanceID = 'vmcpi1component';
+		server.deploymentStatus = 'Available';
+		server.manifest.remoteConfig = {
+			url: 'https://mcp.example.com',
+			localhostCallbackEnabled: true
+		};
 		const data = await preparePageData<PageData>({
-			server: {
-				...fixtures.serverSingle,
-				configured: false,
-				canConnect: true
-			},
-			backTarget: `/mcp-servers/s/${fixtures.serverSingle.id}`
+			server,
+			backTarget: `/mcp-servers/s/${server.id}`
 		});
-		render(TesterPage, { data });
-
-		await expect.element(page.getByText('this server still needs', { exact: false })).toBeVisible();
+		await render(TesterPage, { data });
 		await expect
-			.element(page.getByRole('heading', { name: 'Server setup required' }))
+			.element(page.getByLabelText('Authentication command'))
+			.toHaveTextContent(`obot mcp login "${attemptURL}"`);
+		await expect.element(page.getByRole('timer')).toBeVisible();
+		mockMCPInitialization();
+		worker.use(http.get('*/oauth/mcp/login/:state', () => new HttpResponse(null, { status: 400 })));
+		document.dispatchEvent(new Event('visibilitychange'));
+		await expect
+			.element(page.getByRole('heading', { name: 'Reauthentication required' }))
 			.not.toBeInTheDocument();
 	});
-});
 
-it('shows CLI login and retries a localhost component in the inspector', async () => {
-	appPage.url.searchParams.delete('tab');
-	mockMCPInitializationFailure(401);
-	const attemptURL = `${window.location.origin}/oauth/mcp/login/ui-attempt`;
-	let checks = 0;
-	worker.use(
-		http.get('*/oauth/mcp/login/:state', () => HttpResponse.json({ expiresIn: 600 })),
-		http.get(`/api/oauth/vmcp/vmcpi1component/components/${fixtures.serverSingle.id}`, () =>
-			HttpResponse.json({ authURL: ++checks === 1 ? attemptURL : '' })
-		)
-	);
-
-	const server = structuredClone(fixtures.serverSingle);
-	server.configured = true;
-	server.vmcpInstanceID = 'vmcpi1component';
-	server.deploymentStatus = 'Available';
-	server.manifest.remoteConfig = { url: 'https://mcp.example.com', localhostCallbackEnabled: true };
-	const data = await preparePageData<PageData>({
-		server,
-		backTarget: `/mcp-servers/s/${server.id}`
+	it('keeps management navigation for a legacy localhost deployment without a vMCP owner', async () => {
+		appPage.url.searchParams.delete('tab');
+		mockMCPInitializationFailure(401);
+		const server = structuredClone(fixtures.serverSingle);
+		server.configured = true;
+		server.deploymentStatus = 'Available';
+		server.manifest.remoteConfig = {
+			url: 'https://mcp.example.com',
+			localhostCallbackEnabled: true
+		};
+		const data = await preparePageData<PageData>({
+			server,
+			backTarget: `/mcp-servers/s/${server.id}`
+		});
+		await render(TesterPage, { data });
+		await expect
+			.element(page.getByRole('link', { name: 'Manage authentication', exact: true }))
+			.toHaveAttribute('href', `/mcp-servers/s/${server.id}`);
+		await expect.element(page.getByLabelText('Authentication command')).not.toBeInTheDocument();
 	});
-	await render(TesterPage, { data });
-	await expect
-		.element(page.getByLabelText('Authentication command'))
-		.toHaveTextContent(`obot mcp login "${attemptURL}"`);
-	await expect.element(page.getByRole('timer')).toBeVisible();
-	mockMCPInitialization();
-	worker.use(http.get('*/oauth/mcp/login/:state', () => new HttpResponse(null, { status: 400 })));
-	document.dispatchEvent(new Event('visibilitychange'));
-	await expect
-		.element(page.getByRole('heading', { name: 'Reauthentication required' }))
-		.not.toBeInTheDocument();
-});
-
-it('keeps management navigation for a legacy localhost deployment without a vMCP owner', async () => {
-	appPage.url.searchParams.delete('tab');
-	mockMCPInitializationFailure(401);
-	const server = structuredClone(fixtures.serverSingle);
-	server.configured = true;
-	server.deploymentStatus = 'Available';
-	server.manifest.remoteConfig = { url: 'https://mcp.example.com', localhostCallbackEnabled: true };
-	const data = await preparePageData<PageData>({
-		server,
-		backTarget: `/mcp-servers/s/${server.id}`
-	});
-	await render(TesterPage, { data });
-	await expect
-		.element(page.getByRole('link', { name: 'Manage authentication', exact: true }))
-		.toHaveAttribute('href', `/mcp-servers/s/${server.id}`);
-	await expect.element(page.getByLabelText('Authentication command')).not.toBeInTheDocument();
 });

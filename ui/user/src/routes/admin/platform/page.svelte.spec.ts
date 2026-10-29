@@ -1,6 +1,6 @@
 import { page as appPage } from '$app/state';
 import { overwriteGetLocale } from '$lib/paraglide/runtime';
-import { Group, type ModelProxySettings } from '$lib/services';
+import { Group } from '$lib/services';
 import type { ImagePullSecret, ImagePullSecretCapability } from '$lib/services/admin/types';
 import type { Version } from '$lib/services/user/types';
 import { compileAppPreferences } from '$lib/stores/appPreferences.svelte';
@@ -20,7 +20,6 @@ async function renderPlatformPage({
 	capability = { available: false },
 	imagePullSecrets = [],
 	groups = [Group.ADMIN],
-	modelProxySettings,
 	displayName
 }: {
 	versionOverrides?: Partial<Version>;
@@ -29,7 +28,6 @@ async function renderPlatformPage({
 	capability?: ImagePullSecretCapability;
 	imagePullSecrets?: ImagePullSecret[];
 	groups?: string[];
-	modelProxySettings?: ModelProxySettings;
 	displayName?: string;
 } = {}) {
 	appPage.url.searchParams.set('view', view);
@@ -46,7 +44,6 @@ async function renderPlatformPage({
 		capability,
 		imagePullSecrets,
 		gitCredentials: [],
-		modelProxySettings,
 		version: { ...getVersionResponse, ...versionOverrides }
 	});
 

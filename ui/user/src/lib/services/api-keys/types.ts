@@ -6,7 +6,6 @@ export interface APIKey {
 	name: string;
 	description?: string;
 	canAccessAPI: boolean;
-	canAccessLLMProxy: boolean;
 	canAccessSkills: boolean;
 	canAccessDeviceScans: boolean;
 	createdAt: string;
@@ -15,11 +14,7 @@ export interface APIKey {
 	mcpServerIds?: string[];
 }
 
-export type APIKeyCapabilityKey =
-	| 'canAccessAPI'
-	| 'canAccessLLMProxy'
-	| 'canAccessSkills'
-	| 'canAccessDeviceScans';
+export type APIKeyCapabilityKey = 'canAccessAPI' | 'canAccessSkills' | 'canAccessDeviceScans';
 export type APIKeyCreatableCapabilityKey = Exclude<APIKeyCapabilityKey, 'canAccessAPI'>;
 
 export const API_KEY_CAPABILITIES = [
@@ -28,12 +23,6 @@ export const API_KEY_CAPABILITIES = [
 		label: m.identity_access_agents_capability_api_label(),
 		shortLabel: 'API',
 		description: m.identity_access_agents_capability_api_description()
-	},
-	{
-		key: 'canAccessLLMProxy',
-		label: m.identity_access_agents_capability_llm_label(),
-		shortLabel: 'LLM',
-		description: m.identity_access_agents_capability_llm_description()
 	},
 	{
 		key: 'canAccessSkills',
@@ -75,7 +64,6 @@ export interface APIKeyCreateRequest {
 	expiresAt?: string;
 	mcpServerIds: string[];
 	canAccessAPI?: boolean;
-	canAccessLLMProxy?: boolean;
 	canAccessSkills?: boolean;
 	canAccessDeviceScans?: boolean;
 }

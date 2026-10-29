@@ -4,7 +4,7 @@ import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import { Group } from '$lib/services';
 import type { AuthProvider } from '$lib/services/admin/types';
 import type { Profile, Version } from '$lib/services/user/types';
-import { defaultModelAliases, profile, userDeviceSettings, version } from '$lib/stores';
+import { profile, userDeviceSettings, version } from '$lib/stores';
 import { adminConfigStore } from '$lib/stores/adminConfig.svelte';
 import { getProfileResponse, getVersionResponse } from '../../tests/mocks/data';
 import { worker } from '../../tests/mocks/worker';
@@ -18,7 +18,7 @@ import { page } from 'vitest/browser';
 overwriteGetLocale(() => 'en');
 const children = createRawSnippet(() => ({ render: () => '<div></div>' }));
 
-const sharedLinks = ['/vmcps', '/skills', '/models', '/audit-logs', '/usage', '/identity-access'];
+const sharedLinks = ['/vmcps', '/skills', '/audit-logs', '/usage', '/identity-access'];
 
 const adminOnlyLinks = ['/inventory', '/admin/platform'];
 
@@ -50,8 +50,6 @@ async function renderLayout(
 		engine: 'docker',
 		...versionOverrides
 	});
-	await defaultModelAliases.initialize([]);
-
 	return render(Layout, { children });
 }
 
@@ -115,21 +113,18 @@ describe('Layout.svelte', () => {
 		await expectNoLink('/dashboard');
 	});
 
-	describe('LLM gateway navigation', () => {
-		it('names the models page LLM Gateway, marked beta', async () => {
+	describe('removed model navigation', () => {
+		it('does not expose the LLM Gateway models page', async () => {
 			await renderLayout([Group.ADMIN]);
-			await expandSection('ai-resources', '/models');
-			await expect
-				.element(page.getByCSS('a.sidebar-link[href="/models"]'))
-				.toHaveTextContent(`${m.nav_llm_gateway()} ${m.common_beta()}`);
+			await expandSection('ai-resources', '/vmcps');
+			await expectNoLink('/models');
 		});
 	});
 
-	describe('message policy navigation', () => {
-		it('is replaced by guardrails', async () => {
+	describe('removed policy navigation', () => {
+		it('does not expose message-policy or policy-violation routes', async () => {
 			await renderLayout([Group.ADMIN]);
 
-			await expandSection('ai-resources', '/models');
 			await expandSection('operations', '/audit-logs');
 			await expectNoLink('/admin/message-policies');
 			await expectNoLink('/admin/policy-violations');
@@ -137,9 +132,9 @@ describe('Layout.svelte', () => {
 	});
 
 	describe('guardrails navigation', () => {
-		it('has no Guardrails entry; guardrails are on the LLM Gateway and MCP Servers tabs', async () => {
+		it('has no standalone Guardrails entry', async () => {
 			await renderLayout([Group.ADMIN]);
-			await expandSection('ai-resources', '/models');
+			await expandSection('ai-resources', '/vmcps');
 			await expectNoLink('/guardrails');
 		});
 

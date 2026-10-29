@@ -1,5 +1,5 @@
 // Localized text for the guardrail types the server registers. The server describes each type,
-// its settings and its test findings in English (GET /llm-gateway/guardrails/providers and the
+// its settings and its test findings in English (GET /guardrails/providers and the
 // test endpoint). The UI translates them by stable keys: the type ID and the field name. A string
 // is translated only while the server's English still matches the English in the catalog, so a
 // type the UI doesn't know, or text the server has since changed, shows the server's English
@@ -31,16 +31,6 @@ const TYPE_TEXT: Record<string, TypeText> = {
 					m.guardrails_type_regex_field_patterns_description({ example: 'EMPLOYEE_ID=E\\d{6}' }, o)
 			},
 			caseInsensitive: { label: (o) => m.guardrails_type_regex_field_case_insensitive_label({}, o) }
-		}
-	},
-	'llm-judge': {
-		label: (o) => m.guardrails_type_llm_judge_label({}, o),
-		description: (o) => m.guardrails_type_llm_judge_description({}, o),
-		fields: {
-			definition: {
-				label: (o) => m.guardrails_type_llm_judge_field_definition_label({}, o),
-				description: (o) => m.guardrails_type_llm_judge_field_definition_description({}, o)
-			}
 		}
 	},
 	secrets: {

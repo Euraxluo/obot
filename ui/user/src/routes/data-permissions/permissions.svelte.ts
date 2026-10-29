@@ -1,4 +1,5 @@
 import type { PermissionDatabaseGraph, PermissionGraph, PermissionValue } from './metabase';
+import { SvelteSet } from 'svelte/reactivity';
 
 export interface PermissionRow {
 	id: string;
@@ -143,7 +144,7 @@ export function databasesWithChanges(
 	graph: PermissionGraph,
 	original: PermissionGraph
 ): Set<number> {
-	const changed = new Set<number>();
+	const changed = new SvelteSet<number>();
 	for (const [groupId, groupGraph] of Object.entries(graph.groups)) {
 		for (const [databaseId, databaseGraph] of Object.entries(groupGraph ?? {})) {
 			if (

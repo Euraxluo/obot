@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { m } from '$lib/i18n';
 	import Loading from '$lib/icons/Loading.svelte';
-	import type { AuthProvider, ModelProvider } from '$lib/services';
+	import type { AuthProvider } from '$lib/services';
 	import ResponsiveDialog from '../ResponsiveDialog.svelte';
 
 	interface Props {
@@ -9,7 +9,7 @@
 		onCancel: () => void | Promise<void>;
 		loading?: boolean;
 		title?: string;
-		providers?: (AuthProvider | ModelProvider)[];
+		providers?: AuthProvider[];
 		confirmButtonText?: string;
 	}
 
@@ -18,8 +18,8 @@
 		onConfirm,
 		onCancel,
 		providers,
-		title = m.models_providers_confirm_deconfiguration(),
-		confirmButtonText = m.models_providers_deconfigure()
+		title = m.identity_access_provider_confirm_deconfiguration(),
+		confirmButtonText = m.identity_access_provider_deconfigure()
 	}: Props = $props();
 
 	let providerDeconfigureConfirmDialog = $state<ReturnType<typeof ResponsiveDialog>>();
@@ -60,30 +60,30 @@
 			<div class="px-4 py-4 md:py-0 flex flex-col gap-4 h-full">
 				<p>
 					{#if providers.length === 1}
-						{m.models_providers_deconfigure_single_prefix()}
-						<b>{providers[0].name}</b>{m.models_providers_sentence_end()}
+						{m.identity_access_provider_deconfigure_single_prefix()}
+						<b>{providers[0].name}</b>{m.identity_access_provider_sentence_end()}
 					{:else}
-						{m.models_providers_deconfigure_multi_prefix()}
-						<b>{listOfProviders}</b>{m.models_providers_sentence_end()}
+						{m.identity_access_provider_deconfigure_multi_prefix()}
+						<b>{listOfProviders}</b>{m.identity_access_provider_sentence_end()}
 					{/if}
-					{m.models_providers_cannot_be_undone()}
+					{m.identity_access_provider_cannot_be_undone()}
 				</p>
 				{#if authProvider}
 					<div class="p-4 bg-error/10 text-error rounded-md text-sm">
 						<p class="mb-2">
-							{m.models_providers_deconfiguring_prefix()}
-							<b>{authProvider.name || m.models_providers_this_provider()}</b>
-							{m.models_providers_deconfiguring_suffix()}
+							{m.identity_access_provider_deconfiguring_prefix()}
+							<b>{authProvider.name || m.identity_access_provider_this_provider()}</b>
+							{m.identity_access_provider_deconfiguring_suffix()}
 						</p>
 						<ul class="px-4 list-disc space-y-2">
 							<li>
-								{m.models_providers_deconfigure_effect_users()}
+								{m.identity_access_provider_deconfigure_effect_users()}
 							</li>
 							<li>
-								{m.models_providers_deconfigure_effect_powerusers()}
+								{m.identity_access_provider_deconfigure_effect_powerusers()}
 							</li>
 							<li>
-								{m.models_providers_deconfigure_effect_accounts()}
+								{m.identity_access_provider_deconfigure_effect_accounts()}
 							</li>
 							{#if scimManaged}
 								<li>
@@ -99,9 +99,9 @@
 				{#if authProvider}
 					<div class="flex flex-col gap-1">
 						<p>
-							{m.models_providers_type_provider_id_prefix()}
+							{m.identity_access_provider_type_provider_id_prefix()}
 							<code class="text-xs p-1 bg-base-200">{authProvider.id}</code>
-							{m.models_providers_type_provider_id_suffix()}
+							{m.identity_access_provider_type_provider_id_suffix()}
 						</p>
 
 						<input type="text" class="input-text-filled w-full" bind:value={confirmationInput} />
@@ -110,7 +110,7 @@
 				<div class="md:hidden flex grow"></div>
 				<div class="flex gap-4 w-full pt-4 md:py-4">
 					<button class="btn btn-secondary flex-1" disabled={loading} onclick={onCancel}
-						>{m.models_providers_nevermind()}</button
+						>{m.identity_access_provider_nevermind()}</button
 					>
 					<button
 						class="btn btn-error btn-soft flex-1"

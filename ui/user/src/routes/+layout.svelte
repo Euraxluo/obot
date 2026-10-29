@@ -14,9 +14,7 @@
 		mcpServersAndEntries,
 		mcpTunnelConnections,
 		vmcpInstances,
-		defaultModelAliases,
 		userDeviceSettings,
-		accessibleModels,
 		appNotification
 	} from '$lib/stores';
 	import { goto } from '$lib/url';
@@ -72,14 +70,6 @@
 
 		if (data.appNotification) {
 			appNotification.initialize(data.appNotification);
-		}
-
-		if (data.defaultModelAliases) {
-			untrack(() => defaultModelAliases.initialize(data.defaultModelAliases));
-		}
-
-		if (data.models) {
-			untrack(() => accessibleModels.initialize(data.models));
 		}
 
 		if (browser) {
