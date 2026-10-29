@@ -1,50 +1,41 @@
-# ZTOCC Branding + zh-CN Default Status
+# Task F: LLM subsystem UI removal status
 
-## Scope
+## Result
 
-- Branch: `skin/ztocc-theme`
-- Added configurable platform display name (`displayName`) with default `ZTOCC`.
-- Changed Paraglide `baseLocale` and initial HTML language from `en` to `zh-CN`.
-- Preserved the locale strategy `localStorage -> preferredLanguage -> baseLocale`; saved locale preferences continue to win.
-- No auth, permission, MCP, or feature-behavior changes beyond the app preferences field and branding presentation.
+**Complete.** Branch `skin/ztocc-theme` now has the UI dependency-map work committed and all required gates green. No push was made.
 
-## Main Files
+## Commits
 
-- Backend preference contract: `apiclient/types/apppreferences.go`, `pkg/storage/apis/obot.obot.ai/v1/apppreferences.go`, `pkg/api/handlers/apppreferences.go`
-- Generated deep-copy updates: `apiclient/types/zz_generated.deepcopy.go`, `pkg/storage/apis/obot.obot.ai/v1/zz_generated.deepcopy.go`
-- Frontend preference contract/default: `ui/user/src/lib/services/admin/types.ts`, `ui/user/src/lib/services/user/types.ts`, `ui/user/src/lib/stores/appPreferences.svelte.ts`
-- Branding helper/title consumption: `ui/user/src/lib/branding.svelte.ts` and route/component `<title>` usages
-- Branding UI: `ui/user/src/routes/admin/platform/BrandingConfigurationSidebar.svelte`, `BrandingView.svelte`
-- Login/i18n fragments: `ui/user/messages/**/*.json`
-- Locale default: `ui/user/project.inlang/settings.json`, `ui/user/src/app.html`, `ui/user/src/lib/i18n.test.ts`
-- Regression coverage: `ui/user/src/routes/admin/platform/page.svelte.spec.ts`, `ui/user/src/tests/mocks/data.ts`
+- `d05acde feat(ui): drop llm and models surfaces`
+- `1e3e3c6 feat(ui): market to two tabs`
+- `8eadbbb test(clauderunner): stabilize orchestrator startup`
 
-## How `displayName` Works
+## Completed scope
 
-1. Open **Platform -> Branding**.
-2. Enter the desired value under **Platform Name** (shown below Mode and above theme/logo controls).
-3. Select **Save**. The UI sends `PUT /api/app-preferences` with `displayName`, persists it in `AppPreferencesSpec`, and immediately updates page titles/login copy.
-4. Empty or whitespace-only input is compiled back to `ZTOCC`; **Restore Default** also returns the name to `ZTOCC`.
-
-Titles use `productTitle(suffix)`, which reads `appPreferences.current.displayName`. Login heading/welcome messages use translated fragments with `{name}`.
+- Removed the models route family, model stores/layout loading, model navigation, model access policy UI, default-alias UI, token-usage dashboard surfaces, LLM usage/audit views, LLM audit exports, and LLM/model API mocks/types.
+- Reduced MCP Tester to the pure direct MCP surface: Tools, Prompts, Resources, and MCP Log. Removed Chat, the model/chat continuation client, staging-for-chat UI, and tester-chat API tests.
+- Removed the Claude environment LLM-proxy option and the agent API-key LLM capability while preserving local-agent identities, MCP access, Skills access, device scans, and Obot API capability.
+- Moved the retained guardrail client to `/api/guardrails`, preserved MCP guardrails/filters, and removed LLM targets/policies/message-policy surfaces.
+- Removed model/message-policy SCIM reference kinds while preserving SCIM group/user reconciliation and skill/MCP/vMCP references.
+- Changed the marketplace default to Skills and exposed exactly Skills + Connectors. Shared vMCP administration/routes remain; the marketplace no longer presents the expert/shared-vMCP tab or search grouping.
+- Cleaned unreferenced LLM/model/chat/expert i18n keys across locales, moved shared auth-provider card copy out of the obsolete models catalog, and regenerated Paraglide output.
 
 ## Verification
 
-- **verified**: `cd ui/user && pnpm run i18n:compile` succeeds; generated runtime reports `baseLocale = "zh-CN"` and retains `localStorage`, `preferredLanguage`, `baseLocale`.
-- **verified**: `cd ui/user && pnpm run check` passes (0 errors / 0 warnings).
-- **verified**: `cd ui/user && pnpm exec vitest run src/routes/admin/platform/page.svelte.spec.ts src/lib/i18n.test.ts --browser.headless` passes 120 tests. Coverage includes editing/saving `displayName` through Branding UI and all locale catalogs matching the zh-CN base keys/placeholders.
-- **verified**: `go test ./pkg/api/handlers ./pkg/storage/apis/obot.obot.ai/v1` passes (1168 tests), and `cd apiclient && go test ./types` passes (276 tests).
-- **verified**: `git diff --check` passes.
-- **observed**: standalone `tsc --noEmit` still reports pre-existing project errors in unrelated Svelte exported-type/test-helper files; `pnpm run check` is the project's Svelte-aware gate and passes.
-- **partial**: Fresh real-browser language behavior was not manually screenshotted. The generated runtime and compiled strategy were verified; a no-localStorage browser visit should be checked if visual acceptance is required.
+- **verified**: `go build ./...` passed.
+- **verified**: `go test ./pkg/... -count=1` passed — 5,857 tests in 130 packages.
+- **verified**: `pnpm --dir ui/user run check` passed — 0 errors / 0 warnings.
+- **verified**: `pnpm --dir ui/user run lint` passed.
+- **verified**: affected Vitest groups passed:
+  - Layout + marketplace: 2 files / 28 tests.
+  - MCP Tester/session + vMCP tester: 4 files / 68 tests.
+  - Identity/current-access/usage/guardrails/MCP filters: 7 files / 50 tests.
+  - Audit exports + Claude environments + SCIM: 5 files / 71 tests.
+  - Root layout: 1 file / 10 tests.
+  - Data permissions + connector marketplace regression: 2 files / 8 tests.
+- **verified browser on port 8080**: `/market` defaults to Skills and shows exactly `技能` and `连接器`; `/mcp-servers` and `/skills` load with their retained feature tabs; sidebar has no Models/LLM Gateway entry.
 
-## Risks
+## Cross-points
 
-- Existing preference objects omit `displayName`; the frontend compiles them to `ZTOCC`, so the deployment default remains stable.
-- Some long marketing/prose references to Obot remain intentionally untouched where they describe the upstream product or non-title text.
-- PR/i18n catalogs are key-synchronized; future title fragments must be added to all four locales.
-
-## Branch/PR
-
-- Local commit pending on `skin/ztocc-theme`.
-- Remote is `Euraxluo/obot` (`origin`). Existing PR: https://github.com/Euraxluo/obot/pull/1
+- Preserved MCP, Skills, SCIM/RBAC, audit, marketplace approvals, data permissions, device management, vMCP administration, local-agent identities, and shared auth-provider configuration.
+- `8eadbbb` only extends a flaky orchestrator startup wait from 5s to 30s so the full parallel Go suite is stable; it makes no product behavior change.
