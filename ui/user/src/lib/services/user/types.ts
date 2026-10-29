@@ -1097,6 +1097,7 @@ export interface Version {
 	obot?: string;
 	authEnabled?: boolean;
 	devLoginEnabled?: boolean;
+	marketOpen?: boolean;
 	userCount?: number;
 	deviceCount?: number;
 	engine?: 'docker' | 'kubernetes' | 'local';

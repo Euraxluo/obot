@@ -164,6 +164,7 @@ func (m *MCPHandler) ListEntriesFromAllSources(req api.Context) error {
 	convertEntry := func(entry v1.MCPServerCatalogEntry) types.MCPServerCatalogEntry {
 		return convertMCPServerCatalogEntryForList(entry, entry.Spec.PowerUserWorkspaceID, "", minimal)
 	}
+	marketVisibilityOpen := req.UserIsAuthenticated() && marketOpenEnabled()
 
 	// Allow admins/auditors to bypass ACR filtering with ?all=true
 	if (req.UserIsAdmin() || req.UserIsAuditor()) && req.URL.Query().Get("all") == "true" {
@@ -182,7 +183,9 @@ func (m *MCPHandler) ListEntriesFromAllSources(req api.Context) error {
 			hasAccess bool
 		)
 
-		if entry.Spec.MCPCatalogName != "" {
+		if marketVisibilityOpen {
+			hasAccess = true
+		} else if entry.Spec.MCPCatalogName != "" {
 			hasAccess, err = m.acrHelper.UserHasAccessToMCPServerCatalogEntryInCatalog(req.User, entry.Name, entry.Spec.MCPCatalogName)
 		} else if entry.Spec.PowerUserWorkspaceID != "" {
 			hasAccess, err = m.acrHelper.UserHasAccessToMCPServerCatalogEntryInWorkspace(req.Context(), req.User, entry.Name, entry.Spec.PowerUserWorkspaceID)

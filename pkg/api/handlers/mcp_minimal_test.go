@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/obot-platform/obot/apiclient/types"
+	"github.com/obot-platform/obot/pkg/accesscontrolrule"
 	"github.com/obot-platform/obot/pkg/api"
 	"github.com/obot-platform/obot/pkg/storage"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
@@ -14,6 +15,7 @@ import (
 	"github.com/obot-platform/obot/pkg/system"
 	"github.com/stretchr/testify/require"
 	kuser "k8s.io/apiserver/pkg/authentication/user"
+	gocache "k8s.io/client-go/tools/cache"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
@@ -121,6 +123,62 @@ func TestListEntriesFromAllSourcesFullByDefault(t *testing.T) {
 	require.Equal(t, "Upgrade note", response.Items[0].Manifest.UpgradeNote)
 	require.Equal(t, "https://example.com/repo", response.Items[0].Manifest.RepoURL)
 	require.Equal(t, "https://example.com/mcp", response.Items[0].Manifest.RemoteConfig.FixedURL)
+}
+
+func TestListEntriesFromAllSourcesMarketOpenSkipsACRVisibility(t *testing.T) {
+	entry := minimalResponseTestEntry()
+	storageClient := storage.Client(fake.NewClientBuilder().
+		WithScheme(storagescheme.Scheme).
+		WithObjects(&entry).
+		Build())
+	indexer := gocache.NewIndexer(gocache.MetaNamespaceKeyFunc, map[string]gocache.IndexFunc{
+		"selectors": func(obj any) ([]string, error) {
+			return nil, nil
+		},
+		"catalog-entry-names": func(obj any) ([]string, error) {
+			return nil, nil
+		},
+	})
+	request := httptest.NewRequest(http.MethodGet, "/api/all-mcps/entries", nil)
+	recorder := httptest.NewRecorder()
+
+	err := (&MCPHandler{
+		serverURL: "https://example.com",
+		acrHelper: accesscontrolrule.NewAccessControlRuleHelper(indexer, nil),
+	}).ListEntriesFromAllSources(api.Context{
+		Request:        request,
+		ResponseWriter: recorder,
+		Storage:        storageClient,
+		User: &kuser.DefaultInfo{
+			Name:   "basic",
+			UID:    "1",
+			Groups: []string{types.GroupBasic, types.GroupAuthenticated},
+		},
+	})
+	require.NoError(t, err)
+
+	var response types.MCPServerCatalogEntryList
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	require.Empty(t, response.Items)
+
+	t.Setenv("OBOT_MARKET_OPEN", "true")
+	recorder = httptest.NewRecorder()
+	err = (&MCPHandler{
+		serverURL: "https://example.com",
+		acrHelper: accesscontrolrule.NewAccessControlRuleHelper(indexer, nil),
+	}).ListEntriesFromAllSources(api.Context{
+		Request:        request,
+		ResponseWriter: recorder,
+		Storage:        storageClient,
+		User: &kuser.DefaultInfo{
+			Name:   "basic",
+			UID:    "1",
+			Groups: []string{types.GroupBasic, types.GroupAuthenticated},
+		},
+	})
+	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	require.Len(t, response.Items, 1)
 }
 
 func TestListCatalogEntriesMinimal(t *testing.T) {

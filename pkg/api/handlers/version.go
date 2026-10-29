@@ -42,6 +42,10 @@ func sessionStoreFromPostgresDSN(postgresDSN string) SessionStore {
 	return SessionStoreCookie
 }
 
+func marketOpenEnabled() bool {
+	return os.Getenv("OBOT_MARKET_OPEN") == "true"
+}
+
 func NewVersionHandler(opts VersionHandlerOptions) *VersionHandler {
 	return &VersionHandler{
 		VersionHandlerOptions: opts,
@@ -76,6 +80,7 @@ func (v *VersionHandler) getVersionResponse(ctx context.Context) (map[string]any
 		"obot":                    version.Get().String(),
 		"authEnabled":             v.AuthEnabled,
 		"devLoginEnabled":         os.Getenv("OBOT_DEV_LOGIN") == "true",
+		"marketOpen":              marketOpenEnabled(),
 		"sessionStore":            v.sessionStore,
 		"userCount":               userCount,
 		"deviceCount":             deviceCount,
