@@ -42,7 +42,7 @@ export default defineConfig(({ mode }) => {
 				project: './project.inlang',
 				outdir: './src/lib/paraglide',
 				// Keep in sync with the `i18n:compile` script in package.json
-				strategy: ['localStorage', 'preferredLanguage', 'baseLocale']
+				strategy: ['localStorage', 'baseLocale']
 			}),
 			tailwindcss(),
 			sveltekit()

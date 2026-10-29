@@ -4,6 +4,19 @@
 		<meta charset="utf-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 		<script>
+			// One-shot: drop locale that was auto-persisted from browser preferredLanguage
+			// before baseLocale became zh-CN; afterwards only explicit LanguageSelect sticks.
+			(function () {
+				try {
+					if (!localStorage.getItem('ztocc_locale_default_v1')) {
+						localStorage.removeItem('PARAGLIDE_LOCALE');
+						localStorage.setItem('PARAGLIDE_LOCALE', 'zh-CN');
+						localStorage.setItem('ztocc_locale_default_v1', '1');
+					}
+				} catch (e) {}
+			})();
+		</script>
+		<script>
 			// Keep in sync with `getIsDark()` in `src/lib/stores/darkmode.svelte.ts`
 			(function () {
 				function getIsDark() {
