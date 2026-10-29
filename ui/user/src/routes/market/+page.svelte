@@ -9,7 +9,7 @@
 	import McpServerIcon from '$lib/components/vmcps/McpServerIcon.svelte';
 	import { m } from '$lib/i18n';
 	import { toHTMLFromMarkdownWithNewTabLinks } from '$lib/markdown';
-	import { UserService, type ConnectorAccessRequest, type Skill, type VMCP } from '$lib/services';
+	import { UserService, type ConnectorAccessRequest, type Skill } from '$lib/services';
 	import {
 		catalogEntryDisplayName,
 		entryCategories,
@@ -18,12 +18,13 @@
 	} from '$lib/services/vmcps/utils';
 	import { mcpServersAndEntries, profile } from '$lib/stores';
 	import { goto, setUrlParamAndUpdateUrl } from '$lib/url';
-	import { Bot, CircleAlert, Lightbulb, Sparkles } from '@lucide/svelte';
+	import { Bot, CircleAlert, Lightbulb } from '@lucide/svelte';
 	import { onMount } from 'svelte';
+	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
 	let { data } = $props();
 
-	type Tab = 'experts' | 'skills' | 'connectors';
+	type Tab = 'skills' | 'connectors';
 
 	type SelectedItem = {
 		tab: Tab;
@@ -57,12 +58,12 @@
 
 	function tabFromURL(): Tab {
 		const tab = page.url.searchParams.get('tab');
-		return tab === 'skills' || tab === 'connectors' ? tab : 'experts';
+		return tab === 'connectors' ? tab : 'skills';
 	}
 
 	function switchTab(tab: Tab) {
 		activeTab = tab;
-		setUrlParamAndUpdateUrl(page.url, 'tab', tab === 'experts' ? null : tab);
+		setUrlParamAndUpdateUrl(page.url, 'tab', tab === 'skills' ? null : tab);
 	}
 
 	// --- Connectors ---
@@ -82,7 +83,7 @@
 
 	/** Latest request per connector, keyed by connector ID. */
 	let requestByConnector = $derived.by(() => {
-		const byConnector = new Map<string, ConnectorAccessRequest>();
+		const byConnector = new SvelteMap<string, ConnectorAccessRequest>();
 		for (const request of requests) {
 			const existing = byConnector.get(request.manifest.connectorID);
 			if (!existing || (request.created ?? '') > (existing.created ?? '')) {
@@ -94,7 +95,7 @@
 
 	/** Entry IDs the user already composed into a personal vMCP. */
 	let connectedEntryIDs = $derived.by(() => {
-		const connected = new Set<string>();
+		const connected = new SvelteSet<string>();
 		for (const vmcp of data.vmcps) {
 			if (vmcp.userID !== profile.current.id) continue;
 			for (const component of vmcp.components ?? []) {
@@ -128,20 +129,6 @@
 		}
 	}
 
-	// --- Experts (admin-built shared vMCPs) ---
-
-	let sharedVmcps = $derived(
-		data.vmcps.filter((vmcp) => !vmcp.userID && (vmcp.profiles?.length ?? 0) > 0)
-	);
-	let visibleExperts = $derived(
-		sharedVmcps.filter(
-			(vmcp) =>
-				!query ||
-				vmcp.displayName.toLowerCase().includes(query.toLowerCase()) ||
-				(vmcp.description ?? '').toLowerCase().includes(query.toLowerCase())
-		)
-	);
-
 	// --- Skills ---
 
 	let visibleSkills = $derived(
@@ -173,16 +160,6 @@
 		};
 		reasonText = '';
 		submitError = '';
-	}
-
-	function openExpert(vmcp: VMCP) {
-		selected = {
-			tab: 'experts',
-			id: vmcp.id,
-			title: vmcp.displayName || m.market_untitled_expert(),
-			description: vmcp.description ?? '',
-			tags: []
-		};
 	}
 
 	function openSkill(skill: Skill) {
@@ -235,13 +212,6 @@
 		goto(`/skills/${encodeURIComponent(id)}`);
 	}
 
-	function openExpertDetail() {
-		if (!selected) return;
-		const id = selected.id;
-		closeDetail();
-		goto(`/vmcps/${encodeURIComponent(id)}`);
-	}
-
 	/** "试试这样用" examples: explicit metadata first, then quoted prompt lines
 	 * from the description. Derived from source content only. */
 	function usageExamples(item: SelectedItem | undefined): string[] {
@@ -267,15 +237,10 @@
 	);
 
 	let searchPlaceholder = $derived(
-		activeTab === 'experts'
-			? m.market_search_experts()
-			: activeTab === 'skills'
-				? m.market_search_skills()
-				: m.market_search_connectors()
+		activeTab === 'skills' ? m.market_search_skills() : m.market_search_connectors()
 	);
 
 	const tabs: { value: Tab; label: string }[] = [
-		{ value: 'experts', label: m.market_tab_experts() },
 		{ value: 'skills', label: m.market_tab_skills() },
 		{ value: 'connectors', label: m.market_tab_connectors() }
 	];
@@ -330,7 +295,6 @@
 			{:else}
 				<MarketplaceGrid>
 					{#each visibleEntries as entry (entry.id)}
-						{@const state = connectorState(entry.id)}
 						<MarketItemCard
 							testId={`market-connector-${entry.id}`}
 							title={catalogEntryDisplayName(entry) || m.market_untitled_connector()}
@@ -351,7 +315,7 @@
 					{/each}
 				</MarketplaceGrid>
 			{/if}
-		{:else if activeTab === 'skills'}
+		{:else}
 			{#if visibleSkills.length === 0}
 				<p class="text-muted-content py-16 text-center text-sm">{m.market_empty_skills()}</p>
 			{:else}
@@ -368,29 +332,6 @@
 									class="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-lg"
 								>
 									<Bot class="size-5" />
-								</span>
-							{/snippet}
-						</MarketItemCard>
-					{/each}
-				</MarketplaceGrid>
-			{/if}
-		{:else}
-			{#if visibleExperts.length === 0}
-				<p class="text-muted-content py-16 text-center text-sm">{m.market_empty_experts()}</p>
-			{:else}
-				<MarketplaceGrid>
-					{#each visibleExperts as vmcp (vmcp.id)}
-						<MarketItemCard
-							testId={`market-expert-${vmcp.id}`}
-							title={vmcp.displayName || m.market_untitled_expert()}
-							description={vmcp.description ?? ''}
-							onSelect={() => openExpert(vmcp)}
-						>
-							{#snippet icon()}
-								<span
-									class="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-lg"
-								>
-									<Sparkles class="size-5" />
 								</span>
 							{/snippet}
 						</MarketItemCard>
@@ -417,11 +358,7 @@
 						<span
 							class="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-lg"
 						>
-							{#if selected.tab === 'skills'}
-								<Bot class="size-5" />
-							{:else}
-								<Sparkles class="size-5" />
-							{/if}
+							<Bot class="size-5" />
 						</span>
 					{/if}
 					<h2 class="text-lg font-semibold">{selected.title}</h2>
@@ -517,15 +454,6 @@
 					onclick={openSkillDetail}
 				>
 					{m.market_use()}
-				</button>
-			{:else if selected.tab === 'experts'}
-				<div class="divider"></div>
-				<button
-					type="button"
-					class="btn btn-primary btn-sm w-full rounded-lg"
-					onclick={openExpertDetail}
-				>
-					{m.market_connect()}
 				</button>
 			{/if}
 		</div>

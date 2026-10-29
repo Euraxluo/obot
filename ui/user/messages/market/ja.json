@@ -1,13 +1,10 @@
 {
 	"market_title": "マーケット",
-	"market_subtitle": "使うエキスパート・スキル・コネクタを選択",
-	"market_tab_experts": "エキスパート",
+	"market_subtitle": "使うスキル・コネクタを選択",
 	"market_tab_skills": "スキル",
 	"market_tab_connectors": "コネクタ",
-	"market_search_experts": "エキスパートを検索",
 	"market_search_skills": "スキルを検索",
 	"market_search_connectors": "コネクタを検索",
-	"market_empty_experts": "エキスパートはまだありません",
 	"market_empty_skills": "スキルはまだありません",
 	"market_empty_connectors": "コネクタはまだありません",
 	"market_try_this": "こんな使い方",
@@ -19,14 +16,9 @@
 	"market_rejected": "却下",
 	"market_not_connected": "未接続",
 	"market_request_reason_label": "申請理由（任意）",
-	"market_request_submit": "送信",
-	"market_request_cancel": "キャンセル",
-	"market_request_sent": "送信しました。承認をお待ちください",
 	"market_request_failed": "送信に失敗しました",
 	"market_rejected_reason": "却下理由",
-	"market_review_comment": "承認コメント（任意）",
 	"market_close": "閉じる",
 	"market_untitled_connector": "無題のコネクタ",
-	"market_untitled_skill": "無題のスキル",
-	"market_untitled_expert": "無題のエキスパート"
+	"market_untitled_skill": "無題のスキル"
 }

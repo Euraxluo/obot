@@ -1,4 +1,3 @@
-import { page as appPage } from '$app/state';
 import { m } from '$lib/i18n';
 import { Group } from '$lib/services';
 import type { ConnectorAccessRequest, Skill } from '$lib/services';
@@ -59,8 +58,6 @@ const skill: Skill = {
 	description: '根据本周工作记录生成周报'
 };
 
-const sharedVMCP = createVMCP({ id: 'vmcp1-expert', displayName: '创业导师' }, [connectorEntry]);
-
 function requestFixture(
 	status: ConnectorAccessRequest['manifest']['status']
 ): ConnectorAccessRequest {
@@ -102,7 +99,7 @@ function resetStore() {
 
 async function renderMarketPage({
 	requests = [],
-	vmcps = [sharedVMCP],
+	vmcps = [],
 	profile = createMockProfile([Group.USER])
 }: {
 	requests?: ConnectorAccessRequest[];
@@ -125,19 +122,18 @@ async function openConnectorsTab() {
 }
 
 describe('market page', () => {
-	it('renders tabs and connector cards with status', async () => {
+	it('defaults to Skills and renders exactly Skills and Connectors', async () => {
 		await renderMarketPage();
 
-		await expect.element(page.getByRole('tab', { name: m.market_tab_experts() })).toBeVisible();
 		await expect.element(page.getByRole('tab', { name: m.market_tab_skills() })).toBeVisible();
 		await expect.element(page.getByRole('tab', { name: m.market_tab_connectors() })).toBeVisible();
+		await expect
+			.element(page.getByRole('tab', { name: m.market_tab_skills() }))
+			.toHaveAttribute('aria-selected', 'true');
 
-		// Experts tab (default) lists the shared vMCP.
-		await expect.element(page.getByTestId('market-expert-vmcp1-expert')).toBeVisible();
-
-		// Skills tab lists the skill.
-		await page.getByRole('tab', { name: m.market_tab_skills() }).click();
+		// Skills is the default; expert/shared-vMCP cards are no longer marketplace entries.
 		await expect.element(page.getByTestId('market-skill-sk1-report')).toBeVisible();
+		await expect.element(page.getByRole('tab', { name: /Experts/ })).not.toBeInTheDocument();
 
 		// Connectors tab lists the entry with a 未连接 pill.
 		await openConnectorsTab();
@@ -199,7 +195,7 @@ describe('market page', () => {
 			{ id: 'vmcp2-personal', displayName: '我的连接', userID: profile.id },
 			[connectorEntry]
 		);
-		await renderMarketPage({ profile, vmcps: [sharedVMCP, personal] });
+		await renderMarketPage({ profile, vmcps: [personal] });
 
 		await openConnectorsTab();
 		const card = page.getByTestId(`market-connector-${connectorEntry.id}`);
