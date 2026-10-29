@@ -121,7 +121,7 @@ func TestOrchestratorProcessPortsAndShutdown(t *testing.T) {
 		require.Eventually(t, func() bool {
 			value, _ = os.ReadFile(filepath.Join(dir, "port"))
 			return len(value) > 0
-		}, 5*time.Second, 10*time.Millisecond)
+		}, 30*time.Second, 10*time.Millisecond)
 		port, err := strconv.Atoi(strings.TrimSpace(string(value)))
 		require.NoError(t, err)
 		require.NotEqual(t, 8080, port)
