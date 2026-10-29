@@ -2,7 +2,6 @@ package client
 
 import (
 	"cmp"
-	"context"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -15,25 +14,12 @@ import (
 	"k8s.io/apiserver/pkg/authentication/user"
 )
 
-// UserLimit describes the maximum number of users an installation may have.
-// Maximum is ignored when Unlimited is true.
-type UserLimit struct {
-	Maximum   int64
-	Unlimited bool
-}
-
-// UserLimitProvider is retained for compatibility with callers that have not
-// yet dropped the old license wiring. Internal editions do not enforce it.
-type UserLimitProvider interface {
-	UserLimit(context.Context) (UserLimit, error)
-}
-
 type UserDecorator struct {
 	next   authenticator.Request
 	client *Client
 }
 
-func NewUserDecorator(next authenticator.Request, client *Client, _ UserLimitProvider) *UserDecorator {
+func NewUserDecorator(next authenticator.Request, client *Client) *UserDecorator {
 	return &UserDecorator{
 		next:   next,
 		client: client,
@@ -61,7 +47,7 @@ func (u UserDecorator) AuthenticateRequest(req *http.Request) (*authenticator.Re
 			ProviderUserID:        resp.User.GetUID(),
 		}
 
-		gatewayUser, err = u.client.EnsureIdentity(req.Context(), identity, req.Header.Get("X-Obot-User-Timezone"), UserLimit{Unlimited: true})
+		gatewayUser, err = u.client.EnsureIdentity(req.Context(), identity, req.Header.Get("X-Obot-User-Timezone"))
 		if err != nil {
 			if _, ok := errors.AsType[*types2.ErrHTTP](err); ok {
 				return nil, false, err

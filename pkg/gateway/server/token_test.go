@@ -305,7 +305,7 @@ func newTokenRequestTestServer(t *testing.T) (*Server, *client.Client) {
 		t.Fatalf("create provider credential: %v", err)
 	}
 
-	providerDispatcher := dispatcher.New(nil, storageClient, gatewayClient, nil, "", "", "")
+	providerDispatcher := dispatcher.New(nil, storageClient, gatewayClient, "", "", "")
 	return &Server{
 		db:         db,
 		baseURL:    "https://obot.example.com",

@@ -179,9 +179,8 @@ func (s *serviceTest) signIn(nativeID string) uint {
 		ProviderUserID:        nativeID,
 		HashedProviderUserID:  hash.String(nativeID),
 		Email:                 nativeID + "@example.com",
-	}, "", clienttypes.RoleOwner, gclient.UserLimit{
-		Unlimited: true,
-	})
+	}, "", clienttypes.RoleOwner,
+	)
 	if err != nil {
 		s.t.Fatalf("failed to sign in %s: %v", nativeID, err)
 	}
@@ -195,9 +194,7 @@ func (s *serviceTest) provision(nativeID string) *gclient.SCIMUser {
 		UserName:   nativeID + "@example.com",
 		ExternalID: nativeID,
 	}, gclient.SCIMUserCreateOptions{
-		UserLimit: gclient.UserLimit{
-			Unlimited: true,
-		},
+
 		DefaultRole: clienttypes.RoleBasic,
 	})
 	if err != nil {

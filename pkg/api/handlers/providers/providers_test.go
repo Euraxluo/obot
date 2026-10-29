@@ -5,8 +5,6 @@ import (
 	"testing"
 
 	"github.com/obot-platform/obot/apiclient/types"
-	gatewaytypes "github.com/obot-platform/obot/pkg/gateway/types"
-	"github.com/obot-platform/obot/pkg/license"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 )
 
@@ -15,155 +13,27 @@ func TestAuthProviderStatus(t *testing.T) {
 		name         string
 		authProvider v1.AuthProvider
 		cred         map[string]string
-		conn         *gatewaytypes.SCIMConnection
 		want         types.CommonProviderStatus
 	}{
 		{
-			name: "configured when requirements are satisfied",
-			authProvider: authProvider(
-				[]types.ProviderConfigurationParameter{
-					{
-						Name: "API_KEY",
-					},
-				},
-				nil,
-				nil,
-			),
-			cred: map[string]string{"API_KEY": "secret"},
-			want: types.CommonProviderStatus{
-				Configured: true,
-			},
+			name:         "configured when requirements are satisfied",
+			authProvider: testAuthProvider(),
+			cred:         map[string]string{"API_KEY": "secret"},
+			want:         types.CommonProviderStatus{Configured: true},
 		},
 		{
-			name: "missing entitlement does not make provider unconfigured",
-			authProvider: authProvider(
-				[]types.ProviderConfigurationParameter{
-					{
-						Name: "API_KEY",
-					},
-				},
-				nil,
-				[]string{"ENTITLEMENT"},
-			),
-			cred: map[string]string{"API_KEY": "secret"},
-			want: types.CommonProviderStatus{
-				Configured:          true,
-				MissingEntitlements: []string{"ENTITLEMENT"},
-			},
-		},
-		{
-			name: "missing credential value is not configured",
-			authProvider: authProvider(
-				[]types.ProviderConfigurationParameter{
-					{
-						Name: "API_KEY",
-					},
-				},
-				nil,
-				nil,
-			),
-			cred: map[string]string{},
+			name:         "missing credential value is not configured",
+			authProvider: testAuthProvider(),
+			cred:         map[string]string{},
 			want: types.CommonProviderStatus{
 				Configured:                     false,
 				MissingConfigurationParameters: []string{"API_KEY"},
 			},
 		},
 		{
-			name: "directory synchronization requires the directory parameters",
-			authProvider: authProvider(
-				oktaParameters(),
-				nil,
-				nil,
-			),
-			cred: map[string]string{
-				"OBOT_OKTA_AUTH_PROVIDER_ISSUER_URL": "https://example.okta.com",
-			},
-			want: types.CommonProviderStatus{
-				Configured: false,
-				MissingConfigurationParameters: []string{
-					"OBOT_OKTA_AUTH_PROVIDER_SERVICE_CLIENT_ID",
-					"OBOT_OKTA_AUTH_PROVIDER_SERVICE_PRIVATE_KEY",
-				},
-			},
-		},
-		{
-			name: "a SCIM connection does not require the directory parameters",
-			authProvider: authProvider(
-				oktaParameters(),
-				nil,
-				nil,
-			),
-			cred: map[string]string{
-				"OBOT_OKTA_AUTH_PROVIDER_ISSUER_URL": "https://example.okta.com",
-			},
-			conn: &gatewaytypes.SCIMConnection{
-				AdapterType: "okta",
-			},
-			want: types.CommonProviderStatus{
-				Configured: true,
-			},
-		},
-		{
-			name: "a SCIM connection still requires the other parameters",
-			authProvider: authProvider(
-				oktaParameters(),
-				nil,
-				nil,
-			),
-			cred: map[string]string{},
-			conn: &gatewaytypes.SCIMConnection{
-				AdapterType: "okta",
-			},
-			want: types.CommonProviderStatus{
-				Configured:                     false,
-				MissingConfigurationParameters: []string{"OBOT_OKTA_AUTH_PROVIDER_ISSUER_URL"},
-			},
-		},
-		{
-			name: "nil credential falls back to the effective required configuration",
-			authProvider: authProvider(
-				oktaParameters(),
-				nil,
-				nil,
-			),
-			cred: nil,
-			conn: &gatewaytypes.SCIMConnection{
-				AdapterType: "okta",
-			},
-			want: types.CommonProviderStatus{
-				Configured:                     false,
-				MissingConfigurationParameters: []string{"OBOT_OKTA_AUTH_PROVIDER_ISSUER_URL"},
-			},
-		},
-		{
-			name: "nil credential uses status missing configuration",
-			authProvider: authProvider(
-				[]types.ProviderConfigurationParameter{
-					{
-						Name: "API_KEY",
-					},
-				},
-				[]string{"API_KEY"},
-				nil,
-			),
-			cred: nil,
-			want: types.CommonProviderStatus{
-				Configured:                     false,
-				MissingConfigurationParameters: []string{"API_KEY"},
-			},
-		},
-		{
-			name: "nil credential falls back to required configuration when status is empty",
-			authProvider: authProvider(
-				[]types.ProviderConfigurationParameter{
-					{
-						Name: "API_KEY",
-					},
-				},
-				nil,
-				nil,
-			),
-			cred: nil,
+			name:         "nil credential uses configured parameters",
+			authProvider: testAuthProvider(),
+			cred:         nil,
 			want: types.CommonProviderStatus{
 				Configured:                     false,
 				MissingConfigurationParameters: []string{"API_KEY"},
@@ -171,15 +41,15 @@ func TestAuthProviderStatus(t *testing.T) {
 		},
 	}
 
-	licenseProvider := testLicenseProvider(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := AuthProviderStatus(t.Context(), tt.authProvider, tt.cred, tt.conn, licenseProvider)
+			got, err := AuthProviderStatus(t.Context(), tt.authProvider, tt.cred, nil)
 			if err != nil {
 				t.Fatalf("AuthProviderStatus() error = %v", err)
 			}
-
-			assertCommonProviderStatus(t, got.CommonProviderStatus, tt.want)
+			if !reflect.DeepEqual(got.CommonProviderStatus, tt.want) {
+				t.Fatalf("AuthProviderStatus() = %#v, want %#v", got.CommonProviderStatus, tt.want)
+			}
 		})
 	}
 }
@@ -192,115 +62,27 @@ func TestModelProviderStatus(t *testing.T) {
 		want          types.ModelProviderStatus
 	}{
 		{
-			name: "configured when requirements are satisfied and models are current",
-			modelProvider: modelProvider(
-				[]types.ProviderConfigurationParameter{
-					{
-						Name: "API_KEY",
-					},
-				},
-				nil,
-				nil,
-				2,
-			),
-			cred: map[string]string{"API_KEY": "secret"},
+			name:          "configured with current models",
+			modelProvider: testModelProvider(2),
+			cred:          map[string]string{"API_KEY": "secret"},
 			want: types.ModelProviderStatus{
 				CommonProviderStatus: types.CommonProviderStatus{Configured: true},
-				ModelsBackPopulated:  new(true),
+				ModelsBackPopulated:  boolPtr(true),
 			},
 		},
 		{
-			name: "configured when requirements are satisfied and models are stale",
-			modelProvider: modelProvider(
-				[]types.ProviderConfigurationParameter{
-					{
-						Name: "API_KEY",
-					},
-				},
-				nil,
-				nil,
-				1,
-			),
-			cred: map[string]string{"API_KEY": "secret"},
+			name:          "configured with stale models",
+			modelProvider: testModelProvider(1),
+			cred:          map[string]string{"API_KEY": "secret"},
 			want: types.ModelProviderStatus{
 				CommonProviderStatus: types.CommonProviderStatus{Configured: true},
-				ModelsBackPopulated:  new(false),
+				ModelsBackPopulated:  boolPtr(false),
 			},
 		},
 		{
-			name: "missing entitlement does not make provider unconfigured",
-			modelProvider: modelProvider(
-				[]types.ProviderConfigurationParameter{
-					{
-						Name: "API_KEY",
-					},
-				},
-				nil,
-				[]string{"ENTITLEMENT"},
-				2,
-			),
-			cred: map[string]string{"API_KEY": "secret"},
-			want: types.ModelProviderStatus{
-				CommonProviderStatus: types.CommonProviderStatus{
-					Configured:          true,
-					MissingEntitlements: []string{"ENTITLEMENT"},
-				},
-				ModelsBackPopulated: new(true),
-			},
-		},
-		{
-			name: "missing credential value is not configured and skips model population status",
-			modelProvider: modelProvider(
-				[]types.ProviderConfigurationParameter{
-					{
-						Name: "API_KEY",
-					},
-				},
-				nil,
-				nil,
-				2,
-			),
-			cred: map[string]string{},
-			want: types.ModelProviderStatus{
-				CommonProviderStatus: types.CommonProviderStatus{
-					Configured:                     false,
-					MissingConfigurationParameters: []string{"API_KEY"},
-				},
-			},
-		},
-		{
-			name: "nil credential uses status missing configuration",
-			modelProvider: modelProvider(
-				[]types.ProviderConfigurationParameter{
-					{
-						Name: "API_KEY",
-					},
-				},
-				[]string{"API_KEY"},
-				nil,
-				2,
-			),
-			cred: nil,
-			want: types.ModelProviderStatus{
-				CommonProviderStatus: types.CommonProviderStatus{
-					Configured:                     false,
-					MissingConfigurationParameters: []string{"API_KEY"},
-				},
-			},
-		},
-		{
-			name: "nil credential falls back to required configuration when status is empty",
-			modelProvider: modelProvider(
-				[]types.ProviderConfigurationParameter{
-					{
-						Name: "API_KEY",
-					},
-				},
-				nil,
-				nil,
-				2,
-			),
-			cred: nil,
+			name:          "missing credential skips model population status",
+			modelProvider: testModelProvider(2),
+			cred:          map[string]string{},
 			want: types.ModelProviderStatus{
 				CommonProviderStatus: types.CommonProviderStatus{
 					Configured:                     false,
@@ -310,97 +92,45 @@ func TestModelProviderStatus(t *testing.T) {
 		},
 	}
 
-	licenseProvider := testLicenseProvider(t)
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := ModelProviderStatus(t.Context(), tt.modelProvider, tt.cred, licenseProvider)
+			got, err := ModelProviderStatus(t.Context(), tt.modelProvider, tt.cred)
 			if err != nil {
 				t.Fatalf("ModelProviderStatus() error = %v", err)
 			}
-
-			assertModelProviderStatus(t, got, tt.want)
+			if !reflect.DeepEqual(*got, tt.want) {
+				t.Fatalf("ModelProviderStatus() = %#v, want %#v", *got, tt.want)
+			}
 		})
 	}
 }
 
-func assertModelProviderStatus(t *testing.T, got *types.ModelProviderStatus, want types.ModelProviderStatus) {
-	t.Helper()
-
-	if got == nil || !reflect.DeepEqual(*got, want) {
-		t.Fatalf("ModelProviderStatus = %#v, want %#v", got, want)
-	}
-}
-
-func assertCommonProviderStatus(t *testing.T, got, want types.CommonProviderStatus) {
-	t.Helper()
-
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("CommonProviderStatus = %#v, want %#v", got, want)
-	}
-}
-
-func testLicenseProvider(t *testing.T) *license.Provider {
-	t.Helper()
-
-	provider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	if err != nil {
-		t.Fatalf("NewProvider() error = %v", err)
-	}
-	return provider
-}
-
-// oktaParameters returns required parameters like the Okta auth provider's: the issuer, and the two directory
-// parameters that only directory synchronization uses.
-func oktaParameters() []types.ProviderConfigurationParameter {
-	return []types.ProviderConfigurationParameter{
-		{
-			Name: "OBOT_OKTA_AUTH_PROVIDER_ISSUER_URL",
-		},
-		{
-			Name: "OBOT_OKTA_AUTH_PROVIDER_SERVICE_CLIENT_ID",
-		},
-		{
-			Name: "OBOT_OKTA_AUTH_PROVIDER_SERVICE_PRIVATE_KEY",
-		},
-	}
-}
-
-func authProvider(requiredConfig []types.ProviderConfigurationParameter, missingConfig []string, requiredEntitlements []string) v1.AuthProvider {
-	statusPopulated := missingConfig != nil
-
+func testAuthProvider() v1.AuthProvider {
 	return v1.AuthProvider{
 		Spec: v1.AuthProviderSpec{
 			AuthProviderManifest: types.AuthProviderManifest{
 				CommonProviderMetadata: types.CommonProviderMetadata{
-					RequiredConfigurationParameters: requiredConfig,
-					RequiredEntitlements:            requiredEntitlements,
+					RequiredConfigurationParameters: []types.ProviderConfigurationParameter{{Name: "API_KEY"}},
 				},
 			},
-		},
-		Status: v1.AuthProviderStatus{
-			Configured:                     statusPopulated,
-			MissingConfigurationParameters: missingConfig,
 		},
 	}
 }
 
-func modelProvider(requiredConfig []types.ProviderConfigurationParameter, missingConfig []string, requiredEntitlements []string, observedGeneration int64) v1.ModelProvider {
-	statusPopulated := missingConfig != nil
-
+func testModelProvider(observedGeneration int64) v1.ModelProvider {
 	return v1.ModelProvider{
 		Generation: 2,
 		Spec: v1.ModelProviderSpec{
 			ModelProviderManifest: types.ModelProviderManifest{
 				CommonProviderMetadata: types.CommonProviderMetadata{
-					RequiredConfigurationParameters: requiredConfig,
-					RequiredEntitlements:            requiredEntitlements,
+					RequiredConfigurationParameters: []types.ProviderConfigurationParameter{{Name: "API_KEY"}},
 				},
 			},
 		},
-		Status: v1.ModelProviderStatus{
-			Configured:                     statusPopulated,
-			MissingConfigurationParameters: missingConfig,
-			ObservedGeneration:             observedGeneration,
-		},
+		Status: v1.ModelProviderStatus{ObservedGeneration: observedGeneration},
 	}
+}
+
+func boolPtr(value bool) *bool {
+	return &value
 }

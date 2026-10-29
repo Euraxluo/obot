@@ -15,10 +15,6 @@ type daemonStopper interface {
 	StopAuthProvider(namespace, authProviderName string)
 }
 
-type licenseRefresher interface {
-	Validate(context.Context) error
-}
-
 // GatewayReloader reloads this replica's LLM gateway when its configuration revision
 // advances. It reports whether it reloaded.
 type GatewayReloader func(ctx context.Context, revision int64) (bool, error)
@@ -26,20 +22,18 @@ type GatewayReloader func(ctx context.Context, revision int64) (bool, error)
 // Handler owns replica-local state and is registered on a router without
 // leader election, so each replica independently refreshes its cached provider state.
 type Handler struct {
-	mu              sync.RWMutex
-	lastRevisions   map[string]int64
-	dispatcher      daemonStopper
-	licenseProvider licenseRefresher
-	reloadGateway   GatewayReloader
+	mu            sync.RWMutex
+	lastRevisions map[string]int64
+	dispatcher    daemonStopper
+	reloadGateway GatewayReloader
 }
 
 // New creates the handler.
-func New(dispatcher daemonStopper, licenseProvider licenseRefresher, reloadGateway GatewayReloader) *Handler {
+func New(dispatcher daemonStopper, reloadGateway GatewayReloader) *Handler {
 	return &Handler{
-		lastRevisions:   make(map[string]int64),
-		dispatcher:      dispatcher,
-		licenseProvider: licenseProvider,
-		reloadGateway:   reloadGateway,
+		lastRevisions: make(map[string]int64),
+		dispatcher:    dispatcher,
+		reloadGateway: reloadGateway,
 	}
 }
 
@@ -70,12 +64,9 @@ func (h *Handler) Reconcile(req router.Request, _ router.Response) error {
 		case v1.ProviderTypeModel:
 			// Model providers were replaced by the LLM gateway; they have no daemon.
 		case v1.ProviderTypeLicense:
-			slog.Info("Refreshing license after synchronized license check",
+			slog.Info("Ignoring legacy license synchronization revision",
 				"revision", revision.Revision,
 			)
-			if err := h.licenseProvider.Validate(req.Ctx); err != nil {
-				return fmt.Errorf("refresh license at revision %d: %w", revision.Revision, err)
-			}
 		case v1.ProviderTypeLLMGateway:
 			if h.reloadGateway != nil {
 				reloaded, err := h.reloadGateway(req.Ctx, revision.Revision)

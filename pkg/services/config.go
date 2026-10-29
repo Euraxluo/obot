@@ -45,7 +45,6 @@ import (
 	"github.com/obot-platform/obot/pkg/hash"
 	"github.com/obot-platform/obot/pkg/imagepullsecrets"
 	"github.com/obot-platform/obot/pkg/jwt/persistent"
-	"github.com/obot-platform/obot/pkg/license"
 	"github.com/obot-platform/obot/pkg/llmengine"
 	"github.com/obot-platform/obot/pkg/localauth"
 	"github.com/obot-platform/obot/pkg/logutil"
@@ -54,7 +53,6 @@ import (
 	"github.com/obot-platform/obot/pkg/messagepolicy"
 	"github.com/obot-platform/obot/pkg/modelaccesspolicy"
 	"github.com/obot-platform/obot/pkg/otel"
-	"github.com/obot-platform/obot/pkg/producttelemetry"
 	"github.com/obot-platform/obot/pkg/proxy"
 	"github.com/obot-platform/obot/pkg/scim"
 	scimsetup "github.com/obot-platform/obot/pkg/scim/setup"
@@ -68,7 +66,6 @@ import (
 	"github.com/obot-platform/obot/pkg/substrate"
 	"github.com/obot-platform/obot/pkg/system"
 	"github.com/obot-platform/obot/pkg/tunnel"
-	"github.com/obot-platform/obot/pkg/upgrade"
 	"gorm.io/gorm"
 	gormlogger "gorm.io/gorm/logger"
 	coordinationv1 "k8s.io/api/coordination/v1"
@@ -95,7 +92,6 @@ type (
 	RateLimiterConfig ratelimiter.Options
 	EncryptionConfig  encryption.Options
 	MCPConfig         mcp.Options
-	LicenseConfig     license.Config
 )
 
 type Config struct {
@@ -113,10 +109,9 @@ type Config struct {
 	TunnelPeerID                                   string   `usage:"Unique Pod UID of this Obot replica for tunnel peering"`
 	TunnelPeerToken                                string   `usage:"Shared internal credential for tunnel peering"`
 
-	MCPOAuthClientExpiration       string                `usage:"The expiration time in dynamically registered MCP OAuth clients, must be a valid duration string and may include days, hours, or minutes" default:"30d"`
-	MCPOAuthClientNativeExceptions []string              `usage:"Additional Client ID Metadata Document URLs that default to the native application type when application_type is omitted"`
-	ForceDynamicClient             bool                  `usage:"Force Dynamic Client Registration for MCP OAuth instead of Client ID Metadata Documents"`
-	ProductAnalyticsMode           producttelemetry.Mode `usage:"Product analytics mode: consent, on, or off" default:"consent" env:"OBOT_SERVER_PRODUCT_ANALYTICS_MODE"`
+	MCPOAuthClientExpiration       string   `usage:"The expiration time in dynamically registered MCP OAuth clients, must be a valid duration string and may include days, hours, or minutes" default:"30d"`
+	MCPOAuthClientNativeExceptions []string `usage:"Additional Client ID Metadata Document URLs that default to the native application type when application_type is omitted"`
+	ForceDynamicClient             bool     `usage:"Force Dynamic Client Registration for MCP OAuth instead of Client ID Metadata Documents"`
 
 	DevMode              bool   `usage:"Enable development mode" default:"false" name:"dev-mode" env:"OBOT_DEV_MODE"`
 	DevUIPort            int    `usage:"The port on localhost running the dev instance of the UI" default:"5174"`
@@ -130,7 +125,6 @@ type Config struct {
 	MDMAssetSource              string `usage:"The source for MDM assets (a local directory, a tar archive path, or an HTTP(S) tarball URL)" default:"https://github.com/obot-platform/obot-sentry/releases/download/v0.1.8/mdm-assets.tar.gz" env:"OBOT_SERVER_MDM_ASSET_SOURCE"`
 	DefaultSkillRepoURL         string `usage:"The default skill repository URL (must be HTTPS GitHub URL)" default:"https://github.com/obot-platform/skills" env:"OBOT_DEFAULT_SKILL_REPO_URL"`
 	DefaultSkillRepoRef         string `usage:"The ref (branch/tag) for the default skill repository" default:"" env:"OBOT_DEFAULT_SKILL_REPO_REF"`
-	DisableUpdateCheck          bool   `usage:"Disable Obot server update checks"`
 	HideK8sDetails              bool   `usage:"Hide Kubernetes configuration details such as the Server Scheduling page from the UI" default:"false"`
 	EnableRegistryAuth          bool   `usage:"Enable authentication for the MCP registry API" default:"false" env:"OBOT_SERVER_ENABLE_REGISTRY_AUTH"`
 	EgressAuditLogRetentionDays int    `usage:"Days to retain egress audit logs (0 disables cleanup)." default:"90"`
@@ -165,7 +159,6 @@ type Config struct {
 	AuditConfig
 	RateLimiterConfig
 	MCPConfig
-	LicenseConfig
 	storageservices.Config
 }
 
@@ -178,6 +171,7 @@ type Services struct {
 	PersistentTokenServer *persistent.TokenService
 	APIServer             *server.Server
 	GatewayClient         *client.Client
+	ModelProxyCredential  *client.ModelProxyCredentialSource
 	ProxyManager          *proxy.Manager
 	ProviderDispatcher    *dispatcher.Dispatcher
 	Otel                  *otel.Otel
@@ -227,8 +221,6 @@ type Services struct {
 	MCPOAuthClientSecretExpiration time.Duration
 	MCPOAuthClientNativeExceptions []string
 	ForceDynamicClient             bool
-	ProductTelemetryConsent        *producttelemetry.Consent
-	ProductTelemetryPublisher      *producttelemetry.Publisher
 
 	// LocalK8sClient is a kclient for the local Kubernetes cluster — the
 	// cluster the obot pod runs in, where source Secrets for
@@ -274,10 +266,6 @@ type Services struct {
 	MultiUserIdleServerShutdownInterval  time.Duration
 
 	// Published artifact blob storage
-
-	// License provider
-	LicenseProvider *license.Provider
-	VersionChecker  *upgrade.VersionChecker
 
 	ModelProxyConfiguredURL string
 	ModelProxyURL           *url.URL
@@ -429,9 +417,6 @@ func parsePodSchedulingJSONFields(affinityJSON, tolerationsJSON, resourcesJSON, 
 func New(ctx context.Context, config Config) (*Services, error) {
 	if config.GitMaxRepoSizeMB <= 0 || int64(config.GitMaxRepoSizeMB) > math.MaxInt64/(1024*1024) {
 		return nil, fmt.Errorf("git-max-repo-size-mb must be positive and no greater than %d", int64(math.MaxInt64)/(1024*1024))
-	}
-	if err := config.ProductAnalyticsMode.Validate(); err != nil {
-		return nil, err
 	}
 	modelProxyURL, err := mcptester.ParseModelProxyURL(config.ModelProxyURL, config.DevMode)
 	if err != nil {
@@ -947,12 +932,12 @@ func New(ctx context.Context, config Config) (*Services, error) {
 		return nil, err
 	}
 
-	licenseProvider, err := license.NewProvider(ctx, gatewayClient, license.Config(config.LicenseConfig))
+	modelProxyCredential, err := client.NewModelProxyCredentialSource(ctx, gatewayClient)
 	if err != nil {
-		return nil, fmt.Errorf("failed to create license provider: %w", err)
+		return nil, err
 	}
 
-	providerDispatcher := dispatcher.New(mcpSessionManager, storageClient, gatewayClient, licenseProvider, config.Hostname, system.LocalServerURL(config.HTTPListenPort), postgresDSN)
+	providerDispatcher := dispatcher.New(mcpSessionManager, storageClient, gatewayClient, config.Hostname, system.LocalServerURL(config.HTTPListenPort), postgresDSN)
 
 	bifrostEngine := llmengine.New()
 	providerDispatcher.RegisterBuiltinModelProvider(system.DefaultNamespace, system.LLMGatewayModelProvider, bifrostEngine)
@@ -1077,7 +1062,7 @@ func New(ctx context.Context, config Config) (*Services, error) {
 		// Token Auth + OAuth auth
 		authenticators = union.NewFailOnError(authenticators, proxyManager)
 		// Add gateway user info
-		authenticators = client.NewUserDecorator(authenticators, gatewayClient, licenseProvider)
+		authenticators = client.NewUserDecorator(authenticators, gatewayClient)
 		// Tunnel credentials are non-user principals and must be handled after
 		// the user decorator. Authorization restricts them to tunnel setup only.
 		authenticators = union.New(authenticators, tunnel.NewTunnelAuthenticator(storageClient))
@@ -1124,7 +1109,7 @@ func New(ctx context.Context, config Config) (*Services, error) {
 		// "Authentication Disabled" flow
 
 		// Add gateway user info if token auth worked
-		authenticators = client.NewUserDecorator(authenticators, gatewayClient, licenseProvider)
+		authenticators = client.NewUserDecorator(authenticators, gatewayClient)
 
 		// Tunnel authenticator
 		authenticators = union.New(authenticators, tunnel.NewTunnelAuthenticator(storageClient))
@@ -1191,16 +1176,6 @@ func New(ctx context.Context, config Config) (*Services, error) {
 
 	authorizer := authz.NewAuthorizer(gatewayClient, r.Backend(), storageClient, config.DevMode, acrHelper, skillAccessRuleHelper, registryNoAuth)
 
-	versionChecker, err := upgrade.NewVersionChecker(ctx, upgrade.VersionCheckerOptions{
-		GatewayClient:      gatewayClient,
-		DisableUpdateCheck: config.DisableUpdateCheck,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	telemetryConsent := producttelemetry.NewConsent(gatewayClient, config.ProductAnalyticsMode)
-
 	// For now, always auto-migrate the gateway database
 	svcs := &Services{
 		EncryptionConfig:      encryptionConfig,
@@ -1224,9 +1199,9 @@ func New(ctx context.Context, config Config) (*Services, error) {
 			config.Hostname,
 			oauthServerConfig.ScopesSupported,
 			registryNoAuth,
-			licenseProvider,
 		),
 		GatewayClient:                gatewayClient,
+		ModelProxyCredential:         modelProxyCredential,
 		ProxyManager:                 proxyManager,
 		ProviderDispatcher:           providerDispatcher,
 		ModelProxyURL:                modelProxyURL,
@@ -1262,8 +1237,6 @@ func New(ctx context.Context, config Config) (*Services, error) {
 		MCPOAuthClientSecretExpiration: oauthClientExpiration,
 		MCPOAuthClientNativeExceptions: config.MCPOAuthClientNativeExceptions,
 		ForceDynamicClient:             config.ForceDynamicClient,
-		ProductTelemetryConsent:        telemetryConsent,
-		ProductTelemetryPublisher:      producttelemetry.NewPublisher(ctx, telemetryConsent, gatewayClient, storageClient, licenseProvider, config.MCPRuntimeBackend),
 		AccessControlRuleHelper:        acrHelper,
 		ModelAccessPolicyHelper:        mapHelper,
 
@@ -1295,8 +1268,6 @@ func New(ctx context.Context, config Config) (*Services, error) {
 		MCPNetworkPolicyProviderChartVersion: config.MCPNetworkPolicyProviderChartVersion,
 		MCPNetworkPolicyProviderChartPath:    config.MCPNetworkPolicyProviderChartPath,
 		MCPNetworkPolicyProviderValues:       config.MCPNetworkPolicyProviderValues,
-		LicenseProvider:                      licenseProvider,
-		VersionChecker:                       versionChecker,
 	}
 
 	obotURL := config.SubstrateObotURL

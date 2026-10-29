@@ -17,13 +17,12 @@ func TestEnsureIdentityIgnoresLegacyUserLimit(t *testing.T) {
 
 func TestEnrollDeviceIgnoresLegacyDeviceLimit(t *testing.T) {
 	client := newTestClient(t)
-	limit := DeviceLimit{Maximum: 1}
 
 	for _, deviceID := range []string{"device-1", "device-2"} {
 		if _, err := client.EnrollDevice(t.Context(), DeviceEnrollment{
 			DeviceID:  deviceID,
 			PublicKey: []byte(deviceID),
-		}, limit); err != nil {
+		}); err != nil {
 			t.Fatalf("enroll %s: %v", deviceID, err)
 		}
 	}

@@ -24,7 +24,6 @@ import (
 	"github.com/obot-platform/obot/pkg/auth"
 	gateway "github.com/obot-platform/obot/pkg/gateway/client"
 	"github.com/obot-platform/obot/pkg/gateway/server/dispatcher"
-	"github.com/obot-platform/obot/pkg/license"
 	"github.com/obot-platform/obot/pkg/llmengine"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	"github.com/obot-platform/obot/pkg/system"
@@ -48,10 +47,9 @@ var (
 )
 
 type Handler struct {
-	gatewayClient   *gateway.Client
-	dispatcher      *dispatcher.Dispatcher
-	licenseProvider *license.Provider
-	registryPaths   []string
+	gatewayClient *gateway.Client
+	dispatcher    *dispatcher.Dispatcher
+	registryPaths []string
 }
 
 type providerFromFile[T types.ModelProviderManifest | types.AuthProviderManifest] struct {
@@ -65,12 +63,11 @@ type upstreamProviderLister interface {
 	ConfiguredProviders(ctx context.Context) ([]string, error)
 }
 
-func New(gatewayClient *gateway.Client, dispatcher *dispatcher.Dispatcher, licenseProvider *license.Provider, registryPaths []string) *Handler {
+func New(gatewayClient *gateway.Client, dispatcher *dispatcher.Dispatcher, registryPaths []string) *Handler {
 	return &Handler{
-		gatewayClient:   gatewayClient,
-		dispatcher:      dispatcher,
-		licenseProvider: licenseProvider,
-		registryPaths:   registryPaths,
+		gatewayClient: gatewayClient,
+		dispatcher:    dispatcher,
+		registryPaths: registryPaths,
 	}
 }
 
@@ -269,10 +266,10 @@ func (h *Handler) PollRegistries(ctx context.Context, c kclient.Client) {
 
 func (h *Handler) SetAuthProviderConfiguredStatus(req router.Request, _ router.Response) error {
 	authProvider := req.Object.(*v1.AuthProvider)
-	return SetAuthProviderConfiguredStatus(req.Ctx, h.gatewayClient, h.licenseProvider, authProvider)
+	return SetAuthProviderConfiguredStatus(req.Ctx, h.gatewayClient, authProvider)
 }
 
-func SetAuthProviderConfiguredStatus(ctx context.Context, gatewayClient *gateway.Client, licenseProvider *license.Provider, authProvider *v1.AuthProvider) error {
+func SetAuthProviderConfiguredStatus(ctx context.Context, gatewayClient *gateway.Client, authProvider *v1.AuthProvider) error {
 	var (
 		configured          = true
 		missingConfigParams []string
@@ -295,7 +292,7 @@ func SetAuthProviderConfiguredStatus(ctx context.Context, gatewayClient *gateway
 			return err
 		}
 
-		providerStatus, err := providers.AuthProviderStatus(ctx, *authProvider, cred.Secrets, conn, licenseProvider)
+		providerStatus, err := providers.AuthProviderStatus(ctx, *authProvider, cred.Secrets, conn)
 		if err != nil {
 			return err
 		}

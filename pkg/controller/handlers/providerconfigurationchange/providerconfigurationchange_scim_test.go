@@ -22,7 +22,6 @@ import (
 	gatewaydb "github.com/obot-platform/obot/pkg/gateway/db"
 	"github.com/obot-platform/obot/pkg/gateway/server/dispatcher"
 	gatewaytypes "github.com/obot-platform/obot/pkg/gateway/types"
-	"github.com/obot-platform/obot/pkg/license"
 	"github.com/obot-platform/obot/pkg/scim/setup"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	storageservices "github.com/obot-platform/obot/pkg/storage/services"
@@ -146,14 +145,12 @@ func newSCIMChangeTestWithEncryption(t *testing.T, encryption *encryptionconfig.
 	}
 	client := newProviderChangeTestClient(append([]kclient.Object{okta, active, defaultRole}, objects...)...)
 	gateway, failSCIMConnectionDeletes := newSCIMChangeTestGateway(t, client, encryption)
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
 
 	return &scimChangeTest{
 		t:                         t,
 		client:                    client,
 		gateway:                   gateway,
-		handler:                   New(gateway, dispatcher.New(nil, client, gateway, licenseProvider, "", "", ""), licenseProvider, "", client),
+		handler:                   New(gateway, dispatcher.New(nil, client, gateway, "", "", ""), "", client),
 		failSCIMConnectionDeletes: failSCIMConnectionDeletes,
 	}
 }
@@ -317,9 +314,8 @@ func (s *scimChangeTest) signIn(providerURL, nativeID string) *gatewaytypes.User
 		ProviderUsername:      nativeID,
 		ProviderUserID:        nativeID,
 		Email:                 nativeID + "@example.com",
-	}, "", clienttypes.RoleOwner, gatewayclient.UserLimit{
-		Unlimited: true,
-	})
+	}, "", clienttypes.RoleOwner,
+	)
 	require.NoError(s.t, err)
 	return user
 }
@@ -613,9 +609,7 @@ func (s *scimChangeTest) provisionUser(conn *gatewaytypes.SCIMConnection, native
 		UserName:   nativeID + "@example.com",
 		ExternalID: nativeID,
 	}, gatewayclient.SCIMUserCreateOptions{
-		UserLimit: gatewayclient.UserLimit{
-			Unlimited: true,
-		},
+
 		DefaultRole: clienttypes.RoleBasic,
 	})
 	require.NoError(s.t, err)
@@ -834,9 +828,8 @@ func TestSwitchingBackToAMigratedProviderSynchronizesItsDirectoryAgain(t *testin
 		ProviderUsername:      "00u-verifier",
 		ProviderUserID:        "00u-verifier",
 		Email:                 "00u-verifier@example.com",
-	}, "", clienttypes.RoleOwner, gatewayclient.UserLimit{
-		Unlimited: true,
-	})
+	}, "", clienttypes.RoleOwner,
+	)
 	assert.ErrorContains(t, err, "the directory is not available")
 	assert.NotZero(t, requests.Load())
 
@@ -895,9 +888,8 @@ func TestReconfiguringAfterSCIMCanSynchronizeTheDirectory(t *testing.T) {
 				ProviderUsername:      "00u-alice",
 				ProviderUserID:        "00u-alice",
 				Email:                 "00u-alice@example.com",
-			}, "", clienttypes.RoleBasic, gatewayclient.UserLimit{
-				Unlimited: true,
-			})
+			}, "", clienttypes.RoleBasic,
+			)
 			assert.ErrorContains(t, err, "the directory is not available")
 			assert.NotZero(t, requests.Load())
 		})

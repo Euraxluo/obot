@@ -54,8 +54,6 @@ type Environment interface {
 	// ConfiguredAuthProvider returns the namespace and name of the auth provider that serves sign-ins, or empty strings
 	// when none is configured.
 	ConfiguredAuthProvider(ctx context.Context) (string, string, error)
-	// UserLimit returns the installation's user limit, which SCIM user creation counts against.
-	UserLimit(ctx context.Context) (gclient.UserLimit, error)
 	// DefaultRole returns the role of new users.
 	DefaultRole(ctx context.Context) (types2.Role, error)
 }
@@ -372,7 +370,6 @@ func (h *Handler) createUser(w http.ResponseWriter, r *request) {
 	}
 
 	user, err := h.gateway.CreateSCIMUser(r.Context(), r.conn.SCIMConnection, input, gclient.SCIMUserCreateOptions{
-		UserLimit:   gclient.UserLimit{Unlimited: true},
 		DefaultRole: defaultRole,
 	})
 	if err != nil {

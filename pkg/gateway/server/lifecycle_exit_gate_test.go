@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"crypto/ed25519"
 	"encoding/base64"
 	"errors"
@@ -37,12 +36,6 @@ type sessionAuthenticator struct {
 type credentialRequest struct {
 	name    string
 	request func() *http.Request
-}
-
-type userLimitUnlimited struct{}
-
-func (userLimitUnlimited) UserLimit(context.Context) (gatewayclient.UserLimit, error) {
-	return gatewayclient.UserLimit{Unlimited: true}, nil
 }
 
 func (s sessionAuthenticator) AuthenticateRequest(req *http.Request) (*authenticator.Response, bool, error) {
@@ -84,7 +77,7 @@ func TestLifecycleExitGate(t *testing.T) {
 			ProviderUsername:      providerUserID,
 			ProviderUserID:        providerUserID,
 			Email:                 providerUserID + "@example.com",
-		}, "", types2.RoleBasic, gatewayclient.UserLimit{Unlimited: true})
+		}, "", types2.RoleBasic)
 		if err != nil {
 			t.Fatalf("failed to sign in %s: %v", providerUserID, err)
 		}
@@ -114,8 +107,8 @@ func TestLifecycleExitGate(t *testing.T) {
 
 	chain := authn.NewAdmissionCheck(union.NewFailOnError(
 		union.New(
-			gatewayclient.NewUserDecorator(sessionAuthenticator{provider: provider}, client, userLimitUnlimited{}),
-			gatewayclient.NewUserDecorator(sessionAuthenticator{provider: localProvider}, client, userLimitUnlimited{}),
+			gatewayclient.NewUserDecorator(sessionAuthenticator{provider: provider}, client),
+			gatewayclient.NewUserDecorator(sessionAuthenticator{provider: localProvider}, client),
 			NewAPIKeyAuthenticator(client),
 			tokenService,
 		),

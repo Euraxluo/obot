@@ -17,13 +17,10 @@ import (
 
 // DeviceEnrollHandler serves device enrollment.
 type DeviceEnrollHandler struct {
-	deviceLimitProvider gateway.DeviceLimitProvider
 }
 
-func NewDeviceEnrollHandler(deviceLimitProvider gateway.DeviceLimitProvider) *DeviceEnrollHandler {
-	return &DeviceEnrollHandler{
-		deviceLimitProvider: deviceLimitProvider,
-	}
+func NewDeviceEnrollHandler() *DeviceEnrollHandler {
+	return &DeviceEnrollHandler{}
 }
 
 // Enroll handles POST /api/mdm/enroll. The caller is authenticated by an
@@ -71,7 +68,7 @@ func (h *DeviceEnrollHandler) Enroll(req api.Context) error {
 		Hostname:           in.Hostname,
 		OS:                 in.OS,
 		OSVersion:          in.OSVersion,
-	}, gateway.DeviceLimit{Unlimited: true})
+	})
 	if err != nil {
 		if httpErr, ok := errors.AsType[*types.ErrHTTP](err); ok {
 			return httpErr

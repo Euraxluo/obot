@@ -13,7 +13,6 @@ import (
 	gclient "github.com/obot-platform/obot/pkg/gateway/client"
 	"github.com/obot-platform/obot/pkg/gateway/server/dispatcher"
 	gatewaytypes "github.com/obot-platform/obot/pkg/gateway/types"
-	"github.com/obot-platform/obot/pkg/license"
 	"github.com/obot-platform/obot/pkg/scim/adapter"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	"github.com/obot-platform/obot/pkg/system"
@@ -36,7 +35,6 @@ type authProviderSCIMTest struct {
 	storage    kclient.WithWatch
 	gateway    *gclient.Client
 	db         *gorm.DB
-	license    *license.Provider
 	dispatcher *dispatcher.Dispatcher
 }
 
@@ -69,8 +67,6 @@ func newAuthProviderSCIMTest(t *testing.T) *authProviderSCIMTest {
 	}
 	storage := newAuthProviderTestStorage(provider)
 	gateway, db := newHandlerTestGatewayWithDB(t)
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
 
 	return &authProviderSCIMTest{
 		t:          t,
@@ -78,13 +74,12 @@ func newAuthProviderSCIMTest(t *testing.T) *authProviderSCIMTest {
 		storage:    storage,
 		gateway:    gateway,
 		db:         db,
-		license:    licenseProvider,
-		dispatcher: dispatcher.New(nil, storage, gateway, licenseProvider, "", "", ""),
+		dispatcher: dispatcher.New(nil, storage, gateway, "", "", ""),
 	}
 }
 
 func (s *authProviderSCIMTest) handler() *AuthProviderHandler {
-	return NewAuthProviderHandler(s.dispatcher, "", s.license)
+	return NewAuthProviderHandler(s.dispatcher, "")
 }
 
 func (s *authProviderSCIMTest) context(method, path, body string, groups ...string) (api.Context, *httptest.ResponseRecorder) {

@@ -78,7 +78,6 @@ type SCIMPage struct {
 
 // SCIMUserCreateOptions holds what a SCIM user create needs from outside the gateway database.
 type SCIMUserCreateOptions struct {
-	UserLimit UserLimit
 	// DefaultRole is the role of users that SCIM creates.
 	DefaultRole types2.Role
 }
@@ -580,7 +579,7 @@ func (c *Client) bindOrCreateSCIMUserTx(ctx context.Context, tx *gorm.DB, conn *
 	if err := c.encryptUser(ctx, user); err != nil {
 		return 0, false, fmt.Errorf("failed to encrypt user: %w", err)
 	}
-	if err := c.createUser(tx, user, opts.UserLimit); err != nil {
+	if err := c.createUser(tx, user); err != nil {
 		if IsUniqueViolation(err) {
 			// A concurrent sign-in may have just created the user, which the retry binds to.
 			return 0, false, &scimCreateRaceError{

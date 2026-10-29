@@ -14,7 +14,6 @@ import (
 	"github.com/obot-platform/obot/pkg/scim"
 	scimsetup "github.com/obot-platform/obot/pkg/scim/setup"
 	"github.com/obot-platform/obot/pkg/services"
-	"github.com/obot-platform/obot/pkg/upgrade"
 	"github.com/obot-platform/obot/ui"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"k8s.io/component-base/metrics/legacyregistry"
@@ -34,8 +33,6 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 
 	version := handlers.NewVersionHandler(handlers.VersionHandlerOptions{
 		GatewayClient:             services.GatewayClient,
-		StorageClient:             services.StorageClient,
-		LicenseProvider:           services.LicenseProvider,
 		PostgresDSN:               services.PostgresDSN,
 		Engine:                    services.MCPRuntimeBackend,
 		MCPNetworkPolicyEnabled:   services.MCPNetworkPolicyEnabled,
@@ -43,10 +40,10 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 		AuthEnabled:               services.AuthEnabled,
 		ClaudeEnvironmentsEnabled: services.Substrate != nil,
 		HideK8sDetails:            services.HideK8sDetails,
-		UpgradeStatusReader:       services.VersionChecker,
 		ProviderConfiguration:     services.ProviderDispatcher,
 		ModelProxyURL:             services.ModelProxyURL,
 		ModelProxySettings:        services.GatewayClient,
+		ModelProxyCredential:      services.ModelProxyCredential,
 	})
 
 	oauthChecker := oauth.NewMCPOAuthHandlerFactory(services.ServerURL, services.MCPSessionManager, services.StorageClient, services.GatewayClient, services.MCPOAuthTokenStorage, services.MCPSecretBindingAllowedLabel, services.ForceDynamicClient)
@@ -79,8 +76,8 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	skills := handlers.NewSkillHandler(services.GitMaxRepoSizeMB, services.SkillAccessRuleHelper)
 	powerUserWorkspaces := handlers.NewPowerUserWorkspaceHandler(services.AccessControlRuleHelper, services.MCPSecretBindingAllowedLabel)
 	mcpWebhookValidations := handlers.NewMCPWebhookValidationHandler(services.MCPSessionManager)
-	availableModels := handlers.NewAvailableModelsHandler(services.ProviderDispatcher, services.LicenseProvider)
-	modelProviders := handlers.NewModelProviderHandler(services.ProviderDispatcher, services.LicenseProvider)
+	availableModels := handlers.NewAvailableModelsHandler(services.ProviderDispatcher)
+	modelProviders := handlers.NewModelProviderHandler(services.ProviderDispatcher)
 	modelAccessPolicies := handlers.NewModelAccessPolicyHandler()
 	vmcps := handlers.NewVMCPHandler(services.AccessControlRuleHelper, services.MCPRuntimeBackend, services.MCPSecretBindingAllowedLabel)
 	vmcpInstances := handlers.NewVMCPInstanceHandler()
@@ -88,8 +85,8 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	mdmAssetSources := handlers.NewMDMAssetSourceHandler()
 	mdmAssets := handlers.NewMDMAssetHandler()
 	mdmConfigurations := handlers.NewMDMConfigurationsHandler(services.ServerURL)
-	deviceEnroll := handlers.NewDeviceEnrollHandler(services.LicenseProvider)
-	authProviders := handlers.NewAuthProviderHandler(services.ProviderDispatcher, services.PostgresDSN, services.LicenseProvider)
+	deviceEnroll := handlers.NewDeviceEnrollHandler()
+	authProviders := handlers.NewAuthProviderHandler(services.ProviderDispatcher, services.PostgresDSN)
 	localAuth := handlers.NewLocalAuthHandler(services.LocalAuthProvider)
 	defaultModelAliases := handlers.NewDefaultModelAliasHandler()
 	images := handlers.NewImageHandler()
@@ -98,11 +95,11 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	mcpTester := handlers.NewMCPTesterHandlerWithModelProxy(services.StorageClient, services.MCPSessionManager, services.AccessControlRuleHelper, services.ModelAccessPolicyHelper, services.LocalServerURL, nil, handlers.MCPTesterModelProxyOptions{
 		URL:           services.ModelProxyURL,
 		Providers:     services.ProviderDispatcher,
-		License:       services.LicenseProvider,
+		License:       services.ModelProxyCredential,
 		GatewayClient: services.GatewayClient,
 		Settings:      services.GatewayClient,
 	})
-	modelProxy := handlers.NewModelProxyHandler(services.GatewayClient, services.ModelProxyConfiguredURL, services.ModelProxyURL, services.ProviderDispatcher, services.LicenseProvider)
+	modelProxy := handlers.NewModelProxyHandler(services.GatewayClient, services.ModelProxyConfiguredURL, services.ModelProxyURL, services.ProviderDispatcher, services.ModelProxyCredential)
 
 	mcpSecretBindings := handlers.NewMCPSecretBindingHandler(services.MCPRuntimeBackend, services.LocalK8sClient, services.ObotNamespace, services.MCPSecretBindingAllowedLabel)
 	mcpAuditLogs := mcpgateway.NewAuditLogHandler(services.GatewayClient)
@@ -117,7 +114,6 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	registryHandler := registry.NewHandler(services.AccessControlRuleHelper, services.ServerURL, services.RegistryNoAuth, services.MCPSecretBindingAllowedLabel, services.MCPSessionManager.RemoteMCPURLValidationConfig())
 	oauthClients := handlers.NewOAuthClientsHandler(services.OAuthServerConfig, services.ServerURL)
 	imagePullSecretsHandler := handlers.NewImagePullSecretHandler(services.MCPRuntimeBackend, services.MCPImagePullSecrets, services.MCPServerNamespace, services.ServiceNamespace, services.ServiceAccountName, services.LocalK8sClient, services.ServiceAccountIssuerURL, services.ServiceAccountIssuerError)
-	licenseHandler := handlers.NewLicenseHandler(services.LicenseProvider, upgrade.NewCommunityLicenseIssuer(services.GatewayClient, upgrade.ServerBaseURL(), http.DefaultClient))
 	tunnelHandler := handlers.NewTunnelHandler(services.TunnelManager)
 	mcpTunnelHandler := handlers.NewMCPTunnelHandler(services.TunnelManager)
 	k8sSettingsHandler := handlers.NewK8sSettingsHandler(services.MCPSessionManager)
@@ -130,13 +126,6 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 
 	// Version
 	mux.HandleFunc("GET /api/version", version.GetVersion)
-
-	// License
-	mux.HandleFunc("GET /api/license", licenseHandler.Get)
-	mux.HandleFunc("PUT /api/license", licenseHandler.Update)
-	mux.HandleFunc("POST /api/license", licenseHandler.CheckLicense)
-	mux.HandleFunc("POST /api/license/community", licenseHandler.CreateCommunityLicense)
-	mux.HandleFunc("DELETE /api/license", licenseHandler.Delete)
 
 	// Tunnel management (admin/owner only).
 	// /api/tunnels gives information about the connected tunnels
@@ -156,7 +145,7 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 
 	// The SCIM endpoint, authenticated only by the SCIM connection's bearer token and authorized only for that
 	// connection's principal.
-	scimHandler := scim.NewHandler(services.GatewayClient, scim.NewEnvironment(services.ProviderDispatcher, services.LicenseProvider, services.StorageClient), services.ServerURL)
+	scimHandler := scim.NewHandler(services.GatewayClient, scim.NewEnvironment(services.ProviderDispatcher, services.StorageClient), services.ServerURL)
 	mux.HandleSCIM(scimHandler.Serve)
 
 	// MCP Catalog Entries (user routes to access single-user and remote MCP servers from all sources)
@@ -487,11 +476,6 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	eulaHandler := handlers.NewEulaHandler()
 	mux.HandleFunc("GET /api/eula", eulaHandler.Get)
 	mux.HandleFunc("PUT /api/eula", eulaHandler.Update)
-
-	// Product Telemetry Consent
-	productTelemetryConsentHandler := handlers.NewProductTelemetryConsentHandler(services.ProductTelemetryConsent)
-	mux.HandleFunc("GET /api/product-telemetry-consent", productTelemetryConsentHandler.Get)
-	mux.HandleFunc("PUT /api/product-telemetry-consent", productTelemetryConsentHandler.Update)
 
 	// App Preferences
 	appPrefsHandler := handlers.NewAppPreferencesHandler()

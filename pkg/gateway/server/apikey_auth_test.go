@@ -9,7 +9,6 @@ import (
 	"time"
 
 	types2 "github.com/obot-platform/obot/apiclient/types"
-	gatewayclient "github.com/obot-platform/obot/pkg/gateway/client"
 	gatewaytypes "github.com/obot-platform/obot/pkg/gateway/types"
 	"github.com/obot-platform/obot/pkg/principal"
 )
@@ -20,7 +19,7 @@ func TestAPIKeyAuthenticatorCarriesAuditAttribution(t *testing.T) {
 		ProviderUsername: "alice",
 		ProviderUserID:   "alice",
 		Email:            "alice@example.com",
-	}, "", types2.RoleBasic, gatewayclient.UserLimit{Unlimited: true})
+	}, "", types2.RoleBasic)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +53,7 @@ func TestAPIKeyAuthenticatorCarriesMaskedAttributionForUnnamedKey(t *testing.T) 
 		ProviderUsername: "alice-unnamed",
 		ProviderUserID:   "alice-unnamed",
 		Email:            "alice-unnamed@example.com",
-	}, "", types2.RoleBasic, gatewayclient.UserLimit{Unlimited: true})
+	}, "", types2.RoleBasic)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,7 +82,7 @@ func TestOnlyClaudeCredentialsEnableDeferredMCPAuthorization(t *testing.T) {
 	_, client := newTokenRequestTestServer(t)
 	owner, err := client.EnsureIdentityWithRole(t.Context(), &gatewaytypes.Identity{
 		ProviderUsername: "claude-user", ProviderUserID: "claude-user", Email: "claude@example.com",
-	}, "", types2.RoleBasic, gatewayclient.UserLimit{Unlimited: true})
+	}, "", types2.RoleBasic)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,7 +132,7 @@ func TestAPIKeyAuthenticatorReadsObotAPIKeyHeaderOnlyOnTheLLMProxy(t *testing.T)
 		ProviderUsername: "alice",
 		ProviderUserID:   "alice",
 		Email:            "alice@example.com",
-	}, "", types2.RoleBasic, gatewayclient.UserLimit{Unlimited: true})
+	}, "", types2.RoleBasic)
 	if err != nil {
 		t.Fatal(err)
 	}

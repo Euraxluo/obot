@@ -28,7 +28,7 @@ func (c *Controller) setupEveryReplicaRoutes() {
 		}
 		return reloaded, err
 	}
-	providerSync := providersync.New(c.services.ProviderDispatcher, c.services.LicenseProvider, reloadGateway)
+	providerSync := providersync.New(c.services.ProviderDispatcher, reloadGateway)
 	c.services.EveryReplicaRouter.Type(&v1.ProviderSync{}).
 		Namespace(system.DefaultNamespace).
 		Name(system.ProviderSyncName).

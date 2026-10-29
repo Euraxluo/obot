@@ -16,13 +16,10 @@ import (
 	gatewayclient "github.com/obot-platform/obot/pkg/gateway/client"
 	gatewaydb "github.com/obot-platform/obot/pkg/gateway/db"
 	gatewaytypes "github.com/obot-platform/obot/pkg/gateway/types"
-	"github.com/obot-platform/obot/pkg/license"
 	"github.com/obot-platform/obot/pkg/mcptester"
-	"github.com/obot-platform/obot/pkg/storage/scheme"
 	storageservices "github.com/obot-platform/obot/pkg/storage/services"
 	"github.com/tidwall/gjson"
 	kuser "k8s.io/apiserver/pkg/authentication/user"
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 const (
@@ -351,12 +348,8 @@ func TestTesterModelProxyPersistsAuditWithoutMetering(t *testing.T) {
 	}
 }
 
-func TestVersionExposesProviderAndLicenseBooleans(t *testing.T) {
+func TestVersionExposesProviderCapabilities(t *testing.T) {
 	client := newHandlerTestGateway(t)
-	licenseProvider, err := license.NewProvider(t.Context(), client, license.Config{})
-	if err != nil {
-		t.Fatal(err)
-	}
 
 	providers := &fakeTesterProviders{}
 	endpoint, err := mcptester.ParseModelProxyURL("https://model-service.obot.ai", false)
@@ -366,14 +359,12 @@ func TestVersionExposesProviderAndLicenseBooleans(t *testing.T) {
 
 	handler := NewVersionHandler(VersionHandlerOptions{
 		GatewayClient:         client,
-		StorageClient:         fake.NewClientBuilder().WithScheme(scheme.Scheme).Build(),
-		LicenseProvider:       licenseProvider,
 		ProviderConfiguration: providers,
 		ModelProxyURL:         endpoint,
 		ModelProxySettings:    client,
 	})
 
-	t.Setenv("OBOT_SERVER_VERSIONS", "hasModelProvider=bad,hasValidLicense=bad,mcpTesterModelProxyAvailable=bad")
+	t.Setenv("OBOT_SERVER_VERSIONS", "hasModelProvider=bad,mcpTesterModelProxyAvailable=bad")
 
 	readVersion := func() map[string]any {
 		t.Helper()
@@ -393,7 +384,7 @@ func TestVersionExposesProviderAndLicenseBooleans(t *testing.T) {
 		providers.configured = configured
 		result := readVersion()
 
-		if result["hasModelProvider"] != configured || result["hasValidLicense"] != false || result["mcpTesterModelProxyAvailable"] != false {
+		if result["hasModelProvider"] != configured || result["mcpTesterModelProxyAvailable"] != false {
 			t.Fatalf("incorrect version: %v", result)
 		}
 	}
@@ -401,7 +392,7 @@ func TestVersionExposesProviderAndLicenseBooleans(t *testing.T) {
 	providers.err = errors.New("unreadable configuration")
 	result := readVersion()
 
-	if result["hasModelProvider"] != nil || result["mcpTesterModelProxyAvailable"] != false || result["obot"] == nil || result["hasValidLicense"] != false {
+	if result["hasModelProvider"] != nil || result["mcpTesterModelProxyAvailable"] != false || result["obot"] == nil {
 		t.Fatalf("lost version fields or advertised model proxy during provider lookup failure: %v", result)
 	}
 

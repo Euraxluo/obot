@@ -113,9 +113,8 @@ func newEnableTest(t *testing.T) *enableTest {
 			ProviderUserID:        nativeID,
 			HashedProviderUserID:  hash.String(nativeID),
 			Email:                 nativeID + "@example.com",
-		}, "", clienttypes.RoleOwner, gclient.UserLimit{
-			Unlimited: true,
-		})
+		}, "", clienttypes.RoleOwner,
+		)
 		if err != nil {
 			t.Fatalf("failed to sign in %s: %v", nativeID, err)
 		}

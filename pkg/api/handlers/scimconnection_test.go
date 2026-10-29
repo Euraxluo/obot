@@ -73,7 +73,7 @@ func (s *authProviderSCIMTest) settleChange(errC <-chan error, apply func(*v1.Pr
 func (s *authProviderSCIMTest) reconcileChange(change *v1.ProviderConfigurationChange) v1.ProviderConfigurationChangeStatus {
 	s.t.Helper()
 
-	controller := providerconfigurationchange.New(s.gateway, s.dispatcher, s.license, "", s.storage)
+	controller := providerconfigurationchange.New(s.gateway, s.dispatcher, "", s.storage)
 	require.NoError(s.t, controller.Reconcile(router.Request{
 		Client:    s.storage,
 		Object:    change,

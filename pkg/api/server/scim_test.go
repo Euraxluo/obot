@@ -111,10 +111,6 @@ func (scimTestEnvironment) ConfiguredAuthProvider(context.Context) (string, stri
 	return system.DefaultNamespace, scimTestProviderName, nil
 }
 
-func (scimTestEnvironment) UserLimit(context.Context) (gclient.UserLimit, error) {
-	return gclient.UserLimit{Unlimited: true}, nil
-}
-
 func (scimTestEnvironment) DefaultRole(context.Context) (types2.Role, error) {
 	return types2.RoleBasic, nil
 }

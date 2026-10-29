@@ -119,9 +119,7 @@ func testSteadySignInsRunNoQueryForSCIM(t *testing.T, c *Client) {
 				id := tt.identity()
 				if err := c.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 					// As EnsureIdentity calls it.
-					_, err := c.ensureIdentity(ctx, tx, id, "", apitypes.RoleUnknown, UserLimit{
-						Unlimited: true,
-					})
+					_, err := c.ensureIdentity(ctx, tx, id, "", apitypes.RoleUnknown)
 					return err
 				}); err != nil {
 					t.Fatal(err)

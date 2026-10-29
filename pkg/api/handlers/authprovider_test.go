@@ -15,7 +15,6 @@ import (
 	"github.com/obot-platform/obot/pkg/api"
 	"github.com/obot-platform/obot/pkg/gateway/server/dispatcher"
 	gatewaytypes "github.com/obot-platform/obot/pkg/gateway/types"
-	"github.com/obot-platform/obot/pkg/license"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	storagescheme "github.com/obot-platform/obot/pkg/storage/scheme"
 	"github.com/obot-platform/obot/pkg/system"
@@ -106,9 +105,7 @@ func TestConfigureAuthProviderStagesCredentialAndWaitsForChangeDeletion(t *testi
 	}
 	storage := newAuthProviderTestStorage(authProvider)
 	gatewayClient := newHandlerTestGateway(t)
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
-	providerDispatcher := dispatcher.New(nil, storage, gatewayClient, licenseProvider, "", "", "")
+	providerDispatcher := dispatcher.New(nil, storage, gatewayClient, "", "", "")
 	request := httptest.NewRequest(http.MethodPost, "/api/auth-providers/entra-auth-provider/configure", bytes.NewBufferString(`{"CLIENT_SECRET":"secret","EMPTY":""}`))
 	request.SetPathValue("id", authProvider.Name)
 	req := api.Context{
@@ -120,7 +117,7 @@ func TestConfigureAuthProviderStagesCredentialAndWaitsForChangeDeletion(t *testi
 
 	errC := make(chan error, 1)
 	go func() {
-		errC <- NewAuthProviderHandler(providerDispatcher, "", licenseProvider).Configure(req)
+		errC <- NewAuthProviderHandler(providerDispatcher, "").Configure(req)
 	}()
 
 	var change v1.ProviderConfigurationChange
@@ -295,10 +292,8 @@ func TestActivateAuthProviderRequiresAVerificationForThatProvider(t *testing.T) 
 		Secrets: map[string]string{"CLIENT_SECRET": "incoming-secret"},
 	}))
 
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
-	providerDispatcher := dispatcher.New(nil, storage, gatewayClient, licenseProvider, "", "", "")
-	handler := NewAuthProviderHandler(providerDispatcher, "", licenseProvider)
+	providerDispatcher := dispatcher.New(nil, storage, gatewayClient, "", "", "")
+	handler := NewAuthProviderHandler(providerDispatcher, "")
 
 	activate := func() error {
 		request := httptest.NewRequest(http.MethodPost, "/api/auth-providers/incoming-auth-provider/activate", nil)
@@ -356,10 +351,8 @@ func TestDeconfigureAuthProviderRefusesToRemoveTheLastWayIn(t *testing.T) {
 		Secrets: map[string]string{"CLIENT_SECRET": "staged-secret"},
 	}))
 
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
-	providerDispatcher := dispatcher.New(nil, storage, gatewayClient, licenseProvider, "", "", "")
-	handler := NewAuthProviderHandler(providerDispatcher, "", licenseProvider)
+	providerDispatcher := dispatcher.New(nil, storage, gatewayClient, "", "", "")
+	handler := NewAuthProviderHandler(providerDispatcher, "")
 
 	deconfigure := func(name string) error {
 		request := httptest.NewRequest(http.MethodPost, "/api/auth-providers/"+name+"/deconfigure", nil)

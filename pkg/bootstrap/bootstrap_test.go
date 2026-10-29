@@ -80,7 +80,7 @@ func ensureOwner(t *testing.T, c *client.Client, username, email, authProviderNa
 		AuthProviderNamespace: "default",
 		ProviderUsername:      username,
 		ProviderUserID:        username,
-	}, "", types2.RoleOwner, client.UserLimit{Unlimited: true}); err != nil {
+	}, "", types2.RoleOwner); err != nil {
 		t.Fatalf("failed to ensure owner identity: %v", err)
 	}
 }
@@ -118,9 +118,7 @@ func deactivateThroughSCIM(t *testing.T, c *client.Client, provider client.AuthP
 			},
 		},
 	}, client.SCIMUserCreateOptions{
-		UserLimit: client.UserLimit{
-			Unlimited: true,
-		},
+
 		DefaultRole: types2.RoleBasic,
 	})
 	return err

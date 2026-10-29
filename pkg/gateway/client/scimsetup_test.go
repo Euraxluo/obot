@@ -788,9 +788,7 @@ func TestSCIMWritesAfterTheirConnectionIsDeleted(t *testing.T) {
 		UserName:   "new@example.com",
 		ExternalID: "00u-new",
 	}, SCIMUserCreateOptions{
-		UserLimit: UserLimit{
-			Unlimited: true,
-		},
+
 		DefaultRole: apitypes.RoleBasic,
 	}); !errors.Is(err, ErrSCIMConnectionNotFound) {
 		t.Fatalf("CreateSCIMUser() for a deleted connection error = %v", err)
@@ -1148,9 +1146,7 @@ func TestEnforceSCIMConnectionOnPostgres(t *testing.T) {
 			UserName:   "unprovisioned@example.com",
 			ExternalID: "00u-unprovisioned",
 		}, SCIMUserCreateOptions{
-			UserLimit: UserLimit{
-				Unlimited: true,
-			},
+
 			DefaultRole: apitypes.RoleBasic,
 		})
 		provisioned <- err

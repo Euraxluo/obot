@@ -13,7 +13,6 @@ import (
 	gatewaydb "github.com/obot-platform/obot/pkg/gateway/db"
 	"github.com/obot-platform/obot/pkg/gateway/server/dispatcher"
 	gatewaytypes "github.com/obot-platform/obot/pkg/gateway/types"
-	"github.com/obot-platform/obot/pkg/license"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	storagescheme "github.com/obot-platform/obot/pkg/storage/scheme"
 	storageservices "github.com/obot-platform/obot/pkg/storage/services"
@@ -70,9 +69,9 @@ func TestConfigureAuthProviderAppliesAndCleansUp(t *testing.T) {
 			"CLIENT_SECRET": "new-secret",
 		},
 	}))
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
-	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, licenseProvider, "", "", ""), licenseProvider, "", client)
+	var err error
+
+	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, "", "", ""), "", client)
 
 	require.NoError(t, handler.Reconcile(router.Request{
 		Client:    client,
@@ -156,9 +155,9 @@ func TestConfigureAuthProviderRejectsConflictingConfiguredProvider(t *testing.T)
 			"CLIENT_SECRET": "target-secret",
 		},
 	}))
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
-	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, licenseProvider, "", "", ""), licenseProvider, "", client)
+	var err error
+
+	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, "", "", ""), "", client)
 
 	require.NoError(t, handler.Reconcile(router.Request{
 		Client:    client,
@@ -217,9 +216,9 @@ func TestAuthDeconfigurationPersistsCleanupBeforeCredentialDeletion(t *testing.T
 		Name:    provider.Name,
 		Secrets: map[string]string{"CLIENT_SECRET": "old-secret"},
 	}))
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
-	handler := New(gatewayClient, nil, licenseProvider, "", client)
+	var err error
+
+	handler := New(gatewayClient, nil, "", client)
 
 	err = handler.Reconcile(router.Request{
 		Client:    client,
@@ -434,9 +433,9 @@ func TestConfigureAuthProviderReplacesOutgoingProvider(t *testing.T) {
 		Name:    replacementProvider.Name,
 		Secrets: map[string]string{"CLIENT_SECRET": "replacement-secret"},
 	}))
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
-	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, licenseProvider, "", "", ""), licenseProvider, "", client)
+	var err error
+
+	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, "", "", ""), "", client)
 
 	require.NoError(t, handler.Reconcile(router.Request{
 		Client:    client,
@@ -505,9 +504,9 @@ func TestStageAuthProviderSavesReplacementWithoutTouchingActive(t *testing.T) {
 		Name:    change.Spec.StagedCredentialName,
 		Secrets: map[string]string{"CLIENT_SECRET": "incoming-secret"},
 	}))
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
-	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, licenseProvider, "", "", ""), licenseProvider, "", client)
+	var err error
+
+	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, "", "", ""), "", client)
 
 	require.NoError(t, handler.Reconcile(router.Request{
 		Client:    client,
@@ -572,9 +571,9 @@ func TestStageAuthProviderRejectsASecondReplacement(t *testing.T) {
 		Name:    change.Spec.StagedCredentialName,
 		Secrets: map[string]string{"CLIENT_SECRET": "incoming-secret"},
 	}))
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
-	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, licenseProvider, "", "", ""), licenseProvider, "", client)
+	var err error
+
+	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, "", "", ""), "", client)
 
 	require.NoError(t, handler.Reconcile(router.Request{
 		Client:    client,
@@ -612,9 +611,9 @@ func TestUnstageAuthProviderDiscardsTheReplacement(t *testing.T) {
 		Name:    incomingProvider.Name,
 		Secrets: map[string]string{"CLIENT_SECRET": "incoming-secret"},
 	}))
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
-	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, licenseProvider, "", "", ""), licenseProvider, "", client)
+	var err error
+
+	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, "", "", ""), "", client)
 
 	require.NoError(t, handler.Reconcile(router.Request{
 		Client:    client,
@@ -663,9 +662,9 @@ func TestSwitchAuthProviderRejectsUnexpectedConfiguredProvider(t *testing.T) {
 		Name:    configuredProvider.Name,
 		Secrets: map[string]string{"CLIENT_SECRET": "unexpected-secret"},
 	}))
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
-	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, licenseProvider, "", "", ""), licenseProvider, "", client)
+	var err error
+
+	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, "", "", ""), "", client)
 
 	require.NoError(t, handler.Reconcile(router.Request{
 		Client:    client,
@@ -722,9 +721,9 @@ func TestStageAuthProviderAcceptsLocalAsTheReplacement(t *testing.T) {
 		// Local is configured by allowed domains alone, so this is its whole configuration.
 		Secrets: map[string]string{"OBOT_AUTH_PROVIDER_EMAIL_DOMAINS": "example.com"},
 	}))
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
-	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, licenseProvider, "", "", ""), licenseProvider, "", client)
+	var err error
+
+	handler := New(gatewayClient, dispatcher.New(nil, client, gatewayClient, "", "", ""), "", client)
 
 	require.NoError(t, handler.Reconcile(router.Request{
 		Client:    client,

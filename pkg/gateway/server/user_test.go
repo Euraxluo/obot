@@ -50,9 +50,7 @@ func TestUserChangesThatSCIMManagesAreConflicts(t *testing.T) {
 		UserName:   "alice@example.com",
 		ExternalID: "00u-alice",
 	}, client.SCIMUserCreateOptions{
-		UserLimit: client.UserLimit{
-			Unlimited: true,
-		},
+
 		DefaultRole: types2.RoleBasic,
 	})
 	if err != nil {
@@ -155,9 +153,7 @@ func TestEnableUser(t *testing.T) {
 				},
 			},
 		}, client.SCIMUserCreateOptions{
-			UserLimit: client.UserLimit{
-				Unlimited: true,
-			},
+
 			DefaultRole: role,
 		})
 		if err != nil {

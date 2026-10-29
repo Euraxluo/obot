@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	types2 "github.com/obot-platform/obot/apiclient/types"
-	gclient "github.com/obot-platform/obot/pkg/gateway/client"
 	"github.com/obot-platform/obot/pkg/gateway/types"
 	"github.com/obot-platform/obot/pkg/system"
 )
@@ -145,9 +144,8 @@ func testConcurrencyAndRetries(t *testing.T, s *scimTest) {
 					ProviderUsername:      nativeID,
 					ProviderUserID:        nativeID,
 					Email:                 email,
-				}, "", gclient.UserLimit{
-					Unlimited: true,
-				})
+				}, "",
+				)
 			})
 
 			data, _ := json.Marshal(scimUser(email, nativeID))

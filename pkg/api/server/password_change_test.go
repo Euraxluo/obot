@@ -49,11 +49,6 @@ func TestPasswordChangeRequestAllowed(t *testing.T) {
 		},
 		{
 			method: http.MethodGet,
-			path:   "/api/license",
-			want:   true,
-		},
-		{
-			method: http.MethodGet,
 			path:   "/api/app-preferences",
 			want:   true,
 		},

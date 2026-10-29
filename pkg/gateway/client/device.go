@@ -13,18 +13,6 @@ import (
 
 const ()
 
-// DeviceLimit describes the maximum number of devices an installation may have.
-// Maximum is ignored when Unlimited is true.
-type DeviceLimit struct {
-	Maximum   int64
-	Unlimited bool
-}
-
-// DeviceLimitProvider resolves the current license-derived device limit.
-type DeviceLimitProvider interface {
-	DeviceLimit(context.Context) (DeviceLimit, error)
-}
-
 // DeviceEnrollment is the input to enrolling (or re-enrolling) a device.
 // PublicKey is DER SubjectPublicKeyInfo (PKIX) of the device identity key.
 type DeviceEnrollment struct {
@@ -41,11 +29,11 @@ type DeviceEnrollment struct {
 //   - same device, same key      -> reactivate and rebind to the configuration
 //   - same device, different key  -> rejected (anti-takeover)
 //   - new device                  -> created
-func (c *Client) EnrollDevice(ctx context.Context, in DeviceEnrollment, deviceLimit DeviceLimit) (*types.Device, error) {
-	return c.enrollDevice(ctx, in, deviceLimit)
+func (c *Client) EnrollDevice(ctx context.Context, in DeviceEnrollment) (*types.Device, error) {
+	return c.enrollDevice(ctx, in)
 }
 
-func (c *Client) enrollDevice(ctx context.Context, in DeviceEnrollment, deviceLimit DeviceLimit) (*types.Device, error) {
+func (c *Client) enrollDevice(ctx context.Context, in DeviceEnrollment) (*types.Device, error) {
 	var device types.Device
 	if err := c.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var existing types.Device

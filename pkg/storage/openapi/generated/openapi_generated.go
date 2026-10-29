@@ -277,8 +277,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/obot-platform/obot/apiclient/types.PodSecurityAdmissionSettings":              schema_obot_platform_obot_apiclient_types_PodSecurityAdmissionSettings(ref),
 		"github.com/obot-platform/obot/apiclient/types.PowerUserWorkspace":                        schema_obot_platform_obot_apiclient_types_PowerUserWorkspace(ref),
 		"github.com/obot-platform/obot/apiclient/types.PowerUserWorkspaceList":                    schema_obot_platform_obot_apiclient_types_PowerUserWorkspaceList(ref),
-		"github.com/obot-platform/obot/apiclient/types.ProductTelemetryConsent":                   schema_obot_platform_obot_apiclient_types_ProductTelemetryConsent(ref),
-		"github.com/obot-platform/obot/apiclient/types.ProductTelemetryConsentUpdate":             schema_obot_platform_obot_apiclient_types_ProductTelemetryConsentUpdate(ref),
 		"github.com/obot-platform/obot/apiclient/types.ProviderConfigurationParameter":            schema_obot_platform_obot_apiclient_types_ProviderConfigurationParameter(ref),
 		"github.com/obot-platform/obot/apiclient/types.RegistryGitHubMeta":                        schema_obot_platform_obot_apiclient_types_RegistryGitHubMeta(ref),
 		"github.com/obot-platform/obot/apiclient/types.RegistryMeta":                              schema_obot_platform_obot_apiclient_types_RegistryMeta(ref),
@@ -1003,6 +1001,12 @@ func schema_obot_platform_obot_apiclient_types_AppPreferences(ref common.Referen
 				Description: "AppPreferences represents global application appearance preferences",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
+					"displayName": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
 					"logos": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
@@ -2548,19 +2552,6 @@ func schema_obot_platform_obot_apiclient_types_AuthProviderManifest(ref common.R
 							Format: "",
 						},
 					},
-					"requiredEntitlements": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
-						},
-					},
 					"requiredConfigurationParameters": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
@@ -2881,19 +2872,6 @@ func schema_obot_platform_obot_apiclient_types_CommonProviderMetadata(ref common
 							Format: "",
 						},
 					},
-					"requiredEntitlements": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
-						},
-					},
 					"requiredConfigurationParameters": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
@@ -2938,19 +2916,6 @@ func schema_obot_platform_obot_apiclient_types_CommonProviderStatus(ref common.R
 							Default: false,
 							Type:    []string{"boolean"},
 							Format:  "",
-						},
-					},
-					"missingEntitlements": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
 						},
 					},
 					"missingConfigurationParameters": {
@@ -3068,7 +3033,8 @@ func schema_obot_platform_obot_apiclient_types_ConnectorAccessRequest(ref common
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
+				Description: "ConnectorAccessRequest is an end user's request to connect a marketplace connector (MCP catalog entry). Admins approve or reject it; approval grants the requester user-level access to the entry.",
+				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"id": {
 						SchemaProps: spec.SchemaProps{
@@ -3170,15 +3136,17 @@ func schema_obot_platform_obot_apiclient_types_ConnectorAccessRequestManifest(re
 				Properties: map[string]spec.Schema{
 					"requesterUserID": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "RequesterUserID is the UID of the user requesting the connector.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"requesterUsername": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "RequesterUsername and RequesterEmail snapshot the requester for display.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"requesterEmail": {
@@ -3189,40 +3157,46 @@ func schema_obot_platform_obot_apiclient_types_ConnectorAccessRequestManifest(re
 					},
 					"connectorID": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "ConnectorID is the MCPServerCatalogEntry name to connect.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"connectorName": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "ConnectorName snapshots the entry's display name for display.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"mcpCatalogID": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "MCPCatalogID is the catalog the entry belongs to (default catalog when empty).",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"status": {
 						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
+							Description: "Status is pending, approved, or rejected.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"reason": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "Reason is the requester's optional note.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"reviewerUserID": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "ReviewerUserID and ReviewerUsername snapshot the admin that reviewed the request.",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 					"reviewerUsername": {
@@ -3233,8 +3207,9 @@ func schema_obot_platform_obot_apiclient_types_ConnectorAccessRequestManifest(re
 					},
 					"reviewComment": {
 						SchemaProps: spec.SchemaProps{
-							Type:   []string{"string"},
-							Format: "",
+							Description: "ReviewComment is the admin's optional comment (rejection reason).",
+							Type:        []string{"string"},
+							Format:      "",
 						},
 					},
 				},
@@ -12679,19 +12654,6 @@ func schema_obot_platform_obot_apiclient_types_ModelProviderManifest(ref common.
 							Format: "",
 						},
 					},
-					"requiredEntitlements": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
-						},
-					},
 					"requiredConfigurationParameters": {
 						SchemaProps: spec.SchemaProps{
 							Type: []string{"array"},
@@ -13890,45 +13852,6 @@ func schema_obot_platform_obot_apiclient_types_PowerUserWorkspaceList(ref common
 		},
 		Dependencies: []string{
 			"github.com/obot-platform/obot/apiclient/types.PowerUserWorkspace"},
-	}
-}
-
-func schema_obot_platform_obot_apiclient_types_ProductTelemetryConsent(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "ProductTelemetryConsent is the installation-wide product telemetry consent state. A nil Consent means that no administrator has made a decision yet.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"consent": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-				},
-			},
-		},
-	}
-}
-
-func schema_obot_platform_obot_apiclient_types_ProductTelemetryConsentUpdate(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Description: "ProductTelemetryConsentUpdate is the request for changing product telemetry consent. Consent is a pointer so the API can reject a missing or null value.",
-				Type:        []string{"object"},
-				Properties: map[string]spec.Schema{
-					"consent": {
-						SchemaProps: spec.SchemaProps{
-							Type:   []string{"boolean"},
-							Format: "",
-						},
-					},
-				},
-				Required: []string{"consent"},
-			},
-		},
 	}
 }
 
@@ -19856,6 +19779,13 @@ func schema_storage_apis_obotobotai_v1_AppPreferencesSpec(ref common.ReferenceCa
 			SchemaProps: spec.SchemaProps{
 				Type: []string{"object"},
 				Properties: map[string]spec.Schema{
+					"displayName": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
 					"logos": {
 						SchemaProps: spec.SchemaProps{
 							Default: map[string]interface{}{},
@@ -19869,7 +19799,7 @@ func schema_storage_apis_obotobotai_v1_AppPreferencesSpec(ref common.ReferenceCa
 						},
 					},
 				},
-				Required: []string{"logos", "theme"},
+				Required: []string{"displayName", "logos", "theme"},
 			},
 		},
 		Dependencies: []string{
@@ -20379,19 +20309,6 @@ func schema_storage_apis_obotobotai_v1_AuthProviderSpec(ref common.ReferenceCall
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
-						},
-					},
-					"requiredEntitlements": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
 						},
 					},
 					"requiredConfigurationParameters": {
@@ -24327,19 +24244,6 @@ func schema_storage_apis_obotobotai_v1_ModelProviderSpec(ref common.ReferenceCal
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"string"},
 							Format: "",
-						},
-					},
-					"requiredEntitlements": {
-						SchemaProps: spec.SchemaProps{
-							Type: []string{"array"},
-							Items: &spec.SchemaOrArray{
-								Schema: &spec.Schema{
-									SchemaProps: spec.SchemaProps{
-										Type:   []string{"string"},
-										Format: "",
-									},
-								},
-							},
 						},
 					},
 					"requiredConfigurationParameters": {

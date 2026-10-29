@@ -122,7 +122,7 @@ func (f *localSetupFixture) identity(t *testing.T, email, provider string, role 
 		ProviderUserID:        email,
 		AuthProviderName:      provider,
 		AuthProviderNamespace: system.DefaultNamespace,
-	}, "", role, gateway.UserLimit{Unlimited: true})
+	}, "", role)
 	require.NoError(t, err)
 
 	return api.Context{

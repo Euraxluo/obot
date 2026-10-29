@@ -75,10 +75,6 @@ var (
 		"GET /debug/pprof/",
 		"GET /debug/triggers",
 		"GET /debug/metrics",
-		"PUT /api/license",
-		"POST /api/license",
-		"POST /api/license/community",
-		"DELETE /api/license",
 		"POST /api/auth-providers/{id}/configure",
 		"POST /api/auth-providers/{id}/deconfigure",
 		"POST /api/auth-providers/{id}/reveal",
@@ -151,7 +147,6 @@ var (
 		"/api/connector-access-requests/",
 		"GET /api/eula",
 		"PUT /api/eula",
-		"/api/product-telemetry-consent",
 		"PUT /api/app-preferences",
 		"PUT /api/app-notification",
 
@@ -352,7 +347,6 @@ var (
 			"POST /api/logout-all",
 			"GET /api/version",
 			"GET /api/default-k8s-settings",
-			"GET /api/license",
 			"GET /api/setup/oauth-complete",
 
 			// Users should be able to get the connected tunnel information

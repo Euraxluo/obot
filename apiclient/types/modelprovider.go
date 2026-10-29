@@ -8,14 +8,12 @@ type CommonProviderMetadata struct {
 	IconDark                        string                           `json:"iconDark,omitempty"`
 	Description                     string                           `json:"description,omitempty"`
 	Link                            string                           `json:"link,omitempty"`
-	RequiredEntitlements            []string                         `json:"requiredEntitlements,omitempty" yaml:"requiredEntitlements,omitempty"`
 	RequiredConfigurationParameters []ProviderConfigurationParameter `json:"requiredConfigurationParameters,omitempty" yaml:"requiredConfigurationParameters,omitempty"`
 	OptionalConfigurationParameters []ProviderConfigurationParameter `json:"optionalConfigurationParameters,omitempty" yaml:"optionalConfigurationParameters,omitempty"`
 }
 
 type CommonProviderStatus struct {
 	Configured                     bool     `json:"configured"`
-	MissingEntitlements            []string `json:"missingEntitlements,omitempty"`
 	MissingConfigurationParameters []string `json:"missingConfigurationParameters,omitempty"`
 }
 

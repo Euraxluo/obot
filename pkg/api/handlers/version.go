@@ -5,16 +5,12 @@ import (
 	"log/slog"
 	"net/url"
 	"os"
-	"slices"
 	"strings"
 
 	"github.com/obot-platform/obot/pkg/api"
 	"github.com/obot-platform/obot/pkg/gateway/client"
-	"github.com/obot-platform/obot/pkg/license"
 	"github.com/obot-platform/obot/pkg/mcp"
 	"github.com/obot-platform/obot/pkg/mcptester"
-	"github.com/obot-platform/obot/pkg/storage"
-	"github.com/obot-platform/obot/pkg/upgrade"
 	"github.com/obot-platform/obot/pkg/version"
 )
 
@@ -25,17 +21,12 @@ const (
 
 type SessionStore string
 
-type UpgradeStatusReader interface {
-	Status() upgrade.Status
-}
-
 type VersionHandlerOptions struct {
 	ProviderConfiguration     mcptester.ProviderConfigurationResolver
 	ModelProxyURL             *url.URL
 	ModelProxySettings        mcptester.ModelProxySettingsReader
+	ModelProxyCredential      mcptester.LicenseSource
 	GatewayClient             *client.Client
-	StorageClient             storage.Client
-	LicenseProvider           *license.Provider
 	PostgresDSN               string
 	Engine                    string
 	MCPNetworkPolicyEnabled   bool
@@ -43,7 +34,6 @@ type VersionHandlerOptions struct {
 	AuthEnabled               bool
 	ClaudeEnvironmentsEnabled bool
 	HideK8sDetails            bool
-	UpgradeStatusReader       UpgradeStatusReader
 }
 
 type VersionHandler struct {
@@ -80,63 +70,27 @@ func (v *VersionHandler) getVersionResponse(ctx context.Context) (map[string]any
 		engine = mcp.RuntimeBackendKubernetes
 	}
 
-	violations, err := v.LicenseProvider.GetLicenseViolations(ctx, v.StorageClient)
-	if err != nil {
-		return nil, err
-	}
-
-	upgradeStatus := v.upgradeStatus()
-
-	entitlements, err := v.LicenseProvider.Entitlements(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	userCount, err := v.GatewayClient.UserCount(ctx)
 	if err != nil {
 		return nil, err
 	}
-
 	deviceCount, err := v.GatewayClient.DeviceCount(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	values := map[string]any{
-		"upgradeAvailable":             upgradeStatus.UpgradeAvailable,
-		"latestVersion":                upgradeStatus.LatestVersion,
-		"obot":                         version.Get().String(),
-		"authEnabled":                  v.AuthEnabled,
-		"sessionStore":                 v.sessionStore,
-		"enterprise":                   slices.Contains(entitlements, license.EnterpriseEntitlement),
-		"community":                    slices.Contains(entitlements, license.CommunityEntitlement),
-		"licenseEntitlements":          entitlements,
-		"userCount":                    userCount,
-		"deviceCount":                  deviceCount,
-		"engine":                       engine,
-		"mcpNetworkPolicyEnabled":      v.MCPNetworkPolicyEnabled,
-		"mcpDefaultDenyAllEgress":      v.MCPDefaultDenyAllEgress,
-		"licenseEntitlementViolations": violations,
-		"missingLicenseEntitlements":   missingEntitlements(violations),
+		"obot":                    version.Get().String(),
+		"authEnabled":             v.AuthEnabled,
+		"sessionStore":            v.sessionStore,
+		"userCount":               userCount,
+		"deviceCount":             deviceCount,
+		"engine":                  engine,
+		"mcpNetworkPolicyEnabled": v.MCPNetworkPolicyEnabled,
+		"mcpDefaultDenyAllEgress": v.MCPDefaultDenyAllEgress,
 	}
 	for key, value := range v.featureValues() {
 		values[key] = value
-	}
-
-	userLimit, err := v.LicenseProvider.UserLimit(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if !userLimit.Unlimited {
-		values["userLimit"] = userLimit.Maximum
-	}
-
-	deviceLimit, err := v.LicenseProvider.DeviceLimit(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if !deviceLimit.Unlimited {
-		values["deviceLimit"] = deviceLimit.Maximum
 	}
 
 	if versions := os.Getenv("OBOT_SERVER_VERSIONS"); versions != "" {
@@ -156,26 +110,17 @@ func (v *VersionHandler) getVersionResponse(ctx context.Context) (map[string]any
 	if availabilityErr != nil {
 		slog.Warn("model provider availability unresolved", "error", availabilityErr)
 	}
-
-	hasValidLicense, err := v.LicenseProvider.HasValidLicense(ctx)
-	if err != nil {
-		return nil, err
+	proxyCredentialConfigured := false
+	if availabilityErr == nil && availability.Enabled && v.ModelProxyCredential != nil {
+		key, err := v.ModelProxyCredential.LicenseKey(ctx)
+		proxyCredentialConfigured = err == nil && key != ""
 	}
 
 	// Set after OBOT_SERVER_VERSIONS so capability values cannot be overridden.
 	values["hasModelProvider"] = availability.HasModelProvider
-
-	values["hasValidLicense"] = hasValidLicense
-	values["mcpTesterModelProxyAvailable"] = availabilityErr == nil && availability.Enabled && hasValidLicense
+	values["mcpTesterModelProxyAvailable"] = proxyCredentialConfigured
 
 	return values, nil
-}
-
-func (v *VersionHandler) upgradeStatus() upgrade.Status {
-	if v.UpgradeStatusReader == nil {
-		return upgrade.Status{}
-	}
-	return v.UpgradeStatusReader.Status()
 }
 
 func (v *VersionHandler) featureValues() map[string]bool {
@@ -183,19 +128,4 @@ func (v *VersionHandler) featureValues() map[string]bool {
 		"claudeEnvironmentsEnabled": v.ClaudeEnvironmentsEnabled,
 		"hideK8sDetails":            v.HideK8sDetails,
 	}
-}
-
-func missingEntitlements(violations []license.Violation) []string {
-	seen := make(map[string]struct{})
-	for _, violation := range violations {
-		for _, entitlement := range violation.MissingEntitlements {
-			seen[entitlement] = struct{}{}
-		}
-	}
-	missing := make([]string, 0, len(seen))
-	for entitlement := range seen {
-		missing = append(missing, entitlement)
-	}
-	slices.Sort(missing)
-	return missing
 }

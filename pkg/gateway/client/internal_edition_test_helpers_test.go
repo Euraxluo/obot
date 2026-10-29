@@ -17,12 +17,6 @@ import (
 
 const postgresUserLimitTestDSNEnv = "OBOT_TEST_POSTGRES_DSN"
 
-type userLimitProviderFunc func(context.Context) (UserLimit, error)
-
-func (f userLimitProviderFunc) UserLimit(ctx context.Context) (UserLimit, error) {
-	return f(ctx)
-}
-
 func newIdentityUserLimitTestClient(t *testing.T) *Client {
 	t.Helper()
 
@@ -44,7 +38,7 @@ func ensureUserLimitTestIdentity(ctx context.Context, client *Client, username s
 	return client.EnsureIdentityWithRole(ctx, &gatewaytypes.Identity{
 		ProviderUsername: username,
 		ProviderUserID:   username,
-	}, "", apitypes.RoleBasic, UserLimit{Maximum: 1})
+	}, "", apitypes.RoleBasic)
 }
 
 func postgresUserLimitTestDSN(t *testing.T, dsn, schema string) string {
