@@ -700,7 +700,6 @@
 	"mcps_servers_actions_disconnect_user": "사용자 연결 해제",
 	"mcps_servers_actions_edit_my_connection": "내 연결 편집",
 	"mcps_servers_actions_launch_now": "지금 서버를 시작하시겠습니까?",
-	"mcps_servers_actions_license_disabled": "기능이 제한되어 현재 연결이 비활성화되어 있습니다. 이 기능을 다시 활성화하려면 기존 라이선스 문제를 해결하세요.",
 	"mcps_servers_actions_mcp_server_configured": "MCP 서버가 구성되었습니다.",
 	"mcps_servers_actions_multi_user_entry_tooltip": "다중 사용자 카탈로그 항목입니다. 연결하려면 먼저 관리자가 배포해야 합니다.",
 	"mcps_servers_actions_my_connection": "내 연결",

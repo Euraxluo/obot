@@ -8,7 +8,6 @@
 	import { stripMarkdownToText } from '$lib/markdown';
 	import { vmcpItemContext } from '$lib/runes/vmcps/vmcpItem.svelte';
 	import { UserService, type OrgUser, type VMCP, type VMCPInstance } from '$lib/services';
-	import { MCP_CONNECTION_INVALID_LICENSE_MESSAGE } from '$lib/services/user/constants';
 	import { VMCP_STATUS_FILTER_OPTIONS } from '$lib/services/vmcps/constants';
 	import type {
 		VMcpComponentView,
@@ -22,7 +21,7 @@
 		parseSelectedFilterIds,
 		vmcpMatchesStatusFilter
 	} from '$lib/services/vmcps/utils';
-	import { errors, profile, responsive, version, vmcpInstances } from '$lib/stores';
+	import { errors, profile, responsive, vmcpInstances } from '$lib/stores';
 	import { success } from '$lib/stores/success';
 	import { clearUrlParams, goto, setSortUrlParams, setUrlParamAndUpdateUrl } from '$lib/url';
 	import { getUserDisplayName } from '$lib/utils';
@@ -82,10 +81,6 @@
 	let selected = $state<Record<string, Item>>({});
 	let selectedCount = $derived(Object.keys(selected).length);
 	let selectableCount = $derived(items.filter(canSelectRow).length);
-
-	let hasLicenseEntitlementViolations = $derived(
-		(version.current.licenseEntitlementViolations || []).length > 0
-	);
 
 	let openedConnectID: string | undefined;
 
@@ -178,11 +173,10 @@
 	}
 
 	function connectDisabled(canConnect: boolean) {
-		return hasLicenseEntitlementViolations || !canConnect;
+		return !canConnect;
 	}
 
 	function connectDisabledMessage(ctx: ReturnType<typeof vmcpItemContext>) {
-		if (hasLicenseEntitlementViolations) return MCP_CONNECTION_INVALID_LICENSE_MESSAGE;
 		if (!ctx.canConnect)
 			return ctx.isShared
 				? m.vmcps_requires_access_to_connect()

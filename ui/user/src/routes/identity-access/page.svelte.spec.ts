@@ -56,7 +56,6 @@ const oktaProvider: AuthProvider = {
 	port: 0,
 	configured: false,
 	missingConfigurationParameters: [],
-	missingEntitlements: [],
 	namespace: 'default',
 	requiredConfigurationParameters: [
 		{
@@ -181,7 +180,6 @@ const localProvider: AuthProvider = {
 	port: 0,
 	configured: false,
 	missingConfigurationParameters: [],
-	missingEntitlements: [],
 	namespace: 'default'
 };
 
@@ -882,8 +880,7 @@ describe('Identity & Access Page', () => {
 					...googleProvider,
 					id: CommonAuthProviderIds.LOCAL,
 					name: 'Local',
-					configured: true,
-					missingEntitlements: []
+					configured: true
 				};
 				worker.use(
 					http.post(`/api/auth-providers/${oktaProvider.id}/reveal`, () =>
@@ -932,8 +929,7 @@ describe('Identity & Access Page', () => {
 					...googleProvider,
 					id: CommonAuthProviderIds.LOCAL,
 					name: 'Local',
-					configured: true,
-					missingEntitlements: []
+					configured: true
 				};
 				errors.items = [];
 				worker.use(
@@ -990,8 +986,7 @@ describe('Identity & Access Page', () => {
 					...googleProvider,
 					id: CommonAuthProviderIds.LOCAL,
 					name: 'Local',
-					configured: true,
-					missingEntitlements: []
+					configured: true
 				};
 				worker.use(
 					http.post(`/api/auth-providers/${oktaProvider.id}/reveal`, () =>
@@ -1127,63 +1122,17 @@ describe('Identity & Access Page', () => {
 			});
 		});
 
-		describe('license required auth provider', () => {
-			it('offers Obot Community signup in the license dialog on Configure', async () => {
-				await renderIdentityAccessPage({ authProviders: [entraProvider] });
-
-				await expect
-					.element(
-						providerCard('Microsoft Entra').getByText('Registration Required', { exact: true })
-					)
-					.toBeVisible();
-
-				await providerCard('Microsoft Entra')
-					.getByRole('button', { name: 'Configure', exact: true })
-					.click();
-
-				const signup = page.getByRole('dialog').filter({ hasText: 'Get Access Now!' });
-				await expect
-					.element(signup.getByRole('heading', { name: 'Microsoft Entra', exact: true }))
-					.toBeVisible();
-				await expect
-					.element(signup.getByRole('heading', { name: 'Get Access Now!', exact: true }))
-					.toBeVisible();
-				await expect
-					.element(
-						signup.getByText(
-							/Register to get free access to all additional providers supported by Obot/,
-							{
-								exact: false
-							}
-						)
-					)
-					.toBeVisible();
-				await expect.element(signup.getByLabelText('Name', { exact: true })).toBeVisible();
-				await expect.element(signup.getByLabelText('Email', { exact: true })).toBeVisible();
-				await expect.element(signup.getByLabelText('Company', { exact: false })).toBeVisible();
-				await expect
-					.element(signup.getByRole('button', { name: 'Register', exact: true }))
-					.toBeVisible();
-				await expect
-					.element(page.getByText('Set Up Microsoft Entra', { exact: true }))
-					.not.toBeInTheDocument();
-			});
-		});
-
 		describe('staged provider switch', () => {
-			// Entra requires a license, and that state takes over the card, so the provider being switched
-			// to has to be one that does not.
+			// Keep the staged provider distinct from the configured provider under test.
 			const localConfigured: AuthProvider = {
 				...googleProvider,
 				id: CommonAuthProviderIds.LOCAL,
 				name: 'Local',
-				configured: true,
-				missingEntitlements: []
+				configured: true
 			};
 			const stagedGoogle: AuthProvider = {
 				...googleProvider,
-				staged: true,
-				missingEntitlements: []
+				staged: true
 			};
 			const verifiedGoogle: AuthProvider = { ...stagedGoogle, verifiedEmail: 'owner@example.com' };
 
@@ -1317,16 +1266,14 @@ describe('Identity & Access Page', () => {
 			it('resumes a staged Local provider at the sign-in step', async () => {
 				const googleActive: AuthProvider = {
 					...googleProvider,
-					configured: true,
-					missingEntitlements: []
+					configured: true
 				};
 				const stagedLocal: AuthProvider = {
 					...googleProvider,
 					id: CommonAuthProviderIds.LOCAL,
 					name: 'Local',
 					configured: false,
-					staged: true,
-					missingEntitlements: []
+					staged: true
 				};
 
 				await renderAsOwner([googleActive, stagedLocal]);

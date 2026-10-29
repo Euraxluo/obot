@@ -51,7 +51,7 @@
 	import { page } from '$app/state';
 	import { columnResize } from '$lib/actions/resize';
 	import Navbar from '$lib/components/Navbar.svelte';
-	import { COMMUNITY_ENTITLEMENT, ENTERPRISE_ENTITLEMENT, isSCIMView } from '$lib/constants';
+	import { isSCIMView } from '$lib/constants';
 	import {
 		initLayout as defaultInitLayout,
 		getLayout as defaultGetLayout,
@@ -61,20 +61,16 @@
 	import { localState } from '$lib/runes/localState.svelte';
 	import { Group } from '$lib/services';
 	import {
-		license as licenseStore,
 		profile,
 		responsive,
 		version,
 		appNotification as appNotificationStore
 	} from '$lib/stores';
 	import { adminConfigStore } from '$lib/stores/adminConfig.svelte';
-	import { validateVersionUserLimit } from '$lib/utils';
 	import AppNotificationBanner from './AppNotificationBanner.svelte';
 	import DotDotDot from './DotDotDot.svelte';
 	import InfoTooltip from './InfoTooltip.svelte';
 	import SetupSplashDialog from './admin/SetupSplashDialog.svelte';
-	import CommunitySignupBanner from './admin/license/CommunitySignupBanner.svelte';
-	import LicenseViolationBanner from './admin/license/LicenseViolationBanner.svelte';
 	import SCIMSetupBanner from './admin/scim/SCIMSetupBanner.svelte';
 	import SCIMTokenExpiryBanner from './admin/scim/SCIMTokenExpiryBanner.svelte';
 	import { tokenExpiryState } from './admin/scim/tokenExpiry';
@@ -223,11 +219,6 @@
 			!profile.current.groups.includes(Group.AUDITOR)
 	);
 
-	let hasLicenseEntitlementViolations = $derived(
-		(version.current.licenseEntitlementViolations?.length ?? 0) > 0
-	);
-	const isNearUserLimit = $derived(validateVersionUserLimit(version.current));
-
 	let routes = $derived(
 		isEndUser
 			? [
@@ -362,10 +353,6 @@
 		betaRoutes.some((href) => pathname === href || pathname.startsWith(`${href}/`))
 	);
 
-	let logoVariant = $derived.by(() => {
-		if (version.current.enterprise) return 'enterprise' as const;
-		return 'community' as const;
-	});
 	$effect(() => {
 		if (responsive.isMobile) {
 			layout.sidebarOpen = false;
@@ -428,74 +415,6 @@
 			dismissedAt: new Date().toISOString()
 		} satisfies BannerDismissState;
 	}
-
-	const COMMUNITY_SIGNUP_BANNER_KEY = '@obot/dismiss-community-signup-banner';
-	let communitySignupBannerDismissed = localState<BannerDismissState | undefined>(
-		COMMUNITY_SIGNUP_BANNER_KEY,
-		undefined,
-		{
-			parse: (value) => {
-				if (!value) return undefined;
-				try {
-					const parsed = JSON.parse(value) as unknown;
-					if (parsed && typeof parsed === 'object') {
-						const dismissedAt = (parsed as BannerDismissState).dismissedAt;
-						return {
-							dismissedAt: typeof dismissedAt === 'string' ? dismissedAt : undefined
-						} satisfies BannerDismissState;
-					}
-					return undefined;
-				} catch {
-					return undefined;
-				}
-			}
-		}
-	);
-
-	function handleDismissCommunitySignupBanner() {
-		communitySignupBannerDismissed.current = {
-			dismissedAt: new Date().toISOString()
-		} satisfies BannerDismissState;
-	}
-
-	function isCommunitySignupDismissedForCurrentProfile() {
-		const dismissedAt = communitySignupBannerDismissed.current?.dismissedAt;
-		const dismissedDate = dismissedAt ? new Date(dismissedAt) : undefined;
-		const hasValidDismissedAt =
-			dismissedDate !== undefined && !Number.isNaN(dismissedDate.getTime());
-		if (!hasValidDismissedAt) return false;
-
-		const profileCreatedMs = profile.current.created
-			? new Date(profile.current.created).getTime()
-			: undefined;
-		if (
-			profileCreatedMs === undefined ||
-			Number.isNaN(profileCreatedMs) ||
-			profileCreatedMs < dismissedDate.getTime()
-		) {
-			return true;
-		}
-
-		return false;
-	}
-
-	const hasCommunityOrEnterpriseLicense = $derived.by(() => {
-		if (version.current.enterprise || licenseStore.current.enterprise) return true;
-		const entitlements = [
-			...(licenseStore.current.entitlements ?? []),
-			...(version.current.licenseEntitlements ?? [])
-		];
-		return (
-			entitlements.includes(COMMUNITY_ENTITLEMENT) || entitlements.includes(ENTERPRISE_ENTITLEMENT)
-		);
-	});
-
-	const canShowCommunitySignup = $derived.by(() => {
-		if (!(profile.current.isAdmin?.() || profile.current.isBootstrapUser?.())) return false;
-		if (hasCommunityOrEnterpriseLicense) return false;
-		if (!communitySignupBannerDismissed.isReady) return false;
-		return !isCommunitySignupDismissedForCurrentProfile();
-	});
 
 	// The configured auth provider while it provisions users and groups through SCIM and SCIM is not
 	// enforced yet. Its setup continues on the SCIM sub-tab, which is where an Owner who just signed in
@@ -577,7 +496,7 @@
 				bind:this={nav}
 			>
 				<div class="flex h-16 shrink-0 items-center justify-between px-2">
-					<BetaLogo variant={logoVariant} />
+					<BetaLogo />
 					{#if responsive.isMobile}
 						<IconButton
 							tooltip={{ text: m.nav_close_menu(), placement: 'left' }}
@@ -637,17 +556,6 @@
 			<div class="sticky top-0 left-0 z-50 w-full">
 				{#if banner}
 					{@render banner()}
-				{:else if (hasLicenseEntitlementViolations || isNearUserLimit) && !profile.current.isAdminReadonly?.()}
-					<LicenseViolationBanner warnUserLimit={isNearUserLimit}>
-						{#snippet fallback()}
-							{#if showAppNotificationBanner}
-								<AppNotificationBanner
-									data={appNotificationStore.current?.banner}
-									onDismiss={handleDismissBanner}
-								/>
-							{/if}
-						{/snippet}
-					</LicenseViolationBanner>
 				{:else if showAppNotificationBanner}
 					<AppNotificationBanner
 						data={appNotificationStore.current?.banner}
@@ -662,8 +570,6 @@
 					/>
 				{:else if unfinishedSCIMProvider}
 					<SCIMSetupBanner providerName={unfinishedSCIMProvider.name} />
-				{:else if canShowCommunitySignup}
-					<CommunitySignupBanner onDismiss={handleDismissCommunitySignupBanner} />
 				{/if}
 				<Navbar
 					class={twMerge('dark:bg-base-200 border-b border-base-300', classes?.navbar)}
@@ -683,7 +589,7 @@
 										<Menu class="size-6" />
 									</IconButton>
 								{/if}
-								<BetaLogo variant={logoVariant} />
+								<BetaLogo />
 							</div>
 						{/if}
 					{/snippet}

@@ -12,7 +12,6 @@
 		type MCPServerInstance
 	} from '$lib/services';
 	import type { MCPServerOAuthCredentialStatus } from '$lib/services/admin/types';
-	import { MCP_CONNECTION_INVALID_LICENSE_MESSAGE } from '$lib/services/user/constants';
 	import {
 		deleteMcpServerDeployment,
 		disconnectMcpServerUser,
@@ -24,7 +23,7 @@
 		restartMcpServer,
 		supportsMCPBackendDetails
 	} from '$lib/services/user/mcp';
-	import { mcpServersAndEntries, profile, version } from '$lib/stores';
+	import { mcpServersAndEntries, profile } from '$lib/stores';
 	import { goto } from '$lib/url';
 	import DotDotDot from '../DotDotDot.svelte';
 	import ResponsiveDialog from '../ResponsiveDialog.svelte';
@@ -189,9 +188,6 @@
 	let canCreateAnotherMultiUserServer = $derived(
 		isMultiUserCatalogEntry(entry) && (!!catalogID || !!workspaceID) && configuredServers.length > 0
 	);
-	let hasLicenseEntitlementViolations = $derived(
-		(version.current.licenseEntitlementViolations || []).length > 0
-	);
 	let hasActions = $derived.by(() => {
 		return Boolean(
 			(entry && server && isServerOwner) ||
@@ -244,7 +240,6 @@
 	let connectionDisabled = $derived(
 		Boolean(
 			loading ||
-			hasLicenseEntitlementViolations ||
 			(isMultiUserCatalogEntryRow && !catalogID && !workspaceID) ||
 			!canConnect ||
 			(requiresStaticOAuth && oauthConfigured === false)
@@ -338,9 +333,8 @@
 		class="btn btn-primary flex w-full items-center gap-1 text-sm disabled:cursor-not-allowed disabled:opacity-50 md:w-fit"
 		class:hidden={!showConnectButton}
 		use:tooltip={{
-			text: hasLicenseEntitlementViolations
-				? MCP_CONNECTION_INVALID_LICENSE_MESSAGE
-				: isMultiUserCatalogEntryRow && !catalogID && !workspaceID
+			text:
+				isMultiUserCatalogEntryRow && !catalogID && !workspaceID
 					? m.mcps_servers_actions_multi_user_entry_tooltip()
 					: canConnect
 						? ''
@@ -489,11 +483,7 @@
 				{/if}
 			</p>
 		{/if}
-		{#if hasLicenseEntitlementViolations}
-			<p class="mb-2 text-center text-muted-content">
-				{m.mcps_servers_actions_license_disabled()}
-			</p>
-		{:else if isMultiUserCatalogEntry(entry)}
+		{#if isMultiUserCatalogEntry(entry)}
 			<p class="mb-2 text-center">{m.mcps_servers_actions_launch_now()}</p>
 		{:else if !entry && isMultiUserServer(server)}
 			<p class="mb-2 text-center">{m.mcps_servers_actions_connect_now()}</p>
@@ -513,7 +503,6 @@
 							server
 						});
 					}}
-					disabled={hasLicenseEntitlementViolations}
 				>
 					{#if isMultiUserCatalogEntry(entry)}
 						{m.mcps_servers_launch_server()}

@@ -9,8 +9,7 @@
 		CircleCheck,
 		Construction,
 		FlaskConicalIcon,
-		TriangleAlert,
-		CircleAlert
+		TriangleAlert
 	} from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
 	import { twMerge } from 'tailwind-merge';
@@ -29,7 +28,6 @@
 		// Shown as a tooltip when disableConfigure hides the reason the button cannot be used.
 		disableConfigureReason?: string;
 		isComingSoon?: boolean;
-		licenseKey?: string;
 		// Settings saved as a replacement while another provider still serves logins.
 		staged?: boolean;
 	}
@@ -46,13 +44,8 @@
 		disableConfigure,
 		disableConfigureReason,
 		isComingSoon,
-		licenseKey,
 		staged
 	}: Props = $props();
-
-	const isLicenseRequired = $derived(
-		provider.missingEntitlements && provider.missingEntitlements.length > 0
-	);
 </script>
 
 <div
@@ -111,10 +104,6 @@
 	<div
 		class={twMerge(
 			'border-base-400 rounded-md border px-2 py-1',
-			isLicenseRequired &&
-				!provider.configured &&
-				'border-transparent bg-base-200 dark:bg-base-300 text-muted-content',
-			isLicenseRequired && provider.configured && 'border-transparent bg-warning/10 text-warning',
 			staged && !provider.configured && 'border-warning/40 bg-warning/10 text-warning'
 		)}
 	>
@@ -130,15 +119,7 @@
 					{m.common_deprecated()}
 				</div>
 			{/if}
-			{#if isLicenseRequired}
-				{#if provider.configured}
-					<TriangleAlert class="size-4 text-warning" />
-					{licenseKey ? m.models_providers_license_invalid() : m.models_providers_license_missing()}
-				{:else}
-					<CircleAlert class="size-4 text-muted-content" />
-					{m.models_providers_registration_required()}
-				{/if}
-			{:else if provider.configured}
+			{#if provider.configured}
 				<CircleCheck class="size-4 text-success" />
 				{m.core_status_configured()}
 			{:else if staged}

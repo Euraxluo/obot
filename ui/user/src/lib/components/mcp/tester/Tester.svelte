@@ -1,20 +1,15 @@
 <script lang="ts">
-	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import Confirm from '$lib/components/Confirm.svelte';
-	import CommunitySignUpForm from '$lib/components/admin/license/CommunitySignUpForm.svelte';
-	import CommunitySignupPanel from '$lib/components/admin/license/CommunitySignupPanel.svelte';
 	import Chat from '$lib/components/mcp/tester/Chat.svelte';
 	import LogsInspector from '$lib/components/mcp/tester/LogsInspector.svelte';
 	import PromptsInspector from '$lib/components/mcp/tester/PromptsInspector.svelte';
 	import ResourcesInspector from '$lib/components/mcp/tester/ResourcesInspector.svelte';
 	import TesterError from '$lib/components/mcp/tester/TesterError.svelte';
 	import ToolsInspector from '$lib/components/mcp/tester/ToolsInspector.svelte';
-	import { COMMUNITY_ENTITLEMENT, ENTERPRISE_ENTITLEMENT } from '$lib/constants';
 	import { m } from '$lib/i18n';
 	import Loading from '$lib/icons/Loading.svelte';
-	import { reloadPage } from '$lib/navigation';
-	import { AdminService, type MCPCatalogServer } from '$lib/services';
+	import { type MCPCatalogServer } from '$lib/services';
 	import { MCPTesterChat } from '$lib/services/mcp/tester-chat.svelte';
 	import {
 		MCPTesterSession,
@@ -24,7 +19,7 @@
 		type TesterSection,
 		type TesterStatus
 	} from '$lib/services/mcp/tester.svelte';
-	import { license, profile, version } from '$lib/stores';
+	import { version } from '$lib/stores';
 	import { setUrlParamAndUpdateUrl } from '$lib/url';
 	import { KeyRound, MessageSquarePlus, RotateCw, TriangleAlert } from '@lucide/svelte';
 	import { onDestroy, untrack, type Snippet } from 'svelte';
@@ -87,18 +82,6 @@
 
 	const CARD_CLASS =
 		'dark:bg-base-200 dark:border-base-400 bg-base-100 flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-transparent p-4 shadow-sm';
-
-	const hasCommunityOrEnterprise = $derived.by(() => {
-		if (version.current.enterprise || license.current.enterprise) return true;
-		const entitlements = [
-			...(license.current.entitlements ?? []),
-			...(version.current.licenseEntitlements ?? [])
-		];
-		return (
-			entitlements.includes(COMMUNITY_ENTITLEMENT) || entitlements.includes(ENTERPRISE_ENTITLEMENT)
-		);
-	});
-	const isAdminReadonly = $derived(profile.current.isAdminReadonly?.());
 
 	function showStagedChat(): void {
 		setUrlParamAndUpdateUrl(page.url, 'tab', 'chat');
@@ -332,53 +315,10 @@
 				{/snippet}
 			</TesterError>
 		{:else if session.status === 'ready'}
-			<section
-				class={activeSection === 'chat' && !chatAvailable && !hasCommunityOrEnterprise
-					? 'flex grow justify-center items-center'
-					: CARD_CLASS}
-			>
+			<section class={CARD_CLASS}>
 				{#if activeSection === 'chat'}
 					{#if chatAvailable && chat}
 						<Chat {chat} {session} />
-					{:else if !hasCommunityOrEnterprise && profile.current.isAdmin?.()}
-						<CommunitySignupPanel
-							class="mt-4 md:w-md w-full"
-							labelledBy="mcp-tester-community-signup-heading"
-						>
-							<div class="flex flex-col gap-4 p-4 sm:p-6">
-								<div class="flex flex-col items-center justify-center gap-2">
-									<h2
-										id="mcp-tester-community-signup-heading"
-										class="shrink-0 text-lg font-semibold"
-									>
-										{m.mcps_tester_unlock_chat()}
-									</h2>
-									<p class="max-w-md text-sm font-light">
-										{m.mcps_tester_register_prefix()}<b class="font-medium"
-											>{m.mcps_tester_register_bold()}</b
-										>{m.mcps_tester_register_suffix()}
-									</p>
-									<p class="max-w-md text-sm font-light">
-										{m.mcps_tester_own_provider_prefix()}<a
-											class="text-link"
-											href={resolve('/models?view=providers')}
-											>{m.mcps_tester_own_provider_link()}</a
-										>{m.mcps_tester_own_provider_suffix()}
-									</p>
-								</div>
-								<div
-									class="rounded-xl border border-base-300/80 bg-base-100/80 p-4 shadow-sm backdrop-blur-sm"
-								>
-									<CommunitySignUpForm
-										endpoint={AdminService.createCommunityLicense}
-										onSubmit={reloadPage}
-										showHeader={false}
-										idPrefix="mcp-tester-community"
-										disabled={isAdminReadonly}
-									/>
-								</div>
-							</div>
-						</CommunitySignupPanel>
 					{:else}
 						<h2 class="shrink-0 text-lg font-semibold">{m.mcps_tester_chat()}</h2>
 						<div class="bg-base-200 dark:bg-base-300 mt-4 rounded-lg p-4" role="status">

@@ -3,17 +3,15 @@
 	import { SEEN_SPLASH_DIALOG_KEY } from '$lib/constants';
 	import { getSeenTimestamp } from '$lib/localstate';
 	import { Group } from '$lib/services';
-	import { productTelemetryConsent, profile, version } from '$lib/stores';
+	import { profile, version } from '$lib/stores';
 	import { adminConfigStore } from '$lib/stores/adminConfig.svelte';
-	import { isProductAnalyticsConsentDeferred } from '$lib/stores/productTelemetryConsent.svelte';
 	import setupSplash from '$lib/stores/setupSplash.svelte';
 	import { goto } from '$lib/url';
 	import ResponsiveDialog from '../ResponsiveDialog.svelte';
 	import SetupSplashContent from './SetupSplashContent.svelte';
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy } from 'svelte';
 
 	let dialog = $state<ReturnType<typeof ResponsiveDialog>>();
-	let productAnalyticsDeferred = $state(true);
 	let splashOpened = $state(false);
 
 	// Block other onboarding dialogs until this splash has either opened or decided not to.
@@ -28,24 +26,8 @@
 	const isAuthProviderConfigured = $derived(
 		version.current.authEnabled ? storeData.authProviderConfigured : true
 	);
-	const view = $derived(page.url.searchParams.get('view'));
-	const isOnProductAnalyticsSettings = $derived(
-		page.url.pathname === '/admin/product-analytics' ||
-			(page.url.pathname === '/admin/platform' &&
-				(view === 'product-analytics' || view === 'settings'))
-	);
 	const isOnSetupPage = $derived(page.url.pathname === setupPath);
 	const isBootstrapUser = $derived(profile.current.isBootstrapUser?.() ?? false);
-	const needsProductAnalyticsConsent = $derived(
-		profile.current.groups.includes(Group.ADMIN) &&
-			productTelemetryConsent.available === true &&
-			productTelemetryConsent.consent === undefined &&
-			!isOnProductAnalyticsSettings &&
-			!productAnalyticsDeferred
-	);
-	onMount(() => {
-		productAnalyticsDeferred = isProductAnalyticsConsentDeferred();
-	});
 
 	function releaseSplashBlock() {
 		splashOpened = false;
@@ -78,7 +60,7 @@
 			!firstTimeViewed &&
 			(isBootstrapUser || isOwner) &&
 			(!isAuthProviderConfigured || !storeData.eulaAccepted);
-		if ((needsSetup && !isOnSetupPage) || needsProductAnalyticsConsent) {
+		if (needsSetup && !isOnSetupPage) {
 			splashOpened = true;
 			setupSplash.blocking = true;
 			dialog?.open();

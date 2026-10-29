@@ -118,9 +118,6 @@ import type {
 	OAuthToken,
 	AppPreferencesManifest,
 	AppNotificationManifest,
-	License,
-	LicenseManifest,
-	CommunityLicenseEnrollment,
 	LLMAuditLog,
 	LLMAuditLogURLFilters,
 	EgressAuditLog,
@@ -137,8 +134,7 @@ import type {
 	MDMDevice,
 	MDMEnrollmentKey,
 	MDMEnrollmentKeyCreateResponse,
-	LocalAuthUser,
-	ProductTelemetryConsent
+	LocalAuthUser
 } from './types';
 
 type ItemsResponse<T> = { items: T[] | null };
@@ -712,21 +708,6 @@ export async function acceptEula() {
 	})) as {
 		accepted: boolean;
 	};
-}
-
-// Product analytics
-
-export async function getProductTelemetryConsent(
-	opts?: RequestOptions
-): Promise<ProductTelemetryConsent> {
-	return (await doGet('/product-telemetry-consent', opts)) as ProductTelemetryConsent;
-}
-
-export async function updateProductTelemetryConsent(
-	consent: boolean,
-	opts?: RequestOptions
-): Promise<ProductTelemetryConsent> {
-	return (await doPut('/product-telemetry-consent', { consent }, opts)) as ProductTelemetryConsent;
 }
 
 // Group role assignments
@@ -2247,33 +2228,6 @@ export async function listAllUserWorkspaceAccessControlRules(opts?: { fetch?: Fe
 		opts
 	)) as ItemsResponse<AccessControlRule>;
 	return response.items ?? [];
-}
-
-// License
-
-export async function deleteLicense(): Promise<void> {
-	await doDelete('/license');
-}
-
-export async function recheckLicense(opts?: {
-	fetch?: Fetcher;
-	dontLogErrors?: boolean;
-}): Promise<License> {
-	return (await doPost('/license', {}, opts)) as License;
-}
-
-export async function updateLicense(
-	manifest: LicenseManifest,
-	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
-): Promise<License> {
-	return (await doPut('/license', manifest, opts)) as License;
-}
-
-export async function createCommunityLicense(
-	enrollment: CommunityLicenseEnrollment,
-	opts?: { fetch?: Fetcher; dontLogErrors?: boolean }
-): Promise<License> {
-	return (await doPost('/license/community', enrollment, opts)) as License;
 }
 
 // MDM configurations

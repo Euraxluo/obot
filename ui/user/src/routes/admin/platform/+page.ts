@@ -1,22 +1,19 @@
 import { handleRouteError } from '$lib/errors';
 import {
 	AdminService,
-	Group,
 	UserService,
 	type AppNotification,
 	type GitCredential,
 	type ImagePullSecret,
 	type ImagePullSecretCapability,
 	type K8sSettings,
-	type License,
 	type ModelProxySettings,
-	type ModelProxyUsage,
-	type ProductTelemetryConsent
+	type ModelProxyUsage
 } from '$lib/services';
 import { defaultAppNotification } from '$lib/stores/appNotification.svelte';
 import type { PageLoad } from './$types';
 
-const views = new Set(['license', 'branding', 'settings', 'mcp-config']);
+const views = new Set(['branding', 'settings', 'mcp-config']);
 
 let hasHydratedAppNotification = false;
 
@@ -25,16 +22,11 @@ export const load: PageLoad = async ({ depends, fetch, parent, url }) => {
 		profile,
 		version,
 		appPreferences,
-		appNotification: initialAppNotification,
-		productTelemetryConsent: initialProductTelemetryConsent,
-		productTelemetryConsentAvailable
+		appNotification: initialAppNotification
 	} = await parent();
-	const canManageProductAnalytics =
-		productTelemetryConsentAvailable === true && profile.groups.includes(Group.ADMIN);
 	const requestedView = url.searchParams.get('view');
-	const view = requestedView && views.has(requestedView) ? requestedView : 'license';
+	const view = requestedView && views.has(requestedView) ? requestedView : 'settings';
 
-	let license: License | undefined;
 	let appNotification: AppNotification = defaultAppNotification;
 	let k8sSettings: K8sSettings | undefined;
 	let capability: ImagePullSecretCapability = { available: false };
@@ -42,16 +34,8 @@ export const load: PageLoad = async ({ depends, fetch, parent, url }) => {
 	let gitCredentials: GitCredential[] = [];
 	let modelProxySettings: ModelProxySettings | undefined;
 	let modelProxyUsage: ModelProxyUsage | undefined;
-	let productTelemetryConsent: ProductTelemetryConsent | undefined = initialProductTelemetryConsent;
 
 	switch (view) {
-		case 'license':
-			try {
-				license = await UserService.getLicense({ fetch });
-			} catch (err) {
-				handleRouteError(err, '/admin/platform?view=license', profile);
-			}
-			break;
 		case 'settings':
 			depends('model-proxy:usage');
 			await Promise.all([
@@ -78,17 +62,6 @@ export const load: PageLoad = async ({ depends, fetch, parent, url }) => {
 					}
 				})(),
 				(async () => {
-					if (!canManageProductAnalytics) return;
-					try {
-						productTelemetryConsent = await AdminService.getProductTelemetryConsent({
-							fetch,
-							dontLogErrors: true
-						});
-					} catch (err) {
-						handleRouteError(err, '/admin/platform?view=settings', profile);
-					}
-				})(),
-				(async () => {
 					try {
 						modelProxySettings = await AdminService.getModelProxySettings({
 							fetch,
@@ -99,13 +72,11 @@ export const load: PageLoad = async ({ depends, fetch, parent, url }) => {
 					}
 
 					// The model proxy is only used when it's enabled, no model provider is configured,
-					// and the installation is licensed, so don't contact it otherwise. Don't use
-					// version.mcpTesterModelProxyAvailable here: version isn't reloaded when the
-					// enabled setting changes, so usage would stay hidden after enabling it.
+					// and its installation credential is available, so don't contact it otherwise.
 					if (
 						modelProxySettings?.enabled !== true ||
 						version?.hasModelProvider !== false ||
-						version?.hasValidLicense !== true
+						version?.mcpTesterModelProxyAvailable !== true
 					) {
 						return;
 					}
@@ -150,7 +121,6 @@ export const load: PageLoad = async ({ depends, fetch, parent, url }) => {
 	}
 
 	return {
-		license,
 		appPreferences,
 		appNotification,
 		k8sSettings,
@@ -158,8 +128,6 @@ export const load: PageLoad = async ({ depends, fetch, parent, url }) => {
 		imagePullSecrets,
 		gitCredentials,
 		modelProxySettings,
-		modelProxyUsage,
-		productTelemetryConsent,
-		productTelemetryConsentAvailable
+		modelProxyUsage
 	};
 };

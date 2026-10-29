@@ -246,7 +246,6 @@ export interface BaseProvider {
 	name: string;
 	configured: boolean;
 	created: string;
-	missingEntitlements?: string[];
 	missingConfigurationParameters?: string[];
 	optionalConfigurationParameters?: ProviderParameter[];
 	requiredConfigurationParameters?: ProviderParameter[];
@@ -635,26 +634,6 @@ export interface ServerK8sSettings {
 	needsK8sUpdate: boolean;
 	currentSettings: K8sSettings;
 	deployedSettingsHash: string;
-}
-
-// Licensing
-export interface License {
-	licenseKey: string;
-	source: string;
-	locked: boolean;
-	enterprise: boolean;
-	entitlements: string[] | null;
-	manualCheckAvailableAt?: string;
-}
-
-export interface LicenseManifest {
-	licenseKey: string;
-}
-
-export interface CommunityLicenseEnrollment {
-	name: string;
-	email: string;
-	company?: string;
 }
 
 // LLM audit logs
@@ -1163,12 +1142,6 @@ export const ModelAliasToUsageMap = {
 	[ModelAlias.ImageGeneration]: ModelUsage.ImageGeneration,
 	[ModelAlias.Vision]: ModelUsage.Vision
 } as const;
-
-// Product analytics
-
-export interface ProductTelemetryConsent {
-	consent?: boolean;
-}
 
 // Setup
 

@@ -6,12 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 
 function loadPlatform(
 	view: string,
-	{
-		groups = [Group.ADMIN],
-		available = true,
-		consent = false,
-		version = {}
-	}: { groups?: string[]; available?: boolean; consent?: boolean; version?: Partial<Version> } = {}
+	{ groups = [Group.ADMIN], version = {} }: { groups?: string[]; version?: Partial<Version> } = {}
 ) {
 	return load({
 		depends: vi.fn(),
@@ -19,8 +14,6 @@ function loadPlatform(
 		parent: async () =>
 			createPageData({
 				profile: createMockProfile(groups),
-				productTelemetryConsentAvailable: available,
-				productTelemetryConsent: { consent },
 				version: { ...getVersionResponse, ...version }
 			}),
 		url: new URL(`http://localhost/admin/platform?view=${view}`)
@@ -44,56 +37,52 @@ describe('Platform loader settings view', () => {
 		vi.spyOn(AdminService, 'listGitCredentials').mockResolvedValue([]);
 	}
 
-	it('fetches fresh consent when an administrator opens Settings', async () => {
+	it('loads notification, model proxy, and git credential settings', async () => {
 		mockSettingsApis();
-		const getConsent = vi
-			.spyOn(AdminService, 'getProductTelemetryConsent')
-			.mockResolvedValue({ consent: true });
 
-		const result = await loadPlatform('settings', { consent: false });
+		const result = await loadPlatform('settings');
 
-		expect(getConsent).toHaveBeenCalledOnce();
+		expect(AdminService.getModelProxySettings).toHaveBeenCalledOnce();
+		expect(AdminService.listGitCredentials).toHaveBeenCalledOnce();
 		expect(result).toMatchObject({
-			productTelemetryConsent: { consent: true },
+			appNotification: getAppNotificationResponse,
 			modelProxySettings: { enabled: false, url: 'https://model-service.obot.ai' }
 		});
 	});
 
-	it.each([
-		['consent controls are unavailable', [Group.ADMIN], false],
-		['the user is a read-only administrator', [Group.AUDITOR], true]
-	])('does not fetch consent when %s', async (_scenario, groups, available) => {
-		mockSettingsApis();
-		const getConsent = vi.spyOn(AdminService, 'getProductTelemetryConsent');
-
-		await loadPlatform('settings', { groups, available });
-
-		expect(getConsent).not.toHaveBeenCalled();
-	});
-
 	it('fetches model proxy usage when the model proxy can be used', async () => {
 		mockSettingsApis({ modelProxyEnabled: true });
-		vi.spyOn(AdminService, 'getProductTelemetryConsent').mockResolvedValue({ consent: false });
 
 		await loadPlatform('settings', {
-			version: { hasModelProvider: false, hasValidLicense: true }
+			version: { hasModelProvider: false, mcpTesterModelProxyAvailable: true }
 		});
 
 		expect(AdminService.getModelProxyUsage).toHaveBeenCalledOnce();
 	});
 
 	it.each([
-		['the model proxy is disabled', false, { hasModelProvider: false, hasValidLicense: true }],
-		['a model provider is configured', true, { hasModelProvider: true, hasValidLicense: true }],
+		[
+			'the model proxy is disabled',
+			false,
+			{ hasModelProvider: false, mcpTesterModelProxyAvailable: true }
+		],
+		[
+			'a model provider is configured',
+			true,
+			{ hasModelProvider: true, mcpTesterModelProxyAvailable: true }
+		],
 		[
 			'model provider configuration is unknown',
 			true,
-			{ hasModelProvider: null, hasValidLicense: true }
+			{ hasModelProvider: null, mcpTesterModelProxyAvailable: true }
 		],
-		['the installation is unlicensed', true, { hasModelProvider: false, hasValidLicense: false }]
+		[
+			'the proxy credential is unavailable',
+			true,
+			{ hasModelProvider: false, mcpTesterModelProxyAvailable: false }
+		]
 	])('does not fetch model proxy usage when %s', async (_scenario, modelProxyEnabled, version) => {
 		mockSettingsApis({ modelProxyEnabled });
-		vi.spyOn(AdminService, 'getProductTelemetryConsent').mockResolvedValue({ consent: false });
 
 		const result = await loadPlatform('settings', { version });
 

@@ -16,7 +16,6 @@
 	} from '$lib/services/user/constants';
 	import { profile, responsive, darkMode, userDeviceSettings } from '$lib/stores';
 	import { version } from '$lib/stores';
-	import { clearProductAnalyticsConsentDeferral } from '$lib/stores/productTelemetryConsent.svelte';
 	import { getUserRoleLabel } from '$lib/utils';
 	import ResponsiveDialog from '../ResponsiveDialog.svelte';
 	import IconButton from '../primitives/IconButton.svelte';
@@ -28,7 +27,6 @@
 		Sun,
 		BadgeInfo,
 		X,
-		CircleFadingArrowUp,
 		LayoutDashboard,
 		Terminal,
 		SquareTerminal
@@ -39,14 +37,6 @@
 
 	let showMcpManagement = $derived(
 		['/o', '/profile'].some((path) => page.url.pathname.startsWith(path))
-	);
-
-	let showUpgradeAvailable = $derived(
-		version.current.authEnabled
-			? profile.current.isAdmin?.()
-				? version.current.upgradeAvailable
-				: false
-			: version.current.upgradeAvailable
 	);
 
 	let setPreferredClientsDialog = $state<ReturnType<typeof ResponsiveDialog>>();
@@ -80,7 +70,6 @@
 	async function handleBootstrapLogout() {
 		try {
 			localStorage.removeItem(SEEN_SPLASH_DIALOG_KEY);
-			clearProductAnalyticsConsentDeferral();
 			await AdminService.bootstrapLogout();
 			window.location.href = `/oauth2/sign_out?rd=${profile.current.isBootstrapUser?.() ? '/admin' : '/'}`;
 		} catch (err) {
@@ -91,7 +80,6 @@
 	async function handleLogout() {
 		try {
 			localStorage.removeItem(SEEN_SPLASH_DIALOG_KEY);
-			clearProductAnalyticsConsentDeferral();
 			window.location.href = '/oauth2/sign_out?rd=/';
 		} catch (err) {
 			console.error(err);
@@ -117,11 +105,6 @@
 	{#snippet icon()}
 		<div class="relative shrink-0">
 			<ProfileIcon />
-			{#if showUpgradeAvailable}
-				<CircleFadingArrowUp
-					class="text-primary bg-base-100 absolute -right-0.5 -bottom-0.5 z-10 size-3 rounded-full"
-				/>
-			{/if}
 		</div>
 	{/snippet}
 	{#snippet header()}
@@ -216,22 +199,6 @@
 				</a>
 			{/if}
 			{#if version.current.obot}
-				{#if showUpgradeAvailable}
-					<div class="text-base-content flex items-center gap-1 p-1 text-[11px]">
-						<CircleFadingArrowUp class="text-primary size-4 shrink-0" />
-						<p>
-							{m.profile_upgrade_available()} <br />
-							{m.profile_check_out_the()}
-							<a
-								rel="external noopener noreferrer"
-								target="_blank"
-								class="text-link"
-								href="https://github.com/obot-platform/obot/releases/latest"
-								>{m.profile_latest_release_notes()}</a
-							>
-						</p>
-					</div>
-				{/if}
 				<div class="text-muted-content flex justify-end p-2 text-xs">
 					<div class="flex gap-2">
 						{#if version.current.obot}

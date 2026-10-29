@@ -112,8 +112,6 @@
 	"auth_setup_login_different_account": "또는 구성된 인증 제공자로 다른 계정에 로그인하세요. 인증 후 계속하기 전에 소유자를 확인하라는 메시지가 표시됩니다.",
 	"auth_setup_next_step_owner_setup": "다음 단계: 소유자 설정",
 	"auth_setup_page_title": "설정",
-	"auth_setup_share_usage_data": "제품 사용 데이터 공유",
-	"auth_setup_share_usage_help": "사용 데이터를 공유하여 Obot 개선에 도움을 주세요.",
 	"auth_setup_sign_in_as": "{email}(으)로 로그인",
 	"auth_setup_welcome_to_obot": "Obot에 오신 것을 환영합니다!"
 }

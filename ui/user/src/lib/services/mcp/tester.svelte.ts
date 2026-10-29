@@ -147,10 +147,7 @@ export function testerChatAvailability(
 
 		return {
 			available: false,
-			unavailableMessage:
-				version.hasValidLicense !== true
-					? m.mcps_tester_chat_managed_by_admin()
-					: m.mcps_tester_chat_model_service_unavailable()
+			unavailableMessage: m.mcps_tester_chat_model_service_unavailable()
 		};
 	}
 

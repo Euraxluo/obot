@@ -5,17 +5,14 @@
 	import DotDotDot from '$lib/components/DotDotDot.svelte';
 	import ResponsiveDialog from '$lib/components/ResponsiveDialog.svelte';
 	import Search from '$lib/components/Search.svelte';
-	import UserLimitNotice from '$lib/components/admin/license/UserLimitNotice.svelte';
 	import Table from '$lib/components/table/Table.svelte';
 	import { PAGE_TRANSITION_DURATION } from '$lib/constants';
-	import { COMMUNITY_ENTITLEMENT } from '$lib/constants';
 	import { m } from '$lib/i18n';
 	import Loading from '$lib/icons/Loading.svelte';
 	import { AdminService, UserService, Group, Role, type OrgUser } from '$lib/services';
 	import { userRoleOptions } from '$lib/services/admin/constants';
 	import type { OrgUserStatus } from '$lib/services/user/types';
 	import { profile, version } from '$lib/stores';
-	import { clearProductAnalyticsConsentDeferral } from '$lib/stores/productTelemetryConsent.svelte';
 	import { formatTimeAgo } from '$lib/time';
 	import { replaceState } from '$lib/url';
 	import {
@@ -25,7 +22,7 @@
 		setSortUrlParams,
 		setFilterUrlParams
 	} from '$lib/url.js';
-	import { getUserRoleLabel, isClaudeTagUser, validateVersionUserLimit } from '$lib/utils';
+	import { getUserRoleLabel, isClaudeTagUser } from '$lib/utils';
 	import CurrentAccessDialog from './CurrentAccessDialog.svelte';
 	import { Handshake, Info, ShieldAlert } from '@lucide/svelte';
 	import { debounce } from 'es-toolkit';
@@ -107,8 +104,6 @@
 		{ label: m.core_role_standard_user(), id: Role.BASIC }
 	]);
 	let isAdminReadonly = $derived(profile.current.isAdminReadonly?.());
-	const isNearUserLimit = $derived(validateVersionUserLimit(version.current));
-
 	function closeUpdateRoleDialog() {
 		updateRoleDialog?.close();
 		updatingRole = undefined;
@@ -183,30 +178,11 @@
 
 	const duration = PAGE_TRANSITION_DURATION;
 	const auditorReadonlyAdminRoles = [Role.BASIC, Role.POWERUSER, Role.POWERUSER_PLUS];
-
-	const hasValidLicense = $derived(Boolean(version.current.enterprise));
-	const isCommunityEdition = $derived(
-		version.current.licenseEntitlements?.includes(COMMUNITY_ENTITLEMENT) ?? false
-	);
 </script>
 
 <div class="mb-4" in:fade={{ duration }}>
 	<div class="flex flex-col gap-8">
 		<div class="flex flex-col gap-2">
-			{#if isNearUserLimit}
-				<UserLimitNotice />
-			{/if}
-
-			{#if version.current.userLimit}
-				<section class="flex items-center justify-end gap-2 text-muted-content">
-					<p class="text-sm">{m.identity_access_users_user_limits()}</p>
-					{#if !hasValidLicense || isCommunityEdition}
-						<p class="text-sm">{version.current.userCount} / {version.current.userLimit}</p>
-					{:else}
-						<p class="text-sm text-muted-content">-</p>
-					{/if}
-				</section>
-			{/if}
 			<Search
 				value={query}
 				class="dark:bg-base-200 dark:border-base-400 bg-base-100 border border-transparent shadow-sm"
@@ -524,7 +500,6 @@
 			return;
 		}
 		await AdminService.bootstrapLogout();
-		clearProductAnalyticsConsentDeferral();
 		window.location.href = '/oauth2/sign_out?rd=/admin';
 		confirmHandoffToUser = undefined;
 	}}

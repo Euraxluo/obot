@@ -1,12 +1,12 @@
 import { page as appPage } from '$app/state';
-import { COMMUNITY_ENTITLEMENT } from '$lib/constants';
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import { MCPTesterSession } from '$lib/services/mcp/tester.svelte';
 import {
 	createMcpConnectPostResolver,
 	type MCPRequest
 } from '../../../../tests/helpers/mcpConnect';
 import { preparePageData } from '../../../../tests/helpers/pageData';
-import { createMcpServerDetailsFixtures, getLicenseResponse } from '../../../../tests/mocks/data';
+import { createMcpServerDetailsFixtures } from '../../../../tests/mocks/data';
 import { worker } from '../../../../tests/mocks/worker';
 import type { PageData } from './$types';
 import TesterPage from './+page.svelte';
@@ -15,6 +15,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 
+overwriteGetLocale(() => 'en');
 const fixtures = createMcpServerDetailsFixtures();
 
 function mockMCPInitialization(
@@ -84,15 +85,6 @@ const chatModelData: Partial<PageData> = {
 const chatModelAliasData: Partial<PageData> = {
 	defaultModelAliases: [{ alias: 'llm', model: 'stable-llm' }],
 	models: [{ ...chatModelData.models![0], alias: 'stable-llm' }]
-};
-
-const communityLicenseData: Partial<PageData> = {
-	license: {
-		...getLicenseResponse,
-		licenseKey: 'community-license-key',
-		enterprise: true,
-		entitlements: [COMMUNITY_ENTITLEMENT]
-	}
 };
 
 function chatStream(...events: unknown[]) {
@@ -303,7 +295,7 @@ describe('MCP Tester page', () => {
 		const serverNameHeadings = page.getByRole('heading', { name: serverName, level: 1 });
 		await expect.element(serverNameHeadings.first()).toBeVisible();
 		await expect.element(serverNameHeadings.nth(1)).toBeVisible();
-		expect(document.title).toBe(`Obot | MCP Tester | ${serverName}`);
+		expect(document.title).toBe(`ZTOCC | MCP Tester | ${serverName}`);
 		await expect.element(testerSection('Tools')).toHaveClass(/page-tab-active/);
 		await expect
 			.element(page.getByRole('link', { name: `Back to ${serverName}` }))
@@ -325,14 +317,13 @@ describe('MCP Tester page', () => {
 	it('keeps Chat unavailable when an alias match has no assigned alias record', async () => {
 		await renderTester('chat', {}, undefined, {
 			...chatModelAliasData,
-			...communityLicenseData,
 			models: [{ ...chatModelAliasData.models![0], aliasAssigned: false }]
 		});
 
 		await expect.element(page.getByText('Chat unavailable', { exact: true })).toBeVisible();
 	});
 
-	it('allows licensed installations without a provider to chat through the Tester backend', async () => {
+	it('allows proxy-enabled installations without a provider to chat through the Tester backend', async () => {
 		const requests = vi.fn();
 		worker.use(
 			http.post(
@@ -354,7 +345,6 @@ describe('MCP Tester page', () => {
 			defaultModelAliases: [],
 			version: {
 				hasModelProvider: false,
-				hasValidLicense: true,
 				mcpTesterModelProxyAvailable: true
 			}
 		});
@@ -368,40 +358,12 @@ describe('MCP Tester page', () => {
 		expect(requests.mock.calls[0][0]).not.toHaveProperty('license');
 	});
 
-	it('requires a valid license when no provider is configured', async () => {
-		await renderTester('chat', {}, undefined, {
-			models: [],
-			defaultModelAliases: [],
-			version: { hasModelProvider: false, hasValidLicense: false }
-		});
-
-		await expect
-			.element(page.getByRole('heading', { name: 'Unlock MCP Inspector Chat', exact: true }))
-			.toBeVisible();
-		await expect
-			.element(
-				page.getByText(
-					/Register to get free access to the MCP Inspector Chat, powered by Obot’s model service/
-				)
-			)
-			.toBeVisible();
-		await expect
-			.element(page.getByRole('link', { name: 'configuring your own model provider' }))
-			.toHaveAttribute('href', '/models?view=providers');
-		await expect.element(page.getByRole('button', { name: 'Register' })).toBeVisible();
-		await expect
-			.element(page.getByRole('region', { name: 'Chat composer' }))
-			.not.toBeInTheDocument();
-	});
-
 	it('disables model proxy Chat when the server reports it unavailable', async () => {
 		await renderTester('chat', {}, undefined, {
-			...communityLicenseData,
 			models: [],
 			defaultModelAliases: [],
 			version: {
 				hasModelProvider: false,
-				hasValidLicense: true,
 				mcpTesterModelProxyAvailable: false
 			}
 		});
@@ -422,10 +384,8 @@ describe('MCP Tester page', () => {
 	it('disables Chat during provider reconciliation even with a cached default model', async () => {
 		await renderTester('chat', {}, undefined, {
 			...chatModelData,
-			...communityLicenseData,
 			version: {
 				hasModelProvider: null,
-				hasValidLicense: true,
 				mcpTesterModelProxyAvailable: false
 			}
 		});
@@ -440,10 +400,9 @@ describe('MCP Tester page', () => {
 
 	it('does not enable the model proxy for a configured provider with no default model', async () => {
 		await renderTester('chat', {}, undefined, {
-			...communityLicenseData,
 			models: [],
 			defaultModelAliases: [],
-			version: { hasModelProvider: true, hasValidLicense: true }
+			version: { hasModelProvider: true }
 		});
 
 		await expect.element(page.getByText('Chat unavailable', { exact: true })).toBeVisible();
@@ -452,10 +411,10 @@ describe('MCP Tester page', () => {
 			.toBeVisible();
 	});
 
-	it('keeps configured-provider Chat available without a license', async () => {
+	it('keeps configured-provider Chat available', async () => {
 		await renderTester('chat', {}, undefined, {
 			...chatModelData,
-			version: { hasModelProvider: true, hasValidLicense: false }
+			version: { hasModelProvider: true }
 		});
 
 		await expect.element(page.getByRole('region', { name: 'Chat composer' })).toBeVisible();
@@ -486,7 +445,6 @@ describe('MCP Tester page', () => {
 				defaultModelAliases: [],
 				version: {
 					hasModelProvider: false,
-					hasValidLicense: true,
 					mcpTesterModelProxyAvailable: true
 				}
 			});
@@ -526,7 +484,7 @@ describe('MCP Tester page', () => {
 		await expect
 			.element(page.getByRole('heading', { name: 'Virtual test server', level: 1 }).first())
 			.toBeVisible();
-		expect(document.title).toBe('Obot | vMCP Tester | Virtual test server');
+		expect(document.title).toBe('ZTOCC | vMCP Tester | Virtual test server');
 		await expect.element(page.getByRole('heading', { name: 'Tools', exact: true })).toBeVisible();
 		await expect
 			.element(page.getByRole('link', { name: 'Back to Virtual test server' }))
@@ -548,7 +506,7 @@ describe('MCP Tester page', () => {
 			backTarget: '/vmcps/vmcp1-test'
 		});
 
-		expect(document.title).toBe('Obot | vMCP Tester | Virtual test server');
+		expect(document.title).toBe('ZTOCC | vMCP Tester | Virtual test server');
 		await expect
 			.element(page.getByRole('heading', { name: 'Virtual test server', level: 1 }).first())
 			.toBeVisible();

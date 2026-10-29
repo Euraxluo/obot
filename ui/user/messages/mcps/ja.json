@@ -700,7 +700,6 @@
 	"mcps_servers_actions_disconnect_user": "ユーザーを切断",
 	"mcps_servers_actions_edit_my_connection": "自分の接続を編集",
 	"mcps_servers_actions_launch_now": "今すぐサーバーを起動しますか？",
-	"mcps_servers_actions_license_disabled": "機能が制限されているため、現在接続は無効になっています。この機能を再度有効にするには、既存のライセンスの問題を解決してください。",
 	"mcps_servers_actions_mcp_server_configured": "MCP サーバーが設定されました。",
 	"mcps_servers_actions_multi_user_entry_tooltip": "これはマルチユーザーのカタログエントリです。接続する前に管理者がデプロイする必要があります。",
 	"mcps_servers_actions_my_connection": "自分の接続",

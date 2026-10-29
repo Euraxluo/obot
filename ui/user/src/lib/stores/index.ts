@@ -10,7 +10,5 @@ export { default as vmcpInstances } from './vmcpInstances.svelte';
 export { default as defaultModelAliases } from './defaultModelAliases.svelte';
 export { default as accessibleModels } from './accessibleModels.svelte';
 export { default as userDeviceSettings } from './userDeviceSettings.svelte';
-export { default as license } from './license.svelte';
 export { default as appNotification } from './appNotification.svelte';
-export { default as productTelemetryConsent } from './productTelemetryConsent.svelte';
 export { default as guide } from './guide.svelte';

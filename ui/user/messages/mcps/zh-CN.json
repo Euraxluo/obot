@@ -700,7 +700,6 @@
 	"mcps_servers_actions_disconnect_user": "断开用户连接",
 	"mcps_servers_actions_edit_my_connection": "编辑我的连接",
 	"mcps_servers_actions_launch_now": "要立即启动服务器吗？",
-	"mcps_servers_actions_license_disabled": "由于功能受限，连接当前已禁用。请解决现有的许可证问题以重新启用此功能。",
 	"mcps_servers_actions_mcp_server_configured": "您的 MCP 服务器已配置。",
 	"mcps_servers_actions_multi_user_entry_tooltip": "这是一个多用户目录条目。管理员必须先部署它，您才能连接。",
 	"mcps_servers_actions_my_connection": "我的连接",

@@ -16,12 +16,9 @@
 		vmcpInstances,
 		defaultModelAliases,
 		userDeviceSettings,
-		license,
 		accessibleModels,
-		appNotification,
-		productTelemetryConsent
+		appNotification
 	} from '$lib/stores';
-	import { clearProductAnalyticsConsentDeferral } from '$lib/stores/productTelemetryConsent.svelte';
 	import { goto } from '$lib/url';
 	import '../app.css';
 	import type { PageData } from './$types';
@@ -67,9 +64,6 @@
 
 		if (data.profile) {
 			profile.initialize(data.profile);
-			if (data.profile.unauthorized) {
-				clearProductAnalyticsConsentDeferral();
-			}
 		}
 
 		if (data.version) {
@@ -79,13 +73,6 @@
 		if (data.appNotification) {
 			appNotification.initialize(data.appNotification);
 		}
-
-		productTelemetryConsent.initialize(
-			data.productTelemetryConsent,
-			data.productTelemetryConsentAvailable
-		);
-
-		license.initialize(data.license);
 
 		if (data.defaultModelAliases) {
 			untrack(() => defaultModelAliases.initialize(data.defaultModelAliases));

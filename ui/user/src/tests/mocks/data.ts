@@ -179,7 +179,6 @@ export const listAuthProvidersResponse = [
 		image: '',
 		port: 0,
 		link: 'https://entra.microsoft.com/',
-		missingEntitlements: ['OBOT_ENTERPRISE_AUTH_PROVIDERS'],
 		requiredConfigurationParameters: [
 			{
 				name: 'OBOT_ENTRA_AUTH_PROVIDER_CLIENT_ID',
@@ -275,16 +274,6 @@ export const initiateTempLoginResponse = {
 	redirectUrl: 'https://example.com/temp-login',
 	tokenId: 'temp-login-token'
 };
-
-// License
-
-export const getLicenseResponse = {
-	entitlements: null,
-	enterprise: false,
-	licenseKey: '',
-	locked: false,
-	source: ''
-} satisfies Awaited<ReturnType<typeof UserService.getLicense>>;
 
 // MCP servers
 
@@ -511,17 +500,11 @@ export function createMcpServerDetailsFixtures() {
 export const getVersionResponse = {
 	authEnabled: true,
 	engine: 'docker',
-	enterprise: false,
 	hideK8sDetails: false,
-	latestVersion: 'v0.0.0-dev',
-	licenseEntitlementViolations: undefined,
-	licenseEntitlements: undefined,
 	mcpDefaultDenyAllEgress: false,
 	mcpNetworkPolicyEnabled: false,
-	missingLicenseEntitlements: [],
 	obot: 'v0.0.0-dev',
-	sessionStore: 'cookie',
-	upgradeAvailable: false
+	sessionStore: 'cookie'
 } satisfies Awaited<ReturnType<typeof UserService.getVersion>>;
 
 const editableEnvField: MCPCatalogEntryFieldManifest = {

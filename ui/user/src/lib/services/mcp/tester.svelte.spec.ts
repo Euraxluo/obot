@@ -1,3 +1,4 @@
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import type { DefaultModelAlias, MCPCatalogServer, Model, Version } from '$lib/services';
 import {
 	MCPTesterSession,
@@ -9,6 +10,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type { GetPromptResult, ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it, vi } from 'vitest';
 
+overwriteGetLocale(() => 'en');
 const server = {
 	id: 'ms1tester',
 	configured: true,
@@ -285,7 +287,7 @@ describe('testerChatAvailability', () => {
 	it('uses the model service when no provider is configured', () => {
 		expect(
 			testerChatAvailability(
-				{ hasModelProvider: false, hasValidLicense: true, mcpTesterModelProxyAvailable: true },
+				{ hasModelProvider: false, mcpTesterModelProxyAvailable: true },
 				[],
 				[]
 			)
@@ -294,23 +296,16 @@ describe('testerChatAvailability', () => {
 
 	it.each([
 		{
-			name: 'an unlicensed installation',
-			version: { hasModelProvider: false, hasValidLicense: false },
-			message:
-				'The chat feature is managed by your administrator. Contact your Obot admin to enable access.'
-		},
-		{
 			name: 'a disabled model service',
 			version: {
 				hasModelProvider: false,
-				hasValidLicense: true,
 				mcpTesterModelProxyAvailable: false
 			},
 			message: 'The MCP Tester model service is disabled or unavailable. Contact an administrator.'
 		},
 		{
 			name: 'unreadable model configuration',
-			version: { hasModelProvider: null, hasValidLicense: true },
+			version: { hasModelProvider: null },
 			message: 'Model configuration is unavailable or changing. Try again later.'
 		}
 	])('refuses Chat for $name even with a usable default model', ({ version, message }) => {
@@ -321,7 +316,7 @@ describe('testerChatAvailability', () => {
 	});
 
 	it('falls back to the default model alias when a provider is configured', () => {
-		const version = { hasModelProvider: true, hasValidLicense: false } as Version;
+		const version = { hasModelProvider: true } as Version;
 
 		expect(testerChatAvailability(version, aliases, models).available).toBe(true);
 		expect(testerChatAvailability(version, [], [])).toEqual({
