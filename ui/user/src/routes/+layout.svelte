@@ -5,7 +5,6 @@
 	import ReLoginDialog from '$lib/components/ReLoginDialog.svelte';
 	import SuccessNotifications from '$lib/components/SuccessNotifications.svelte';
 	import { applyDocumentLocale } from '$lib/i18n';
-	import { Group } from '$lib/services';
 	import {
 		darkMode,
 		profile,
@@ -17,26 +16,11 @@
 		userDeviceSettings,
 		appNotification
 	} from '$lib/stores';
-	import { goto } from '$lib/url';
 	import '../app.css';
 	import type { PageData } from './$types';
 	import { apply, isSupported } from '@oddbird/popover-polyfill/fn';
 	import 'devicon/devicon.min.css';
 	import { onMount, untrack } from 'svelte';
-
-	// Routes a basic end user may reach: the marketplace plus the connect/skill
-	// flows it links into and account pages.
-	const END_USER_ALLOWED_PREFIXES = [
-		'/market',
-		'/vmcps',
-		'/skills',
-		'/login',
-		'/auth',
-		'/activate',
-		'/change-password',
-		'/privacy-policy',
-		'/terms-of-service'
-	];
 
 	interface Props {
 		children?: import('svelte').Snippet;
@@ -140,30 +124,6 @@
 		if (profile.current.loaded && onVmcps) {
 			return vmcpInstances.startWatching();
 		}
-	});
-
-	// End users (basic role, no admin/power/auditor access) are walled off to the
-	// marketplace and the flows it links to. The API authorizer is the security
-	// boundary; this redirect is UX only.
-	$effect(() => {
-		if (!profile.current.loaded || profile.current.requirePasswordChange) return;
-		const isEndUser =
-			!profile.current.hasAdminAccess?.() &&
-			!profile.current.groups.includes(Group.POWERUSER) &&
-			!profile.current.groups.includes(Group.POWERUSER_PLUS) &&
-			!profile.current.groups.includes(Group.AUDITOR);
-		if (!isEndUser) return;
-
-		const pathname = page.url.pathname;
-		if (
-			pathname === '/' ||
-			END_USER_ALLOWED_PREFIXES.some(
-				(prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
-			)
-		) {
-			return;
-		}
-		goto('/market');
 	});
 </script>
 

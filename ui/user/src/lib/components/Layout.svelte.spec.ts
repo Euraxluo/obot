@@ -104,15 +104,6 @@ async function expectNoAdminOnlyNavigation() {
 }
 
 describe('Layout.svelte', () => {
-	it('walls basic users down to the marketplace', async () => {
-		await renderLayout();
-		await expectLink('/market');
-		for (const href of [...sharedLinks, ...adminOnlyLinks]) {
-			await expectNoLink(href);
-		}
-		await expectNoLink('/dashboard');
-	});
-
 	describe('removed model navigation', () => {
 		it('does not expose the LLM Gateway models page', async () => {
 			await renderLayout([Group.ADMIN]);
@@ -162,6 +153,7 @@ describe('Layout.svelte', () => {
 				await expectSharedNavigation();
 				await expectLink('/dashboard');
 				await expectAdminOnlyNavigation();
+				await expectNoLink('/market');
 			});
 		});
 
@@ -186,13 +178,13 @@ describe('Layout.svelte', () => {
 		});
 
 		describe('when the user is a basic user', () => {
-			it('shows only the marketplace, hiding MCP Servers and administrator navigation', async () => {
+			it('shows the standard navigation with the marketplace', async () => {
 				await renderLayout([Group.USER]);
+				await expectSharedNavigation();
 				await expectLink('/market');
-				for (const href of [...sharedLinks, ...adminOnlyLinks]) {
-					await expectNoLink(href);
-				}
-				await expectNoLink('/dashboard');
+				await expectLink('/dashboard');
+				await expectLink('/mcp-servers');
+				await expectNoAdminOnlyNavigation();
 			});
 		});
 

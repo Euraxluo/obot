@@ -1,5 +1,5 @@
 import { CommonAuthProviderIds } from '$lib/constants';
-import { Group, UserService, type AuthProvider } from '$lib/services';
+import { UserService, type AuthProvider } from '$lib/services';
 import type { PageLoad } from './$types';
 import { redirect } from '@sveltejs/kit';
 
@@ -24,11 +24,7 @@ export const load: PageLoad = async ({ fetch, url, parent }) => {
 			throw redirect(302, redirectRoute);
 		}
 
-		const isAtLeastPoweruser =
-			profile?.groups.includes(Group.POWERUSER) || profile?.hasAdminAccess?.();
-		// Basic (end-user) accounts live in the marketplace; everyone else keeps
-		// the dashboard.
-		throw redirect(302, isAtLeastPoweruser ? '/dashboard' : '/market');
+		throw redirect(302, '/dashboard');
 	}
 
 	if (bootstrapStatus?.enabled && authProviders.length === 0) {

@@ -192,6 +192,27 @@ it('imports OpenAPI from the type picker before opening configuration', async ()
 	expect(appPage.url.searchParams.get('new')).toBe('openapi');
 });
 
+it('shows user-scoped MCP servers to basic users', async () => {
+	resetMcpServersAndEntriesStore();
+	mcpServersAndEntries.current = {
+		entries: fixtures.entries,
+		servers: [],
+		userInstances: [],
+		userConfiguredServers: [],
+		loading: false,
+		lastFetched: null,
+		isInitialized: true
+	};
+	await renderMcpServersPage({ view: 'servers', groups: [Group.USER] });
+
+	await expect
+		.element(page.getByRole('row').filter({ hasText: 'Entry Single' }).first())
+		.toBeVisible();
+	await expect
+		.element(page.getByRole('button', { name: 'Add MCP Server' }))
+		.not.toBeInTheDocument();
+});
+
 describe('MCP Servers Page', () => {
 	describe('filters tab', () => {
 		beforeEach(() => {

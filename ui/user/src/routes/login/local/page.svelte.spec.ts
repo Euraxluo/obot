@@ -131,11 +131,11 @@ describe('local login page', () => {
 		await page.getByLabelText('Dev quick enter').selectOptions('poweruser1');
 		await vi.waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/dashboard'));
 		await page.getByLabelText('Dev quick enter').selectOptions('user1');
-		await vi.waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/market'));
+		await vi.waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/dashboard'));
 		await page.getByLabelText('Dev quick enter').selectOptions('user2');
 		await vi.waitFor(() => {
 			expect(navigateMock).toHaveBeenCalledTimes(3);
-			expect(navigateMock.mock.calls[2][0]).toBe('/market');
+			expect(navigateMock.mock.calls[2][0]).toBe('/dashboard');
 		});
 
 		expect(createdUsers).toEqual([

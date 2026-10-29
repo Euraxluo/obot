@@ -126,6 +126,9 @@ describe('market page', () => {
 	it('defaults to Skills and renders exactly Skills and Connectors', async () => {
 		await renderMarketPage();
 
+		for (const href of ['/dashboard', '/market', '/vmcps', '/mcp-servers']) {
+			await expect.element(page.getByCSS(`a.sidebar-link[href="${href}"]`)).toBeInTheDocument();
+		}
 		await expect.element(page.getByRole('tab', { name: m.market_tab_skills() })).toBeVisible();
 		await expect.element(page.getByRole('tab', { name: m.market_tab_connectors() })).toBeVisible();
 		await expect

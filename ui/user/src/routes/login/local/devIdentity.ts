@@ -109,6 +109,6 @@ export async function enterDevAccount(accountId: string): Promise<{
 
 	return {
 		profile,
-		destination: account.role === Role.BASIC ? '/market' : '/dashboard'
+		destination: '/dashboard'
 	};
 }

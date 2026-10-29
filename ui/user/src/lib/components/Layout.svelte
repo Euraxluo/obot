@@ -211,7 +211,7 @@
 
 	let isAtLeastPoweruser = $derived(profile.current.groups.includes(Group.POWERUSER));
 
-	// End users (basic role, no admin/power access) get the marketplace only.
+	// End users keep the standard navigation, with the marketplace as one entry.
 	let isEndUser = $derived(
 		profile.current.loaded &&
 			!profile.current.hasAdminAccess?.() &&
@@ -219,8 +219,15 @@
 			!profile.current.groups.includes(Group.AUDITOR)
 	);
 
-	let routes = $derived(
-		isEndUser
+	let routes = $derived([
+		{
+			id: 'mcp-dashboard',
+			icon: LayoutDashboard,
+			label: m.nav_dashboard(),
+			href: '/dashboard',
+			collapsible: false
+		},
+		...(isEndUser
 			? [
 					{
 						id: 'market',
@@ -230,110 +237,94 @@
 						collapsible: false
 					}
 				]
-			: [
-					...(isAtLeastPoweruser || profile.current.hasAdminAccess?.()
-						? [
-								{
-									id: 'mcp-dashboard',
-									icon: LayoutDashboard,
-									label: m.nav_dashboard(),
-									href: '/dashboard',
-									collapsible: false
-								}
-							]
-						: []),
-					{
-						id: 'ai-resources',
-						icon: Bot,
-						label: m.nav_ai_resources(),
-						collapsible: true,
-						items: [
+			: []),
+		{
+			id: 'ai-resources',
+			icon: Bot,
+			label: m.nav_ai_resources(),
+			collapsible: true,
+			items: [
+				{
+					id: 'vmcp',
+					label: m.nav_vmcps(),
+					href: '/vmcps'
+				},
+				{
+					id: 'mcp-servers',
+					label: m.nav_mcp_servers(),
+					href: '/mcp-servers'
+				},
+				{
+					id: 'skills',
+					label: m.nav_skills(),
+					href: '/skills'
+				},
+				...(profile.current.hasAdminAccess?.()
+					? [
 							{
-								id: 'vmcp',
-								label: m.nav_vmcps(),
-								href: '/vmcps'
-							},
-							...(isAtLeastPoweruser || profile.current.hasAdminAccess?.()
-								? [
-										{
-											id: 'mcp-servers',
-											label: m.nav_mcp_servers(),
-											href: '/mcp-servers'
-										}
-									]
-								: []),
-							{
-								id: 'skills',
-								label: m.nav_skills(),
-								href: '/skills'
-							},
-							...(profile.current.hasAdminAccess?.()
-								? [
-										{
-											id: 'data-permissions',
-											label: m.nav_data_permissions(),
-											href: '/data-permissions'
-										}
-									]
-								: []),
-							...(version.current.engine === 'docker' ||
-							(version.current.engine === 'kubernetes' && version.current.claudeEnvironmentsEnabled)
-								? [
-										{
-											id: 'claude-environments',
-											label: m.nav_claude_environments(),
-											href: '/claude-environments',
-											beta: true
-										}
-									]
-								: [])
+								id: 'data-permissions',
+								label: m.nav_data_permissions(),
+								href: '/data-permissions'
+							}
 						]
-					},
-					{
-						id: 'operations',
-						icon: Logs,
-						label: m.nav_operations(),
-						collapsible: true,
-						items: [
+					: []),
+				...(version.current.engine === 'docker' ||
+				(version.current.engine === 'kubernetes' && version.current.claudeEnvironmentsEnabled)
+					? [
 							{
-								id: 'audit-logs',
-								label: m.nav_audit_logs(),
-								href: '/audit-logs'
-							},
-							{
-								id: 'usage',
-								label: m.nav_usage(),
-								href: '/usage'
-							},
-							...(profile.current.hasAdminAccess?.()
-								? [
-										{
-											id: 'inventory',
-											label: m.nav_inventory(),
-											href: '/inventory'
-										}
-									]
-								: [])
+								id: 'claude-environments',
+								label: m.nav_claude_environments(),
+								href: '/claude-environments',
+								beta: true
+							}
 						]
-					},
+					: [])
+			]
+		},
+		{
+			id: 'operations',
+			icon: Logs,
+			label: m.nav_operations(),
+			collapsible: true,
+			items: [
+				{
+					id: 'audit-logs',
+					label: m.nav_audit_logs(),
+					href: '/audit-logs'
+				},
+				{
+					id: 'usage',
+					label: m.nav_usage(),
+					href: '/usage'
+				},
+				...(profile.current.hasAdminAccess?.()
+					? [
+							{
+								id: 'inventory',
+								label: m.nav_inventory(),
+								href: '/inventory'
+							}
+						]
+					: [])
+			]
+		},
+		{
+			id: 'identity-and-access',
+			label: m.nav_identity_access(),
+			icon: Users,
+			href: '/identity-access'
+		},
+		...(profile.current.hasAdminAccess?.()
+			? [
 					{
-						id: 'identity-and-access',
-						label: m.nav_identity_access(),
-						icon: Users,
-						href: '/identity-access'
-					},
-					...(profile.current.hasAdminAccess?.()
-						? [
-								{
-									id: 'platform',
-									label: m.nav_platform(),
-									icon: Settings2,
-									href: '/admin/platform'
-								}
-							]
-						: [])
+						id: 'platform',
+						label: m.nav_platform(),
+						icon: Settings2,
+						href: '/admin/platform'
+					}
 				]
-	);
+			: [])
+	]);
 
 	function collectBetaHrefs(links: NavLink[]): string[] {
 		return links.flatMap((link) => [

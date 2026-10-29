@@ -321,12 +321,7 @@
 	<title>{productTitle(m.market_title())}</title>
 </svelte:head>
 
-<Layout
-	title={m.market_title()}
-	subtitle={m.market_subtitle()}
-	hideSidebar={true}
-	showBackButton={false}
->
+<Layout title={m.market_title()} subtitle={m.market_subtitle()} showBackButton={false}>
 	<div class="flex min-h-full flex-col gap-4">
 		<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 			<div role="tablist" class="flex items-center gap-1" aria-label={m.market_title()}>

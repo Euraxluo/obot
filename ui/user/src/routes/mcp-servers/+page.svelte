@@ -76,6 +76,7 @@
 	let isAdminReadonly = $derived(profile.current.isAdminReadonly?.());
 	let isPowerUser = $derived(profile.current.groups.includes(Group.POWERUSER));
 	let isPowerUserPlus = $derived(profile.current.groups.includes(Group.POWERUSER_PLUS));
+	let usesWorkspaceCatalog = $derived(isPowerUser && !hasAdminAccess);
 	let canCreateEntry = $derived(
 		profile.current.groups.includes(Group.ADMIN) || profile.current.groups.includes(Group.POWERUSER)
 	);
@@ -129,16 +130,12 @@
 		}
 	});
 	let views = $derived([
-		...(hasAdminAccess || isPowerUser
-			? [
-					{
-						label: m.mcps_servers_tab(),
-						value: 'servers',
-						content: servers,
-						tooltip: m.mcps_servers_tab_tooltip()
-					}
-				]
-			: []),
+		{
+			label: m.mcps_servers_tab(),
+			value: 'servers',
+			content: servers,
+			tooltip: m.mcps_servers_tab_tooltip()
+		},
 		...(hasAdminAccess
 			? [
 					{
@@ -180,7 +177,9 @@
 	]);
 
 	onMount(async () => {
-		users = await UserService.listUsersIncludeDeleted();
+		if (hasAdminAccess || isPowerUser) {
+			users = await UserService.listUsersIncludeDeleted();
+		}
 		defaultCatalog = profile.current.hasAdminAccess?.()
 			? await AdminService.getMCPCatalog(defaultCatalogId)
 			: undefined;
@@ -391,8 +390,16 @@
 
 {#snippet servers()}
 	<EntriesView
-		entity={profile.current.hasAdminAccess?.() ? 'catalog' : 'workspace'}
-		id={profile.current.hasAdminAccess?.() ? defaultCatalogId : (workspaceId ?? '')}
+		entity={profile.current.hasAdminAccess?.()
+			? 'catalog'
+			: usesWorkspaceCatalog
+				? 'workspace'
+				: 'user'}
+		id={profile.current.hasAdminAccess?.()
+			? defaultCatalogId
+			: usesWorkspaceCatalog
+				? (workspaceId ?? '')
+				: undefined}
 		bind:catalog={defaultCatalog}
 		readonly={isAdminReadonly}
 		{usersMap}

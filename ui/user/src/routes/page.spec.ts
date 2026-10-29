@@ -1,5 +1,6 @@
 import { CommonAuthProviderIds } from '$lib/constants';
-import { UserService, type AuthProvider } from '$lib/services';
+import { Group, UserService, type AuthProvider } from '$lib/services';
+import { createMockProfile } from '../tests/helpers/pageData';
 import { load } from './+page';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -31,4 +32,27 @@ describe('local login redirect', () => {
 			});
 		}
 	);
+});
+
+describe('signed-in landing page', () => {
+	it.each([
+		['basic user', [Group.USER]],
+		['administrator', [Group.ADMIN]]
+	])('sends a %s to the standard dashboard', async (_name, groups) => {
+		vi.spyOn(UserService, 'getBootstrapStatus').mockResolvedValue({
+			enabled: false,
+			setupEnabled: false
+		});
+
+		await expect(
+			load({
+				fetch: vi.fn(),
+				url: new URL('https://obot.example/'),
+				parent: vi.fn(async () => ({ profile: createMockProfile(groups) }))
+			} as unknown as Parameters<typeof load>[0])
+		).rejects.toMatchObject({
+			status: 302,
+			location: '/dashboard'
+		});
+	});
 });

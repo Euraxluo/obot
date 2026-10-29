@@ -55,7 +55,7 @@
 	type Item = ReturnType<typeof convertEntriesToTableData>[number];
 
 	interface Props {
-		entity?: 'workspace' | 'catalog';
+		entity?: 'workspace' | 'catalog' | 'user';
 		id?: string;
 		catalog?: MCPCatalog;
 		readonly?: boolean;
@@ -105,6 +105,7 @@
 		).filter((d) => {
 			const isOwnedByUser =
 				profile.current.hasAdminAccess?.() ||
+				entity === 'user' ||
 				(entity === 'workspace' && id && d.data.powerUserWorkspaceID === id);
 			return isOwnedByUser;
 		})
