@@ -80,7 +80,7 @@ describe('local login page', () => {
 		expect(sessionStorage.getItem(emailKey)).toBe(email);
 	});
 
-	it('does not render or load the development selector when the flag is off', async () => {
+	it('does not render or load the development picker when the flag is off', async () => {
 		const devRequest = vi.fn();
 		worker.use(
 			http.post('/oauth2/start', () => {
@@ -97,43 +97,73 @@ describe('local login page', () => {
 		render(LoginPage);
 
 		await expect.element(page.getByLabelText('Email')).toBeVisible();
-		await expect.element(page.getByText('Development identity selector')).not.toBeInTheDocument();
+		await expect.element(page.getByLabelText('Dev quick enter')).not.toBeInTheDocument();
 		await new Promise((resolve) => setTimeout(resolve, 25));
 		expect(devRequest).not.toHaveBeenCalled();
 	});
 
-	it('offers fixed development roles and signs in as Admin', async () => {
+	it('lists fixed development accounts and enters Admin on selection', async () => {
 		const { oauthRequests } = mockDevLoginApis();
 		version.initialize({ devLoginEnabled: true });
 		render(LoginPage, { navigate: navigateMock });
 
-		await expect.element(page.getByText('Admin — admin@admin.com')).toBeInTheDocument();
-		await expect.element(page.getByText('PowerUserPlus — create user1')).toBeInTheDocument();
-		await expect.element(page.getByText('PowerUser — create user1')).toBeInTheDocument();
-		await expect.element(page.getByText('Basic — create user1')).toBeInTheDocument();
+		await expect.element(page.getByText('admin@admin.com — Administrator')).toBeInTheDocument();
+		await expect.element(page.getByText('poweruser1@dev.local — Power user')).toBeInTheDocument();
+		await expect.element(page.getByText('user1@dev.local — Basic')).toBeInTheDocument();
+		await expect.element(page.getByText('user2@dev.local — Basic')).toBeInTheDocument();
+		await expect.element(page.getByRole('button', { name: 'Enter' })).not.toBeInTheDocument();
 
-		await page.getByRole('button', { name: 'Enter' }).click();
+		await page.getByLabelText('Dev quick enter').selectOptions('admin');
 
 		await vi.waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/dashboard'));
 		expect(oauthRequests.at(-1)?.get('email')).toBe('admin@admin.com');
+		expect(oauthRequests.some((request) => request.get('password') === 'ShotTemp9!2026')).toBe(
+			true
+		);
 	});
 
-	it('creates the next userN with the specified password rule and signs in as Basic', async () => {
-		const { createdUsers, oauthRequests } = mockDevLoginApis();
+	it('transparently provisions and enters every fixed non-admin account', async () => {
+		const { createdUsers, oauthRequests, updatedRoles } = mockDevLoginApis();
 		version.initialize({ devLoginEnabled: true });
 		render(LoginPage, { navigate: navigateMock });
-		await expect.element(page.getByText('Admin — admin@admin.com')).toBeInTheDocument();
+		await expect.element(page.getByLabelText('Dev quick enter')).toBeVisible();
 
-		await page.getByRole('button', { name: 'Create user1 and sign in' }).click();
-
+		await page.getByLabelText('Dev quick enter').selectOptions('poweruser1');
+		await vi.waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/dashboard'));
+		await page.getByLabelText('Dev quick enter').selectOptions('user1');
 		await vi.waitFor(() => expect(navigateMock).toHaveBeenCalledWith('/market'));
+		await page.getByLabelText('Dev quick enter').selectOptions('user2');
+		await vi.waitFor(() => {
+			expect(navigateMock).toHaveBeenCalledTimes(3);
+			expect(navigateMock.mock.calls[2][0]).toBe('/market');
+		});
+
 		expect(createdUsers).toEqual([
-			{ email: 'user1@dev.local', password: 'user11111111', requirePasswordChange: false }
+			{
+				email: 'poweruser1@dev.local',
+				password: 'poweruser11111111',
+				requirePasswordChange: false
+			},
+			{ email: 'user1@dev.local', password: 'user11111111', requirePasswordChange: false },
+			{ email: 'user2@dev.local', password: 'user22222222', requirePasswordChange: false }
 		]);
-		expect(oauthRequests.at(-1)?.get('email')).toBe('user1@dev.local');
-		await expect
-			.element(page.getByRole('button', { name: 'Create user2 and sign in' }))
-			.toBeVisible();
+		expect(updatedRoles).toContainEqual({ id: 'poweruser1@dev.local', role: Role.POWERUSER });
+		for (const account of ['poweruser1@dev.local', 'user1@dev.local', 'user2@dev.local']) {
+			const accountRequests = oauthRequests.filter((request) => request.get('email') === account);
+			expect(accountRequests.at(-1)?.get('email')).toBe(account);
+		}
+	});
+
+	it('returns the picker to its placeholder when development login fails', async () => {
+		mockDevLoginApis();
+		worker.use(http.post('/oauth2/start', () => HttpResponse.json({}, { status: 401 })));
+		version.initialize({ devLoginEnabled: true });
+		render(LoginPage, { navigate: navigateMock });
+
+		await page.getByLabelText('Dev quick enter').selectOptions('admin');
+
+		await expect.element(page.getByText('Development login failed')).toBeVisible();
+		await expect.element(page.getByLabelText('Dev quick enter')).toHaveValue('');
 	});
 });
 
@@ -141,18 +171,11 @@ function mockDevLoginApis() {
 	let currentEmail = 'admin@admin.com';
 	const oauthRequests: URLSearchParams[] = [];
 	const createdUsers: { email: string; password: string; requirePasswordChange: boolean }[] = [];
-	const localUsers = [{ id: '1', email: 'admin@admin.com', requirePasswordChange: false }];
-	const adminOrgUser = {
-		id: '1',
-		created: '2026-01-01T00:00:00Z',
-		username: 'admin',
-		email: 'admin@admin.com',
-		explicitRole: true,
-		role: Role.ADMIN,
-		effectiveRole: Role.ADMIN,
-		groups: ['admin'],
-		iconURL: ''
-	};
+	const updatedRoles: { id: string; role: number }[] = [];
+	const localUsers = [
+		{ id: 'admin@admin.com', email: 'admin@admin.com', requirePasswordChange: false }
+	];
+	const roles = new Map<string, number>([['admin@admin.com', Role.ADMIN]]);
 
 	worker.use(
 		http.get(/\/src\/routes\/login\/local\/devIdentity\.ts/, passthrough),
@@ -164,13 +187,13 @@ function mockDevLoginApis() {
 		}),
 		http.get('/api/me', () =>
 			HttpResponse.json({
-				id: '1',
+				id: currentEmail,
 				email: currentEmail,
 				username: currentEmail.split('@')[0],
 				iconURL: '',
-				role: currentEmail === 'admin@admin.com' ? Role.ADMIN : Role.BASIC,
-				effectiveRole: currentEmail === 'admin@admin.com' ? Role.ADMIN : Role.BASIC,
-				groups: currentEmail === 'admin@admin.com' ? ['admin'] : ['user'],
+				role: roles.get(currentEmail) ?? Role.BASIC,
+				effectiveRole: roles.get(currentEmail) ?? Role.BASIC,
+				groups: (roles.get(currentEmail) ?? Role.BASIC) === Role.ADMIN ? ['admin'] : ['user'],
 				unauthorized: false
 			})
 		),
@@ -182,32 +205,17 @@ function mockDevLoginApis() {
 				requirePasswordChange: boolean;
 			};
 			createdUsers.push(body);
-			localUsers.push({
-				id: String(localUsers.length + 1),
-				email: body.email,
-				requirePasswordChange: false
-			});
-			return HttpResponse.json({ id: String(localUsers.length), ...body });
+			roles.set(body.email, Role.BASIC);
+			localUsers.push({ id: body.email, email: body.email, requirePasswordChange: false });
+			return HttpResponse.json({ id: body.email, ...body });
 		}),
-		http.get('/api/users', () => {
-			const items =
-				currentEmail === 'user1@dev.local'
-					? [
-							adminOrgUser,
-							{
-								...adminOrgUser,
-								id: '2',
-								username: 'user1',
-								email: 'user1@dev.local',
-								role: Role.BASIC,
-								effectiveRole: Role.BASIC,
-								groups: ['user']
-							}
-						]
-					: [adminOrgUser];
-			return HttpResponse.json({ items });
+		http.patch('/api/users/:id', async ({ request, params }) => {
+			const body = (await request.json()) as { role: number };
+			roles.set(String(params.id), body.role);
+			updatedRoles.push({ id: String(params.id), role: body.role });
+			return HttpResponse.json({});
 		})
 	);
 
-	return { createdUsers, oauthRequests };
+	return { createdUsers, oauthRequests, updatedRoles };
 }
