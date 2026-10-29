@@ -2,6 +2,7 @@ import { m } from '$lib/i18n';
 import { Group } from '$lib/services';
 import type { ConnectorAccessRequest, Skill } from '$lib/services';
 import { mcpServersAndEntries } from '$lib/stores';
+import { formatTimeAgo } from '$lib/time';
 import { createMCPCatalogEntry, createVMCP } from '../../tests/helpers/mcp';
 import { createMockProfile, preparePageData } from '../../tests/helpers/pageData';
 import { worker } from '../../tests/mocks/worker';
@@ -169,6 +170,35 @@ describe('market page', () => {
 		await expect
 			.element(page.getByRole('button', { name: m.market_request_pending() }))
 			.toBeDisabled();
+	});
+
+	it('shows the current user request status overview', async () => {
+		const pending = await renderMarketPage({ requests: [requestFixture('pending')] });
+		await openConnectorsTab();
+
+		const item = page.getByTestId('market-request-car1-1');
+		await expect.element(page.getByTestId('market-my-requests')).toBeVisible();
+		await expect.element(item.getByText('企业信息查询')).toBeVisible();
+		await expect.element(item.getByText('需要查数据')).toBeVisible();
+		await expect.element(item.getByText(m.market_request_pending())).toBeVisible();
+		await expect
+			.element(item.getByRole('time'))
+			.toHaveAttribute('title', formatTimeAgo(requestFixture('pending').created).fullDate);
+		await pending.unmount();
+
+		await renderMarketPage({ requests: [requestFixture('approved')] });
+		await openConnectorsTab();
+		await expect
+			.element(page.getByTestId('market-request-car1-1').getByText('已通过'))
+			.toBeVisible();
+	});
+
+	it('shows an empty state when the user has no connector requests', async () => {
+		await renderMarketPage();
+		await openConnectorsTab();
+
+		await expect.element(page.getByTestId('market-my-requests')).toBeVisible();
+		await expect.element(page.getByText(m.market_my_requests_empty())).toBeVisible();
 	});
 
 	it('shows rejected review comments and allows re-requesting', async () => {

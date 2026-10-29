@@ -19,6 +19,7 @@
 		sortMcpServers
 	} from '$lib/services/vmcps/utils';
 	import { mcpServersAndEntries, profile } from '$lib/stores';
+	import { formatTimeAgo } from '$lib/time';
 	import { goto, setUrlParamAndUpdateUrl } from '$lib/url';
 	import { Bot, CircleAlert, Lightbulb } from '@lucide/svelte';
 	import { onMount } from 'svelte';
@@ -97,6 +98,10 @@
 		return byConnector;
 	});
 
+	let myRequests = $derived(
+		[...requests].sort((left, right) => (right.created ?? '').localeCompare(left.created ?? ''))
+	);
+
 	/** Entry IDs the user already composed into a personal vMCP. */
 	let connectedEntryIDs = $derived.by(() => {
 		const connected = new SvelteSet<string>();
@@ -130,6 +135,37 @@
 				return { label: m.market_rejected(), tone: 'error' as const };
 			default:
 				return { label: m.market_not_connected(), tone: 'neutral' as const };
+		}
+	}
+
+	function requestConnectorName(request: ConnectorAccessRequest) {
+		const entry = allEntries.find((candidate) => candidate.id === request.manifest.connectorID);
+		return (
+			(entry ? catalogEntryDisplayName(entry) : '') ||
+			request.manifest.connectorName ||
+			request.manifest.connectorID
+		);
+	}
+
+	function requestStatusLabel(status: ConnectorAccessRequest['manifest']['status']) {
+		switch (status) {
+			case 'pending':
+				return m.market_request_pending();
+			case 'approved':
+				return m.market_request_approved();
+			default:
+				return m.market_rejected();
+		}
+	}
+
+	function requestStatusClass(status: ConnectorAccessRequest['manifest']['status']) {
+		switch (status) {
+			case 'pending':
+				return 'badge-warning';
+			case 'approved':
+				return 'badge-success';
+			default:
+				return 'badge-error';
 		}
 	}
 
@@ -199,9 +235,8 @@
 	}
 
 	async function connectConnector() {
-		const entry = selected?.entryID
-			? allEntries.find((item) => item.id === selected.entryID)
-			: undefined;
+		const entryID = selected?.entryID;
+		const entry = entryID ? allEntries.find((item) => item.id === entryID) : undefined;
 		if (!entry || connecting) return;
 
 		connecting = true;
@@ -320,6 +355,47 @@
 		</div>
 
 		{#if activeTab === 'connectors'}
+			<section
+				data-testid="market-my-requests"
+				aria-label={m.market_my_requests()}
+				class="bg-base-100 border-base-300 dark:bg-base-200 rounded-xl border p-4 shadow-sm"
+			>
+				<h2 class="text-sm font-semibold">{m.market_my_requests()}</h2>
+				{#if myRequests.length === 0}
+					<p class="text-muted-content mt-2 text-sm">
+						{m.market_my_requests_empty()}
+					</p>
+				{:else}
+					<ul class="mt-3 flex flex-col divide-y divide-base-200">
+						{#each myRequests as request (request.id)}
+							<li
+								data-testid={`market-request-${request.id}`}
+								class="flex flex-col gap-2 py-3 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+							>
+								<div class="min-w-0">
+									<p class="truncate text-sm font-medium">{requestConnectorName(request)}</p>
+									<p class="text-muted-content truncate text-xs">
+										{request.manifest.reason || m.market_request_no_reason()}
+									</p>
+								</div>
+								<div class="flex shrink-0 items-center gap-3">
+									<time
+										class="text-muted-content text-xs"
+										title={request.created ? formatTimeAgo(request.created).fullDate : undefined}
+									>
+										{#if request.created}
+											{formatTimeAgo(request.created).relativeTime}
+										{/if}
+									</time>
+									<span class="badge badge-sm {requestStatusClass(request.manifest.status)}">
+										{requestStatusLabel(request.manifest.status)}
+									</span>
+								</div>
+							</li>
+						{/each}
+					</ul>
+				{/if}
+			</section>
 			{#if mcpServersAndEntries.current.loading && allEntries.length === 0}
 				<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
 					{#each Array.from({ length: 6 }) as _, index (index)}
