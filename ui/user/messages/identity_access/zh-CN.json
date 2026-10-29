@@ -260,6 +260,7 @@
 	"identity_access_name_deleted": "{name}（已删除）",
 	"identity_access_roles_default_user_role": "默认用户角色",
 	"identity_access_roles_default_user_role_description": "设置所有新用户首次登录系统时的初始默认角色。可在“用户”页面中单独更改用户角色。",
+	"identity_access_roles_owner_auditor_note": "所有者与审计角色请在用户管理中单独设置。",
 	"identity_access_roles_power_user_plus_short": "高级用户+",
 	"identity_access_roles_tab": "角色",
 	"identity_access_scim_accepted_until": "接受至 {time}",

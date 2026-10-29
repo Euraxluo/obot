@@ -260,6 +260,7 @@
 	"identity_access_name_deleted": "{name} (삭제됨)",
 	"identity_access_roles_default_user_role": "기본 사용자 역할",
 	"identity_access_roles_default_user_role_description": "모든 신규 사용자가 처음 시스템에 로그인할 때 적용할 초기 기본 역할을 설정합니다. 사용자 역할은 \"사용자\" 페이지에서 개별적으로 변경할 수 있습니다.",
+	"identity_access_roles_owner_auditor_note": "소유자 및 감사자 역할은 사용자 관리에서 개별적으로 설정하세요.",
 	"identity_access_roles_power_user_plus_short": "파워 유저+",
 	"identity_access_roles_tab": "역할",
 	"identity_access_scim_accepted_until": "{time}까지 수락",

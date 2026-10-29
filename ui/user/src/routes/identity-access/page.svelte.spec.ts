@@ -2,6 +2,7 @@ import { replaceState } from '$app/navigation';
 import { page as appPage } from '$app/state';
 import { CommonAuthProviderIds, LOCAL_AUTH_MIN_PASSWORD_LENGTH } from '$lib/constants';
 import * as navigation from '$lib/navigation';
+import { setLocale } from '$lib/paraglide/runtime';
 import { Group } from '$lib/services';
 import type { AuthProvider } from '$lib/services/admin/types';
 import type { APIKey } from '$lib/services/api-keys/types';
@@ -250,6 +251,7 @@ async function configureGoogleProvider() {
 }
 
 beforeEach(() => {
+	setLocale('en', { reload: false });
 	vi.mocked(navigation.reloadPage).mockImplementation(() => {});
 });
 
@@ -415,6 +417,20 @@ describe('Identity & Access Page', () => {
 			await expect
 				.element(page.getByRole('button', { name: 'Create Agent Identity', exact: true }))
 				.not.toBeInTheDocument();
+		});
+	});
+
+	describe('roles tab', () => {
+		it('explains where Owner and Auditor roles are configured', async () => {
+			await renderIdentityAccessPage({ view: 'roles', groups: [Group.ADMIN] });
+
+			await expect
+				.element(
+					page.getByText('Set Owner and Auditor roles individually in User Management.', {
+						exact: true
+					})
+				)
+				.toBeVisible();
 		});
 	});
 

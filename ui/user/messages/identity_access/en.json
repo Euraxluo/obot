@@ -260,6 +260,7 @@
 	"identity_access_name_deleted": "{name} (Deleted)",
 	"identity_access_roles_default_user_role": "Default User Role",
 	"identity_access_roles_default_user_role_description": "Set the initial default role for all new users when they first log into the system. User roles can be changed individually from the \"Users\" page.",
+	"identity_access_roles_owner_auditor_note": "Set Owner and Auditor roles individually in User Management.",
 	"identity_access_roles_power_user_plus_short": "Power User+",
 	"identity_access_roles_tab": "Roles",
 	"identity_access_scim_accepted_until": "Accepted until {time}",

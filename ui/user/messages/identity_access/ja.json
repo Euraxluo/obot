@@ -260,6 +260,7 @@
 	"identity_access_name_deleted": "{name}（削除済み）",
 	"identity_access_roles_default_user_role": "デフォルトのユーザーロール",
 	"identity_access_roles_default_user_role_description": "すべての新規ユーザーが初めてシステムにログインしたときの初期デフォルトロールを設定します。ユーザーロールは「ユーザー」ページから個別に変更できます。",
+	"identity_access_roles_owner_auditor_note": "所有者ロールと監査ロールは、ユーザー管理で個別に設定してください。",
 	"identity_access_roles_power_user_plus_short": "パワーユーザー+",
 	"identity_access_roles_tab": "ロール",
 	"identity_access_scim_accepted_until": "{time} まで受け入れ",

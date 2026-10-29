@@ -45,6 +45,9 @@
 					<p class="text-muted-content text-sm font-light">
 						{m.identity_access_roles_default_user_role_description()}
 					</p>
+					<p class="text-muted-content text-sm font-light">
+						{m.identity_access_roles_owner_auditor_note()}
+					</p>
 
 					<div class="mt-4 flex flex-col gap-4">
 						{#each userRoleOptions as role (role.id)}
