@@ -365,15 +365,6 @@ func (h *Handler) createUser(w http.ResponseWriter, r *request) {
 		return
 	}
 
-	userLimit, err := h.env.UserLimit(r.Context())
-	if err != nil {
-		writeError(w, toError(fmt.Errorf("failed to resolve user limit: %w", err)))
-		return
-	}
-	if !userLimit.Unlimited && userLimit.Maximum <= 0 {
-		writeError(w, toError(fmt.Errorf("invalid user limit %d", userLimit.Maximum)))
-		return
-	}
 	defaultRole, err := h.env.DefaultRole(r.Context())
 	if err != nil {
 		writeError(w, toError(fmt.Errorf("failed to get default role: %w", err)))
@@ -381,7 +372,7 @@ func (h *Handler) createUser(w http.ResponseWriter, r *request) {
 	}
 
 	user, err := h.gateway.CreateSCIMUser(r.Context(), r.conn.SCIMConnection, input, gclient.SCIMUserCreateOptions{
-		UserLimit:   userLimit,
+		UserLimit:   gclient.UserLimit{Unlimited: true},
 		DefaultRole: defaultRole,
 	})
 	if err != nil {

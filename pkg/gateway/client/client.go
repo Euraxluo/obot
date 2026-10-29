@@ -23,14 +23,6 @@ const (
 
 	defaultDeviceScanCleanupInterval = 24 * time.Hour
 	defaultDeviceScanDeleteBatchSize = 100
-
-	// DefaultUserLimit is the maximum number of users allowed when no
-	// license-derived user-limit provider is configured.
-	DefaultUserLimit = 100
-
-	// DefaultDeviceLimit is the maximum number of devices allowed when no
-	// license-derived device-limit provider is configured.
-	DefaultDeviceLimit = 100
 )
 
 type Client struct {

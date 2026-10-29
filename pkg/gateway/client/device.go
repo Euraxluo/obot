@@ -5,17 +5,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
-	apitypes "github.com/obot-platform/obot/apiclient/types"
 	"github.com/obot-platform/obot/pkg/gateway/types"
 	"gorm.io/gorm"
 )
 
-const (
-	deviceCreationAdvisoryLockID int64 = 0x6f626f7444657669 // "obotDevi"
-)
+const ()
 
 // DeviceLimit describes the maximum number of devices an installation may have.
 // Maximum is ignored when Unlimited is true.
@@ -46,23 +42,6 @@ type DeviceEnrollment struct {
 //   - same device, different key  -> rejected (anti-takeover)
 //   - new device                  -> created
 func (c *Client) EnrollDevice(ctx context.Context, in DeviceEnrollment, deviceLimit DeviceLimit) (*types.Device, error) {
-	if !deviceLimit.Unlimited {
-		var existing types.Device
-		err := c.db.WithContext(ctx).Where("device_id = ?", in.DeviceID).First(&existing).Error
-		switch {
-		case err == nil:
-			return c.enrollDevice(ctx, in, deviceLimit)
-		case errors.Is(err, gorm.ErrRecordNotFound):
-			// SQLite transactions are deferred, and this flow does not write
-			// before counting devices. Serialize local allocations so concurrent
-			// count-and-create operations cannot both claim the same seat.
-			c.deviceCreationLock.Lock()
-			defer c.deviceCreationLock.Unlock()
-		default:
-			return nil, err
-		}
-	}
-
 	return c.enrollDevice(ctx, in, deviceLimit)
 }
 
@@ -82,37 +61,6 @@ func (c *Client) enrollDevice(ctx context.Context, in DeviceEnrollment, deviceLi
 			device = existing
 			return nil
 		case errors.Is(err, gorm.ErrRecordNotFound):
-			if !deviceLimit.Unlimited {
-				if err := lockDeviceCreation(tx); err != nil {
-					return err
-				}
-
-				// Another PostgreSQL replica may have enrolled this DeviceID
-				// while this transaction waited for the advisory lock.
-				err = tx.Where("device_id = ?", in.DeviceID).First(&existing).Error
-				switch {
-				case err == nil:
-					if !bytes.Equal(existing.PublicKey, in.PublicKey) {
-						return fmt.Errorf("device %q is already enrolled with a different identity key", in.DeviceID)
-					}
-					if err := updateEnrolledDevice(tx, &existing, in); err != nil {
-						return err
-					}
-					device = existing
-					return nil
-				case !errors.Is(err, gorm.ErrRecordNotFound):
-					return err
-				}
-
-				deviceCount, err := countDevices(tx)
-				if err != nil {
-					return fmt.Errorf("failed to count devices: %w", err)
-				}
-				if deviceCount >= deviceLimit.Maximum {
-					return newDeviceLimitError()
-				}
-			}
-
 			device = types.Device{
 				DeviceID:           in.DeviceID,
 				MDMConfigurationID: in.MDMConfigurationID,
@@ -156,22 +104,6 @@ func countDevices(tx *gorm.DB) (int64, error) {
 	var count int64
 	err := tx.Model(new(types.Device)).Count(&count).Error
 	return count, err
-}
-
-func lockDeviceCreation(tx *gorm.DB) error {
-	if tx.Name() == "postgres" {
-		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", deviceCreationAdvisoryLockID).Error; err != nil {
-			return fmt.Errorf("failed to lock device creation: %w", err)
-		}
-	}
-	return nil
-}
-
-func newDeviceLimitError() error {
-	return apitypes.NewErrHTTP(
-		http.StatusForbidden,
-		"Unable to enroll your device. Please contact your administrator.",
-	)
 }
 
 // DeviceCount returns the total number of enrolled devices.

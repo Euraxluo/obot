@@ -22,22 +22,21 @@ type UserLimit struct {
 	Unlimited bool
 }
 
-// UserLimitProvider resolves the current license-derived user limit.
+// UserLimitProvider is retained for compatibility with callers that have not
+// yet dropped the old license wiring. Internal editions do not enforce it.
 type UserLimitProvider interface {
 	UserLimit(context.Context) (UserLimit, error)
 }
 
 type UserDecorator struct {
-	next              authenticator.Request
-	client            *Client
-	userLimitProvider UserLimitProvider
+	next   authenticator.Request
+	client *Client
 }
 
-func NewUserDecorator(next authenticator.Request, client *Client, userLimitProvider UserLimitProvider) *UserDecorator {
+func NewUserDecorator(next authenticator.Request, client *Client, _ UserLimitProvider) *UserDecorator {
 	return &UserDecorator{
-		next:              next,
-		client:            client,
-		userLimitProvider: userLimitProvider,
+		next:   next,
+		client: client,
 	}
 }
 
@@ -62,12 +61,7 @@ func (u UserDecorator) AuthenticateRequest(req *http.Request) (*authenticator.Re
 			ProviderUserID:        resp.User.GetUID(),
 		}
 
-		userLimit, err := u.resolveUserLimit(req.Context())
-		if err != nil {
-			return nil, false, err
-		}
-
-		gatewayUser, err = u.client.EnsureIdentity(req.Context(), identity, req.Header.Get("X-Obot-User-Timezone"), userLimit)
+		gatewayUser, err = u.client.EnsureIdentity(req.Context(), identity, req.Header.Get("X-Obot-User-Timezone"), UserLimit{Unlimited: true})
 		if err != nil {
 			if _, ok := errors.AsType[*types2.ErrHTTP](err); ok {
 				return nil, false, err
@@ -113,17 +107,4 @@ func (u UserDecorator) AuthenticateRequest(req *http.Request) (*authenticator.Re
 		Groups: effectiveRole.Groups(),
 	}
 	return resp, true, nil
-}
-
-func (u UserDecorator) resolveUserLimit(ctx context.Context) (UserLimit, error) {
-	userLimit, err := u.userLimitProvider.UserLimit(ctx)
-	if err != nil {
-		return UserLimit{}, fmt.Errorf("failed to resolve user limit: %w", err)
-	}
-
-	if !userLimit.Unlimited && userLimit.Maximum <= 0 {
-		return UserLimit{}, fmt.Errorf("invalid user limit %d", userLimit.Maximum)
-	}
-
-	return userLimit, nil
 }

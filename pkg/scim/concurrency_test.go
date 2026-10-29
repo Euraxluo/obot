@@ -189,35 +189,6 @@ func testConcurrencyAndRetries(t *testing.T, s *scimTest) {
 		}
 	})
 
-	t.Run("seat-limit contention admits exactly the free seats", func(t *testing.T) {
-		users := s.count(new(types.User), "deleted_at IS NULL")
-		s.env.userLimit = gclient.UserLimit{
-			Maximum: users + 2,
-		}
-		defer func() {
-			s.env.userLimit = gclient.UserLimit{
-				Unlimited: true,
-			}
-		}()
-
-		statuses := s.concurrently(func(i int) (string, string, any) {
-			return http.MethodPost, "Users", scimUser(fmt.Sprintf("seat%d@example.com", i), fmt.Sprintf("00u-seat-%d", i))
-		})
-		var created, refused int
-		for _, status := range statuses {
-			switch status {
-			case http.StatusCreated:
-				created++
-			case http.StatusForbidden:
-				refused++
-			default:
-				t.Fatalf("statuses = %v", statuses)
-			}
-		}
-		if created != 2 || refused != concurrentRequests-2 {
-			t.Fatalf("created %d and refused %d, want 2 and %d", created, refused, concurrentRequests-2)
-		}
-	})
 }
 
 // concurrently sends one request per index at the same time and returns their statuses.

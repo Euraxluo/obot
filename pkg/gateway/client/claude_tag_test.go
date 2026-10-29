@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -123,27 +122,6 @@ func TestClaudeTagUsersAreManagedByEnvironment(t *testing.T) {
 	require.Equal(t, api.RoleBasic, user.Role)
 	require.True(t, user.Internal)
 	require.NoError(t, c.EnsureClaudeTagUser(ctx, environment))
-}
-
-func TestClaudeTagUsersDoNotConsumeSeats(t *testing.T) {
-	c := newIdentityUserLimitTestClient(t)
-	ctx := t.Context()
-	environment := &types.ClaudeEnvironment{ID: "env", EnvironmentID: "ccpool_test"}
-	require.NoError(t, c.SaveClaudeEnvironment(ctx, environment, nil))
-	require.NoError(t, c.EnsureClaudeTagUser(ctx, environment))
-
-	user, err := ensureUserLimitTestIdentity(ctx, c, "human", "human@example.com", UserLimit{Maximum: 1})
-	require.NoError(t, err)
-	// Marking a human internal must not bypass seat limits.
-	require.NoError(t, c.UpdateUserInternalStatus(ctx, fmt.Sprint(user.ID), true))
-	count, err := c.UserCount(ctx)
-	require.NoError(t, err)
-	require.EqualValues(t, 1, count)
-	count, err = countUsersTowardLimit(c.db.WithContext(ctx))
-	require.NoError(t, err)
-	require.EqualValues(t, 1, count)
-	_, err = ensureUserLimitTestIdentity(ctx, c, "other", "other@example.com", UserLimit{Maximum: 1})
-	requireIdentityUserLimitForbiddenError(t, err)
 }
 
 func TestClaudeTagGuardRejectsMalformedUserID(t *testing.T) {

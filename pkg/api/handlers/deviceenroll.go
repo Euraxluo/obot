@@ -6,7 +6,6 @@ import (
 	"crypto/elliptic"
 	"crypto/x509"
 	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
@@ -65,14 +64,6 @@ func (h *DeviceEnrollHandler) Enroll(req api.Context) error {
 		return types.NewErrBadRequest("unsupported public key type %T: publicKey must be an ECDSA P-256/P-384/P-521 or Ed25519 key", pub)
 	}
 
-	deviceLimit, err := h.deviceLimitProvider.DeviceLimit(req.Context())
-	if err != nil {
-		return fmt.Errorf("failed to resolve device limit: %w", err)
-	}
-	if !deviceLimit.Unlimited && deviceLimit.Maximum <= 0 {
-		return fmt.Errorf("invalid device limit %d", deviceLimit.Maximum)
-	}
-
 	device, err := req.GatewayClient.EnrollDevice(req.Context(), gateway.DeviceEnrollment{
 		DeviceID:           in.DeviceID,
 		MDMConfigurationID: configurationID,
@@ -80,7 +71,7 @@ func (h *DeviceEnrollHandler) Enroll(req api.Context) error {
 		Hostname:           in.Hostname,
 		OS:                 in.OS,
 		OSVersion:          in.OSVersion,
-	}, deviceLimit)
+	}, gateway.DeviceLimit{Unlimited: true})
 	if err != nil {
 		if httpErr, ok := errors.AsType[*types.ErrHTTP](err); ok {
 			return httpErr

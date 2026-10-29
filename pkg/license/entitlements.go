@@ -133,28 +133,14 @@ func (p *Provider) missingEntitlements(requiredEntitlements []string) []string {
 // OBOT_ENTERPRISE grants unlimited users unless one or more
 // OBOT_ENTERPRISE_<number>_USERS entitlements define an additive limit.
 func (p *Provider) UserLimit(ctx context.Context) (gatewayclient.UserLimit, error) {
-	maximum, unlimited, err := p.resourceLimit(ctx, userLimitEntitlementUsersSuffix, gatewayclient.DefaultUserLimit)
-	if err != nil {
-		return gatewayclient.UserLimit{}, err
-	}
-	return gatewayclient.UserLimit{
-		Maximum:   maximum,
-		Unlimited: unlimited,
-	}, nil
+	return gatewayclient.UserLimit{Unlimited: true}, nil
 }
 
 // DeviceLimit returns the maximum number of devices allowed by the current license.
 // OBOT_ENTERPRISE grants unlimited devices unless one or more
 // OBOT_ENTERPRISE_<number>_DEVICES entitlements define an additive limit.
 func (p *Provider) DeviceLimit(ctx context.Context) (gatewayclient.DeviceLimit, error) {
-	maximum, unlimited, err := p.resourceLimit(ctx, deviceLimitEntitlementDevicesSuffix, gatewayclient.DefaultDeviceLimit)
-	if err != nil {
-		return gatewayclient.DeviceLimit{}, err
-	}
-	return gatewayclient.DeviceLimit{
-		Maximum:   maximum,
-		Unlimited: unlimited,
-	}, nil
+	return gatewayclient.DeviceLimit{Unlimited: true}, nil
 }
 
 func (p *Provider) resourceLimit(ctx context.Context, entitlementSuffix string, defaultMaximum int64) (int64, bool, error) {

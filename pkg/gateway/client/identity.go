@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"slices"
 	"time"
 
@@ -22,10 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/storage/value"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-const (
-	userCreationAdvisoryLockID int64 = 0x6f626f7455736572 // "obotUser"
 )
 
 var (
@@ -620,53 +615,8 @@ func (c *Client) ensureIdentityUser(ctx context.Context, tx *gorm.DB, mode *scim
 }
 
 func (c *Client) createUser(tx *gorm.DB, user *types.User, userLimit UserLimit) error {
-	if userLimit.Unlimited {
-		return tx.Create(user).Error
-	}
-
-	if err := lockUserCreation(tx); err != nil {
-		return err
-	}
-
-	userCount, err := countUsersTowardLimit(tx)
-	if err != nil {
-		return fmt.Errorf("failed to count users: %w", err)
-	}
-	if userCount >= userLimit.Maximum {
-		return newUserLimitError()
-	}
-
+	// Internal editions do not enforce license-derived user quotas.
 	return tx.Create(user).Error
-}
-
-func countUsersTowardLimit(tx *gorm.DB) (int64, error) {
-	var userCount int64
-	err := tx.Model(new(types.User)).
-		Where("deleted_at IS NULL").
-		Where("hashed_username != ?", hash.String(system.BootstrapName)).
-		Where("CAST(users.id AS TEXT) NOT IN (?)", tx.Model(&types.ClaudeEnvironment{}).
-			Select("claude_tag_user_id").Where("claude_tag_user_id <> ''")).
-		Count(&userCount).Error
-	return userCount, err
-}
-
-func lockUserCreation(tx *gorm.DB) error {
-	// PostgreSQL installations may have multiple Obot replicas, so serialize
-	// all operations that allocate user seats across them. SQLite operations
-	// acquire its write lock before calling this helper.
-	if tx.Name() == "postgres" {
-		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", userCreationAdvisoryLockID).Error; err != nil {
-			return fmt.Errorf("failed to lock user creation: %w", err)
-		}
-	}
-	return nil
-}
-
-func newUserLimitError() error {
-	return types2.NewErrHTTP(
-		http.StatusForbidden,
-		"Unable to provision your account. Please contact your administrator.",
-	)
 }
 
 // ensureIdentityProviderData fetches auth-provider data (the provider-native group lookup ID and
