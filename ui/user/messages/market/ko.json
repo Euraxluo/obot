@@ -17,6 +17,7 @@
 	"market_not_connected": "연결 안 됨",
 	"market_request_reason_label": "신청 사유(선택)",
 	"market_request_failed": "제출 실패",
+	"market_connect_failed": "커넥터를 열지 못했습니다",
 	"market_rejected_reason": "거부 사유",
 	"market_close": "닫기",
 	"market_untitled_connector": "제목 없는 커넥터",

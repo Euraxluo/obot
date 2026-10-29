@@ -17,6 +17,7 @@
 	"market_not_connected": "Not connected",
 	"market_request_reason_label": "Reason (optional)",
 	"market_request_failed": "Failed to submit",
+	"market_connect_failed": "Failed to open the connector",
 	"market_rejected_reason": "Rejection reason",
 	"market_close": "Close",
 	"market_untitled_connector": "Untitled connector",

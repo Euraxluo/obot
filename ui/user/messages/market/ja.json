@@ -17,6 +17,7 @@
 	"market_not_connected": "未接続",
 	"market_request_reason_label": "申請理由（任意）",
 	"market_request_failed": "送信に失敗しました",
+	"market_connect_failed": "コネクタを開けませんでした",
 	"market_rejected_reason": "却下理由",
 	"market_close": "閉じる",
 	"market_untitled_connector": "無題のコネクタ",

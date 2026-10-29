@@ -202,4 +202,38 @@ describe('market page', () => {
 		await expect.element(card).toBeVisible();
 		await expect.element(card.getByText(m.market_connected())).toBeVisible();
 	});
+
+	it('creates an approved connector and opens the harness dialog in place', async () => {
+		const profile = createMockProfile([Group.USER]);
+		const created = createVMCP(
+			{
+				id: 'vmcp1market',
+				displayName: 'Marketplace Connector',
+				userID: profile.id
+			},
+			[connectorEntry]
+		);
+		const create = vi.fn();
+		worker.use(
+			http.post('/api/vmcps', async ({ request }) => {
+				create(await request.json());
+				return HttpResponse.json(created, { status: 201 });
+			}),
+			http.get('/api/vmcps/vmcp1market', () => HttpResponse.json(created))
+		);
+
+		await renderMarketPage({ profile, requests: [requestFixture('approved')] });
+		await openConnectorsTab();
+		await page.getByTestId(`market-connector-${connectorEntry.id}`).click();
+		await page.getByRole('button', { name: m.market_connect() }).click();
+
+		await expect.poll(() => create).toHaveBeenCalledTimes(1);
+		expect(create).toHaveBeenCalledWith(
+			expect.objectContaining({
+				components: [expect.objectContaining({ mcpServerCatalogEntryID: connectorEntry.id })]
+			})
+		);
+		await expect.element(page.getByCSS('#connect-to-vmcp-dialog')).toBeVisible();
+		await expect.element(page.getByText(m.vmcps_connection_url())).toBeVisible();
+	});
 });

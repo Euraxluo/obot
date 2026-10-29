@@ -17,6 +17,7 @@
 	"market_not_connected": "未连接",
 	"market_request_reason_label": "申请说明（可选）",
 	"market_request_failed": "提交失败",
+	"market_connect_failed": "打开连接器失败",
 	"market_rejected_reason": "驳回原因",
 	"market_close": "关闭",
 	"market_untitled_connector": "未命名连接器",

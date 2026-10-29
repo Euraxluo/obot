@@ -6,11 +6,13 @@
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import MarketItemCard from '$lib/components/market/MarketItemCard.svelte';
 	import MarketplaceGrid from '$lib/components/marketplace/MarketplaceGrid.svelte';
+	import ConnectVMcp from '$lib/components/vmcps/ConnectVMcp.svelte';
 	import McpServerIcon from '$lib/components/vmcps/McpServerIcon.svelte';
 	import { m } from '$lib/i18n';
 	import { toHTMLFromMarkdownWithNewTabLinks } from '$lib/markdown';
 	import { UserService, type ConnectorAccessRequest, type Skill } from '$lib/services';
 	import {
+		catalogEntryToVMCPComponent,
 		catalogEntryDisplayName,
 		entryCategories,
 		matchesQuery,
@@ -44,6 +46,8 @@
 	let reasonText = $state('');
 	let submitting = $state(false);
 	let submitError = $state('');
+	let connecting = $state(false);
+	let connectDialog = $state<ReturnType<typeof ConnectVMcp>>();
 
 	onMount(() => {
 		if (!mcpServersAndEntries.current.isInitialized) {
@@ -194,10 +198,42 @@
 		}
 	}
 
-	function connectConnector() {
-		if (!selected?.entryID) return;
-		closeDetail();
-		goto(`/vmcps?new=true&entry=${encodeURIComponent(selected.entryID)}`);
+	async function connectConnector() {
+		const entry = selected?.entryID
+			? allEntries.find((item) => item.id === selected.entryID)
+			: undefined;
+		if (!entry || connecting) return;
+
+		connecting = true;
+		submitError = '';
+		try {
+			const existing = data.vmcps.find(
+				(vmcp) =>
+					vmcp.userID === profile.current.id &&
+					vmcp.components?.some((component) => component.mcpServerCatalogEntryID === entry.id)
+			);
+			const source =
+				existing ??
+				(await UserService.createVMCP({
+					displayName: catalogEntryDisplayName(entry) || entry.id,
+					description: entry.manifest.description || entry.manifest.shortDescription || '',
+					toolSearch: false,
+					components: [catalogEntryToVMCPComponent(entry)]
+				}));
+			// Re-read the reconciled vMCP so a connector that became ready after creation
+			// immediately renders the harness instructions rather than a stale setup state.
+			const target = await UserService.getVMCP(source.id);
+			if (!existing) {
+				data = { ...data, vmcps: [...data.vmcps, target] };
+			}
+
+			closeDetail();
+			connectDialog?.open(target);
+		} catch {
+			submitError = m.market_connect_failed();
+		} finally {
+			connecting = false;
+		}
 	}
 
 	function openVmcps() {
@@ -419,7 +455,8 @@
 						<button
 							type="button"
 							class="btn btn-primary btn-sm w-full rounded-lg"
-							onclick={connectConnector}
+							disabled={connecting}
+							onclick={() => void connectConnector()}
 						>
 							{m.market_connect()}
 						</button>
@@ -461,3 +498,5 @@
 		></button>
 	</div>
 {/if}
+
+<ConnectVMcp bind:this={connectDialog} />
