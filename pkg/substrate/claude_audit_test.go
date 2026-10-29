@@ -50,7 +50,7 @@ func (c *auditControl) CreateActorEgressPolicy(_ context.Context, r *pb.CreateAc
 func TestClaudeAuditTrustAndPolicy(t *testing.T) {
 	control := &auditControl{}
 	client := &Client{Control: control, Config: Config{ObotURL: "http://obot.obot.svc:8080"}}
-	inst := &v1.AgentInstance{Spec: v1.AgentInstanceSpec{UserID: "7", ClaudeEnvironment: "env", ClaudeRuntime: `{"image":"runner@sha256:abc","egressHosts":["*.github.com"],"llmProxy":true,"managedSettings":{"permissions":{"deny":["Read(./secret)"]}}}`}}
+	inst := &v1.AgentInstance{Spec: v1.AgentInstanceSpec{UserID: "7", ClaudeEnvironment: "env", ClaudeRuntime: `{"image":"runner@sha256:abc","egressHosts":["*.github.com"],"managedSettings":{"permissions":{"deny":["Read(./secret)"]}}}`}}
 	inst.Name = "acr-test"
 	_, err := client.EnsureClaude(t.Context(), inst, map[string]string{"token": "token", "workOrder": "order"}, []string{"*.github.com"}, false, nil)
 	require.NoError(t, err)
@@ -77,17 +77,12 @@ func TestClaudeAuditTrustAndPolicy(t *testing.T) {
 	require.NotContains(t, env, "NODE_TLS_REJECT_UNAUTHORIZED")
 	require.JSONEq(t, `{"permissions":{"deny":["Read(./secret)"]}}`, env["OBOT_CLAUDE_MANAGED_SETTINGS"])
 
-	// The runner holds only a placeholder; egress replaces it with the session's LLM key.
-	require.Equal(t, "http://obot.obot.svc:8080/api/llm-proxy", env["OBOT_ANTHROPIC_BASE_URL"])
-	require.NotContains(t, env, "ANTHROPIC_BASE_URL", "the self-hosted runner would only overwrite it")
-	require.Equal(t, "X-Obot-Api-Key: "+llmKeyPlaceholder, env["ANTHROPIC_CUSTOM_HEADERS"])
 	replaced := map[string]string{}
 	for _, header := range control.policy.Rules[0].Http.Effects.ReplaceHeaders {
 		replaced[header.Header] = header.Prefix + header.CredentialUri
 	}
 	require.Equal(t, map[string]string{
 		"X-Obot-Egress-Key": "Bearer ate-secret://obot/claude/acr-test",
-		"X-Obot-Api-Key":    "ate-secret://obot/claude/acr-test/llm",
 	}, replaced)
 }
 

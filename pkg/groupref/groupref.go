@@ -16,9 +16,7 @@ import (
 
 const (
 	KindAccessControlRule   Kind = "accessControlRule"
-	KindModelAccessPolicy   Kind = "modelAccessPolicy"
 	KindSkillAccessRule     Kind = "skillAccessRule"
-	KindMessagePolicy       Kind = "messagePolicy"
 	KindGroupRoleAssignment Kind = "groupRoleAssignment"
 	KindVMCPProfile         Kind = "vmcpProfile"
 	KindMCPGuardrailFilter  Kind = "mcpGuardrailFilter"
@@ -32,16 +30,8 @@ var (
 			list: listAccessControlRules,
 		},
 		{
-			kind: KindModelAccessPolicy,
-			list: listModelAccessPolicies,
-		},
-		{
 			kind: KindSkillAccessRule,
 			list: listSkillAccessRules,
-		},
-		{
-			kind: KindMessagePolicy,
-			list: listMessagePolicies,
 		},
 	}
 )
@@ -309,20 +299,6 @@ func listAccessControlRules(ctx context.Context, c kclient.Reader, namespace str
 	}), nil
 }
 
-func listModelAccessPolicies(ctx context.Context, c kclient.Reader, namespace string) ([]policyObject, error) {
-	var list v1.ModelAccessPolicyList
-	if err := c.List(ctx, &list, kclient.InNamespace(namespace)); err != nil {
-		return nil, fmt.Errorf("failed to list model access policies: %w", err)
-	}
-	return policyObjects(list.Items, func(policy *v1.ModelAccessPolicy) (string, []subjectList) {
-		return policy.Spec.Manifest.DisplayName, []subjectList{
-			{
-				subjects: &policy.Spec.Manifest.Subjects,
-			},
-		}
-	}), nil
-}
-
 func listSkillAccessRules(ctx context.Context, c kclient.Reader, namespace string) ([]policyObject, error) {
 	var list v1.SkillAccessRuleList
 	if err := c.List(ctx, &list, kclient.InNamespace(namespace)); err != nil {
@@ -332,20 +308,6 @@ func listSkillAccessRules(ctx context.Context, c kclient.Reader, namespace strin
 		return rule.Spec.Manifest.DisplayName, []subjectList{
 			{
 				subjects: &rule.Spec.Manifest.Subjects,
-			},
-		}
-	}), nil
-}
-
-func listMessagePolicies(ctx context.Context, c kclient.Reader, namespace string) ([]policyObject, error) {
-	var list v1.MessagePolicyList
-	if err := c.List(ctx, &list, kclient.InNamespace(namespace)); err != nil {
-		return nil, fmt.Errorf("failed to list message policies: %w", err)
-	}
-	return policyObjects(list.Items, func(policy *v1.MessagePolicy) (string, []subjectList) {
-		return policy.Spec.Manifest.DisplayName, []subjectList{
-			{
-				subjects: &policy.Spec.Manifest.Subjects,
 			},
 		}
 	}), nil

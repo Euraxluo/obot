@@ -8,11 +8,11 @@ import (
 
 func TestEnsureCredentialKeepsTheFirst(t *testing.T) {
 	c := newTestClient(t)
-	first, err := c.EnsureCredential(t.Context(), types.Credential{Context: "llm-gateway", Name: "encryption-key", Secrets: map[string]string{"key": "a"}})
+	first, err := c.EnsureCredential(t.Context(), types.Credential{Context: "auth-provider", Name: "encryption-key", Secrets: map[string]string{"key": "a"}})
 	if err != nil {
 		t.Fatal(err)
 	}
-	second, err := c.EnsureCredential(t.Context(), types.Credential{Context: "llm-gateway", Name: "encryption-key", Secrets: map[string]string{"key": "b"}})
+	second, err := c.EnsureCredential(t.Context(), types.Credential{Context: "auth-provider", Name: "encryption-key", Secrets: map[string]string{"key": "b"}})
 	if err != nil {
 		t.Fatal(err)
 	}

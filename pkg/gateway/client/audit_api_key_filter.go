@@ -22,25 +22,6 @@ type auditLogAPIKeyOptionRow struct {
 	Revoked    bool
 }
 
-func (c *Client) enrichLLMAuditLogAPIKeyRevocation(ctx context.Context, logs []types.LLMAuditLog) error {
-	ids := make([]uint, 0, len(logs))
-	for _, log := range logs {
-		if log.APIKeyID != nil {
-			ids = append(ids, *log.APIKeyID)
-		}
-	}
-	revoked, err := c.revokedAPIKeyIDs(ctx, ids)
-	if err != nil {
-		return err
-	}
-	for i := range logs {
-		if logs[i].APIKeyID != nil {
-			_, logs[i].APIKeyRevoked = revoked[*logs[i].APIKeyID]
-		}
-	}
-	return nil
-}
-
 func (c *Client) enrichMCPAuditLogAPIKeyRevocation(ctx context.Context, logs []types.MCPAuditLog) error {
 	ids := make([]uint, 0, len(logs))
 	for _, log := range logs {
@@ -108,14 +89,6 @@ func (c *Client) GetMCPAuditLogAPIKeyFilterOptions(ctx context.Context, opts MCP
 	}
 	db = applyUnifiedAuditLogFilters(db, opts)
 
-	return c.scanAuditLogAPIKeyFilterOptions(ctx, db, opts.Limit)
-}
-
-// GetLLMAuditLogAPIKeyFilterOptions returns the API keys present in the
-// currently filtered LLM audit-log result set.
-func (c *Client) GetLLMAuditLogAPIKeyFilterOptions(ctx context.Context, opts LLMAuditLogOptions) ([]apitypes.AuditLogAPIKeyFilterOption, error) {
-	db := c.db.WithContext(ctx).Model(&types.LLMAuditLog{})
-	db = applyLLMAuditLogOptions(db, opts)
 	return c.scanAuditLogAPIKeyFilterOptions(ctx, db, opts.Limit)
 }
 

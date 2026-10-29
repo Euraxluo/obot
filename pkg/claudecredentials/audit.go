@@ -17,7 +17,6 @@ import (
 	typev3 "github.com/envoyproxy/go-control-plane/envoy/type/v3"
 	"github.com/obot-platform/obot/pkg/clauderunner"
 	"github.com/obot-platform/obot/pkg/gateway/types"
-	"github.com/obot-platform/obot/pkg/llm"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	"github.com/obot-platform/obot/pkg/substrate"
 	"github.com/obot-platform/obot/pkg/system"
@@ -308,14 +307,7 @@ func redactPath(path string) string {
 // The following Substrate filter replaces existing headers, so supply placeholders
 // here before policy enforcement. Secret values never enter the audit stream.
 func (p *AuditProcessor) secretPlaceholders(ctx context.Context, entry *types.EgressAuditLog) (*ext.HeaderMutation, error) {
-	if entry.Scheme == "http" && llm.IsProxyPath(entry.Path) && obotAuthority(p.Provider.ObotURL, entry.Host) {
-		// Claude adds its custom headers to model requests but not to Files API requests, so
-		// every LLM proxy request gets the placeholder egress replaces with the session's LLM key.
-		return &ext.HeaderMutation{SetHeaders: []*core.HeaderValueOption{{
-			Header:       &core.HeaderValue{Key: "x-obot-api-key", RawValue: []byte("obot-egress-placeholder")},
-			AppendAction: core.HeaderValueOption_OVERWRITE_IF_EXISTS_OR_ADD,
-		}}}, nil
-	}
+
 	if entry.Scheme != "https" {
 		return nil, nil
 	}

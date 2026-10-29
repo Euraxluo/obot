@@ -15,43 +15,6 @@ import (
 	"gorm.io/gorm"
 )
 
-func TestClaudeLLMCredential(t *testing.T) {
-	c := newTestClient(t)
-	ctx := t.Context()
-	user := types.User{Username: "claude", HashedUsername: "claude", Email: "claude@example.com"}
-	require.NoError(t, c.db.WithContext(ctx).Create(&user).Error)
-
-	mcp, err := c.EnsureClaudeCredential(ctx, user.ID, "acr-test", []string{"vmcp_test"}, time.Now().Add(24*time.Hour))
-	require.NoError(t, err)
-	llm, err := c.EnsureClaudeLLMCredential(ctx, user.ID, "acr-test", time.Now().Add(24*time.Hour))
-	require.NoError(t, err)
-	require.Equal(t, ClaudeLLMCredentialContext, llm.Context)
-	require.NotEqual(t, mcp.Secrets["keyID"], llm.Secrets["keyID"], "the session's keys are separate")
-	key, err := c.ValidateAPIKey(ctx, llm.Secrets["key"])
-	require.NoError(t, err)
-	require.Equal(t, user.ID, key.UserID)
-	require.Equal(t, types.APIKeyScopes{CanAccessLLMProxy: true}, key.APIKeyScopes)
-	require.True(t, key.ClaudeEnvironment)
-
-	// A revoked LLM key stays as the session's revocation marker through retention cleanup.
-	require.NoError(t, c.RevokeClaudeCredentials(ctx, "acr-test"))
-	_, err = c.ValidateAPIKey(ctx, llm.Secrets["key"])
-	require.ErrorIs(t, err, ErrInvalidAPIKey)
-	require.NoError(t, c.db.WithContext(ctx).Model(&types.APIKey{}).Where("id = ?", key.ID).Update("expires_at", time.Now().Add(-time.Minute)).Error)
-	require.NoError(t, c.cleanupRetainedData(ctx, time.Now(), 0, 0))
-	require.NoError(t, c.deleteOldRevokedAPIKeys(ctx, time.Now().AddDate(0, 0, 100), 90))
-	_, err = c.GetAPIKeyByID(ctx, key.ID)
-	require.NoError(t, err)
-	_, err = c.EnsureClaudeLLMCredential(ctx, user.ID, "acr-test", time.Now().Add(24*time.Hour))
-	require.ErrorIs(t, err, ErrClaudeCredentialRevoked)
-
-	_, err = c.DeleteCredential(ctx, ClaudeLLMCredentialContext, "acr-test")
-	require.NoError(t, err)
-	require.NoError(t, c.cleanupRetainedData(ctx, time.Now(), 0, 0))
-	_, err = c.GetAPIKeyByID(ctx, key.ID)
-	require.Error(t, err)
-}
-
 // newProvisionLockTestClient returns a client whose database has a pool of poolSize
 // connections. It counts the provisioning locks taken in locks.
 func newProvisionLockTestClient(t *testing.T, poolSize int, locks *atomic.Int64) *Client {
@@ -146,19 +109,19 @@ func TestCurrentClaudeCredentialDuringRotation(t *testing.T) {
 	user := types.User{Username: "claude", HashedUsername: "claude", Email: "claude@example.com"}
 	require.NoError(t, c.db.WithContext(ctx).Create(&user).Error)
 	// The key expires too soon to reuse, so the next issue rotates it.
-	old, err := c.EnsureClaudeLLMCredential(ctx, user.ID, "acr-test", time.Now().Add(20*time.Second))
+	old, err := c.EnsureClaudeCredential(ctx, user.ID, "acr-test", []string{"mcp"}, time.Now().Add(20*time.Second))
 	require.NoError(t, err)
 
 	var rotate atomic.Bool
 	var rotated types.Credential
 	require.NoError(t, c.db.WithContext(ctx).Callback().Query().Before("gorm:query").Register("test_rotate", func(tx *gorm.DB) {
 		if tx.Statement.Table == "api_keys" && rotate.CompareAndSwap(true, false) {
-			rotated, err = c.EnsureClaudeLLMCredential(ctx, user.ID, "acr-test", time.Now().Add(5*time.Minute))
+			rotated, err = c.EnsureClaudeCredential(ctx, user.ID, "acr-test", []string{"mcp"}, time.Now().Add(5*time.Minute))
 			require.NoError(t, err)
 		}
 	}))
 	rotate.Store(true)
-	credential, ok, err := c.CurrentClaudeLLMCredential(ctx, user.ID, "acr-test", time.Now().Add(5*time.Minute))
+	credential, ok, err := c.CurrentClaudeCredential(ctx, user.ID, "acr-test", []string{"mcp"}, time.Now().Add(5*time.Minute))
 	require.NoError(t, err, "a rotation is not a revocation")
 	require.False(t, ok, "the caller issues under the lock, which returns the rotated key")
 	require.Empty(t, credential.Secrets)
@@ -166,6 +129,6 @@ func TestCurrentClaudeCredentialDuringRotation(t *testing.T) {
 
 	// A revoked key the session still refers to is reported as revoked.
 	require.NoError(t, c.RevokeClaudeCredentials(ctx, "acr-test"))
-	_, _, err = c.CurrentClaudeLLMCredential(ctx, user.ID, "acr-test", time.Now().Add(5*time.Minute))
+	_, _, err = c.CurrentClaudeCredential(ctx, user.ID, "acr-test", []string{"mcp"}, time.Now().Add(5*time.Minute))
 	require.ErrorIs(t, err, ErrClaudeCredentialRevoked)
 }

@@ -25,25 +25,3 @@ type ProviderConfigurationParameter struct {
 	Hidden       bool   `json:"hidden,omitempty"`
 	Multiline    bool   `json:"multiline,omitempty"`
 }
-
-type ModelProvider struct {
-	Metadata
-	ModelProviderManifest
-	ModelProviderStatus
-}
-
-type ModelProviderManifest struct {
-	CommonProviderMetadata `json:",inline" yaml:",inline"`
-	ValidateArgs           []string `json:"validateArgs,omitempty" yaml:"validateArgs,omitempty"`
-	// Dialect specifies the LLM API format used by this provider
-	// (e.g. "AnthropicMessages", "OpenAIChatCompletions", "OpenAIResponses").
-	Dialect string `json:"dialect,omitempty"`
-}
-
-type ModelProviderStatus struct {
-	CommonProviderStatus
-	ModelsBackPopulated *bool  `json:"modelsBackPopulated,omitempty"`
-	Error               string `json:"error,omitempty"`
-}
-
-type ModelProviderList List[ModelProvider]

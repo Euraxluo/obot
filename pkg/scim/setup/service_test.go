@@ -61,7 +61,7 @@ func (f *fakeAuthProviders) GetStagedAuthProvider(context.Context) (string, erro
 }
 
 func (r *racingStorage) List(ctx context.Context, list kclient.ObjectList, opts ...kclient.ListOption) error {
-	if _, ok := list.(*v1.ModelAccessPolicyList); ok {
+	if _, ok := list.(*v1.SkillAccessRuleList); ok {
 		r.lists++
 		if r.lists == 2 {
 			if r.beforeList != nil {
@@ -150,12 +150,12 @@ func newServiceTest(t *testing.T) *serviceTest {
 	return s
 }
 
-func policy(name, groupID string) *v1.ModelAccessPolicy {
-	return &v1.ModelAccessPolicy{
+func policy(name, groupID string) *v1.SkillAccessRule {
+	return &v1.SkillAccessRule{
 		Name:      name,
 		Namespace: system.DefaultNamespace,
-		Spec: v1.ModelAccessPolicySpec{
-			Manifest: clienttypes.ModelAccessPolicyManifest{
+		Spec: v1.SkillAccessRuleSpec{
+			Manifest: clienttypes.SkillAccessRuleManifest{
 				DisplayName: name,
 				Subjects: []clienttypes.Subject{
 					{
@@ -385,7 +385,7 @@ func TestEnforce(t *testing.T) {
 	}
 
 	// Once nothing references the group, only an Owner who signed in through the provider can enforce.
-	if err := s.storage.Delete(t.Context(), &v1.ModelAccessPolicy{Name: "legacy-policy", Namespace: system.DefaultNamespace}); err != nil {
+	if err := s.storage.Delete(t.Context(), &v1.SkillAccessRule{Name: "legacy-policy", Namespace: system.DefaultNamespace}); err != nil {
 		t.Fatal(err)
 	}
 	for _, actor := range []Actor{
@@ -465,7 +465,7 @@ func TestEnforce(t *testing.T) {
 func TestEnforceKeepsAGroupThatGainsAReferenceWhileItIsMarked(t *testing.T) {
 	s := newServiceTest(t)
 	s.addGroups()
-	if err := s.storage.Delete(t.Context(), &v1.ModelAccessPolicy{Name: "legacy-policy", Namespace: system.DefaultNamespace}); err != nil {
+	if err := s.storage.Delete(t.Context(), &v1.SkillAccessRule{Name: "legacy-policy", Namespace: system.DefaultNamespace}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -609,7 +609,7 @@ func TestFailedTokenReplacementKeepsTheCurrentToken(t *testing.T) {
 func TestEnforceStopsWhenTheProviderIsSwitchedAwayMeanwhile(t *testing.T) {
 	s := newServiceTest(t)
 	s.addGroups()
-	if err := s.storage.Delete(t.Context(), &v1.ModelAccessPolicy{Name: "legacy-policy", Namespace: system.DefaultNamespace}); err != nil {
+	if err := s.storage.Delete(t.Context(), &v1.SkillAccessRule{Name: "legacy-policy", Namespace: system.DefaultNamespace}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -695,9 +695,9 @@ func TestMissingGroupMessage(t *testing.T) {
 			name: "other references",
 			refs: []clienttypes.GroupReference{
 				{
-					Kind:        "modelAccessPolicy",
+					Kind:        "skillAccessRule",
 					ID:          "map1",
-					DisplayName: "Models",
+					DisplayName: "Skills",
 				},
 				{
 					Kind:        "vmcpProfile",
@@ -706,7 +706,7 @@ func TestMissingGroupMessage(t *testing.T) {
 					Detail:      "profile sales",
 				},
 			},
-			want: `The group with ID okta/00g0000000000missing was removed but is still referenced by the following: model access policy "Models" (map1); virtual MCP server "Gmail" (vmcp1), profile sales`,
+			want: `The group with ID okta/00g0000000000missing was removed but is still referenced by the following: skill access rule "Skills" (map1); virtual MCP server "Gmail" (vmcp1), profile sales`,
 		},
 	}
 

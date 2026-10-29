@@ -13,8 +13,8 @@ func TestRevokeAPIKeyRetainsMetadataAndImmediatelyRejectsCachedCredential(t *tes
 	c.apiKeyCacheTTL = time.Minute
 
 	created, err := c.CreateAPIKey(t.Context(), 7, "CLI token", "developer laptop", nil, types.APIKeyScopes{
-		CanAccessLLMProxy: true,
-		MCPServerIDs:      []string{"mcp-one"},
+		CanAccessAPI: true,
+		MCPServerIDs: []string{"mcp-one"},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +42,7 @@ func TestRevokeAPIKeyRetainsMetadataAndImmediatelyRejectsCachedCredential(t *tes
 	if retained.Name != "CLI token" || retained.Description != "developer laptop" {
 		t.Fatalf("revoked API key metadata was not retained: %+v", retained)
 	}
-	if !retained.CanAccessLLMProxy || len(retained.MCPServerIDs) != 1 || retained.MCPServerIDs[0] != "mcp-one" {
+	if !retained.CanAccessAPI || len(retained.MCPServerIDs) != 1 || retained.MCPServerIDs[0] != "mcp-one" {
 		t.Fatalf("revoked API key scopes were not retained: %+v", retained.APIKeyScopes)
 	}
 

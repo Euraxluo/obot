@@ -23,15 +23,6 @@ func celEnv(target string) (*cel.Env, error) {
 			cel.Variable("user", cel.MapType(cel.StringType, cel.DynType)),
 			cel.Variable("headers", cel.MapType(cel.StringType, cel.StringType)),
 		}
-		llm, err := cel.NewEnv(append(common,
-			cel.Variable("model", cel.StringType),
-			cel.Variable("provider", cel.StringType),
-			cel.Variable("params", cel.MapType(cel.StringType, cel.DynType)),
-		)...)
-		if err != nil {
-			envErr = err
-			return
-		}
 		mcp, err := cel.NewEnv(append(common,
 			cel.Variable("mcp_server", cel.StringType),
 			cel.Variable("mcp_method", cel.StringType),
@@ -42,7 +33,7 @@ func celEnv(target string) (*cel.Env, error) {
 			envErr = err
 			return
 		}
-		envs = map[string]*cel.Env{types.GuardrailTargetLLM: llm, types.GuardrailTargetMCP: mcp}
+		envs = map[string]*cel.Env{types.GuardrailTargetMCP: mcp}
 	})
 	if envErr != nil {
 		return nil, envErr

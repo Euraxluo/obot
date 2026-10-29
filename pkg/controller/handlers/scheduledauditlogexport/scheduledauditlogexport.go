@@ -65,7 +65,6 @@ func createExportFromSchedule(req router.Request, scheduledExport *v1.ScheduledA
 			StartTime:              metav1.NewTime(startTime),
 			EndTime:                metav1.NewTime(nextRunAt),
 			Filters:                scheduledExport.Spec.Filters,
-			LLMFilters:             scheduledExport.Spec.LLMFilters,
 			WithRequestAndResponse: scheduledExport.Spec.WithRequestAndResponse,
 		},
 	}

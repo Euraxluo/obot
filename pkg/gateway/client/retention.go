@@ -6,22 +6,14 @@ import (
 	"fmt"
 	"log/slog"
 	"strconv"
-	"sync"
 	"time"
 
 	"github.com/obot-platform/obot/pkg/gateway/types"
 )
 
-func apiKeyRetentionDays(mcpAuditLogRetentionDays, llmAuditLogRetentionDays int) int {
-	if mcpAuditLogRetentionDays <= 0 || llmAuditLogRetentionDays <= 0 {
-		return 0
-	}
-	return max(mcpAuditLogRetentionDays, llmAuditLogRetentionDays)
-}
-
-func (c *Client) runRetentionCleanup(ctx context.Context, mcpAuditLogRetentionDays, llmAuditLogRetentionDays int) {
+func (c *Client) runRetentionCleanup(ctx context.Context, mcpAuditLogRetentionDays int) {
 	run := func(now time.Time) {
-		if err := c.cleanupRetainedData(ctx, now.UTC(), mcpAuditLogRetentionDays, llmAuditLogRetentionDays); err != nil && !errors.Is(err, context.Canceled) {
+		if err := c.cleanupRetainedData(ctx, now.UTC(), mcpAuditLogRetentionDays); err != nil && !errors.Is(err, context.Canceled) {
 			slog.Error("Failed to clean up retained gateway data", "error", err)
 		}
 	}
@@ -39,7 +31,7 @@ func (c *Client) runRetentionCleanup(ctx context.Context, mcpAuditLogRetentionDa
 	}
 }
 
-func (c *Client) cleanupRetainedData(ctx context.Context, now time.Time, mcpAuditLogRetentionDays, llmAuditLogRetentionDays int) error {
+func (c *Client) cleanupRetainedData(ctx context.Context, now time.Time, mcpAuditLogRetentionDays int) error {
 	// Short-lived runner keys do not need to wait for audit-log retention.
 	var expiredKeyErr error
 	if err := c.deleteUnreferencedAPIKeys(ctx, "claude_environment = ? AND expires_at <= ?", true, now); err != nil {
@@ -47,46 +39,14 @@ func (c *Client) cleanupRetainedData(ctx context.Context, now time.Time, mcpAudi
 		expiredKeyErr = fmt.Errorf("delete expired Claude API keys: %w", err)
 	}
 
-	if err := runAuditLogCleanups(
-		func() error {
-			if err := c.deleteOldMCPAuditLogs(ctx, now, mcpAuditLogRetentionDays); err != nil {
-				return fmt.Errorf("delete old MCP audit logs: %w", err)
-			}
-			return nil
-		},
-		func() error {
-			if err := c.deleteOldLLMAuditLogs(ctx, now, llmAuditLogRetentionDays); err != nil {
-				return fmt.Errorf("delete old LLM audit logs: %w", err)
-			}
-			return nil
-		},
-	); err != nil {
-		return errors.Join(expiredKeyErr, err)
+	if err := c.deleteOldMCPAuditLogs(ctx, now, mcpAuditLogRetentionDays); err != nil {
+		return errors.Join(expiredKeyErr, fmt.Errorf("delete old MCP audit logs: %w", err))
 	}
-
-	if err := c.deleteOldRevokedAPIKeys(ctx, now, apiKeyRetentionDays(mcpAuditLogRetentionDays, llmAuditLogRetentionDays)); err != nil {
+	if err := c.deleteOldRevokedAPIKeys(ctx, now, mcpAuditLogRetentionDays); err != nil {
 		return errors.Join(expiredKeyErr, fmt.Errorf("delete old revoked API keys: %w", err))
 	}
-	if err := c.deleteOldLLMGatewayBudgetUsage(ctx, now); err != nil {
-		return errors.Join(expiredKeyErr, fmt.Errorf("delete old LLM gateway budget usage: %w", err))
-	}
-	return expiredKeyErr
-}
 
-func runAuditLogCleanups(mcpCleanup, llmCleanup func() error) error {
-	var (
-		waitGroup sync.WaitGroup
-		mcpErr    error
-		llmErr    error
-	)
-	waitGroup.Go(func() {
-		mcpErr = mcpCleanup()
-	})
-	waitGroup.Go(func() {
-		llmErr = llmCleanup()
-	})
-	waitGroup.Wait()
-	return errors.Join(mcpErr, llmErr)
+	return expiredKeyErr
 }
 
 func (c *Client) deleteOldRevokedAPIKeys(ctx context.Context, now time.Time, retentionDays int) error {
@@ -115,7 +75,7 @@ func (c *Client) deleteUnreferencedAPIKeys(ctx context.Context, condition string
 
 		if referenced == nil {
 			var credentials []types.Credential
-			if err := c.db.WithContext(ctx).Where("context IN ?", []string{"substrate-agent", ClaudeLLMCredentialContext}).Find(&credentials).Error; err != nil {
+			if err := c.db.WithContext(ctx).Where("context IN ?", []string{"substrate-agent"}).Find(&credentials).Error; err != nil {
 				return err
 			}
 			referenced = make(map[uint]bool, len(credentials))

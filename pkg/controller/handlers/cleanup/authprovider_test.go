@@ -73,20 +73,6 @@ func TestAuthProviderCleanupCleansAllGroupReferencesAfterProviderPruned(t *testi
 			},
 		},
 	}
-	modelPolicy := &v1.ModelAccessPolicy{
-		Name:      "model-policy",
-		Namespace: namespace,
-		Spec: v1.ModelAccessPolicySpec{
-			Manifest: clienttypes.ModelAccessPolicyManifest{
-				Subjects: []clienttypes.Subject{
-					{
-						Type: clienttypes.SubjectTypeGroup,
-						ID:   targetGroup,
-					},
-				},
-			},
-		},
-	}
 	skillRule := &v1.SkillAccessRule{
 		Name:      "skill-rule",
 		Namespace: namespace,
@@ -96,18 +82,9 @@ func TestAuthProviderCleanupCleansAllGroupReferencesAfterProviderPruned(t *testi
 			},
 		},
 	}
-	messagePolicy := &v1.MessagePolicy{
-		Name:      "message-policy",
-		Namespace: namespace,
-		Spec: v1.MessagePolicySpec{
-			Manifest: clienttypes.MessagePolicyManifest{
-				Subjects: mixedSubjects,
-			},
-		},
-	}
 	baseClient := fake.NewClientBuilder().
 		WithScheme(storagescheme.Scheme).
-		WithObjects(cleanupTask, accessRule, modelPolicy, skillRule, messagePolicy).
+		WithObjects(cleanupTask, accessRule, skillRule).
 		Build()
 	storageClient := &generatedNameClient{WithWatch: baseClient}
 	gatewayClient, gatewayDB := newAuthProviderCleanupGatewayClient(t)
@@ -179,15 +156,9 @@ func TestAuthProviderCleanupCleansAllGroupReferencesAfterProviderPruned(t *testi
 	gotAccessRule := &v1.AccessControlRule{}
 	mustGet(t, storageClient, accessRule, gotAccessRule)
 	assertSubjects(t, gotAccessRule.Spec.Manifest.Subjects, wantSubjects)
-	gotModelPolicy := &v1.ModelAccessPolicy{}
-	mustGet(t, storageClient, modelPolicy, gotModelPolicy)
-	assertSubjects(t, gotModelPolicy.Spec.Manifest.Subjects, []clienttypes.Subject{})
 	gotSkillRule := &v1.SkillAccessRule{}
 	mustGet(t, storageClient, skillRule, gotSkillRule)
 	assertSubjects(t, gotSkillRule.Spec.Manifest.Subjects, wantSubjects)
-	gotMessagePolicy := &v1.MessagePolicy{}
-	mustGet(t, storageClient, messagePolicy, gotMessagePolicy)
-	assertSubjects(t, gotMessagePolicy.Spec.Manifest.Subjects, wantSubjects)
 
 	var roleChanges v1.UserRoleChangeList
 	if err := storageClient.List(t.Context(), &roleChanges); err != nil {
@@ -408,7 +379,7 @@ func newAuthProviderCleanupGatewayClient(t *testing.T) (*gatewayclient.Client, *
 	if err := database.AutoMigrate(); err != nil {
 		t.Fatal(err)
 	}
-	client := gatewayclient.New(t.Context(), database, nil, nil, nil, nil, nil, time.Hour, 10, 0, 0, 0, false)
+	client := gatewayclient.New(t.Context(), database, nil, nil, nil, nil, nil, time.Hour, 10, 0, 0)
 	t.Cleanup(func() {
 		if err := client.Close(); err != nil {
 			t.Errorf("close gateway client: %v", err)

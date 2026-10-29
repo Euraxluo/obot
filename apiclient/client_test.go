@@ -18,7 +18,7 @@ func TestTokenHasScopes(t *testing.T) {
 	}{
 		{
 			name:   "API scope satisfies non-MCP scopes",
-			scopes: []string{types.APIKeyScopeSkills, types.APIKeyScopeLLM},
+			scopes: []string{types.APIKeyScopeSkills},
 			resp: map[string]any{
 				"allowed": true,
 				"scopes": map[string]any{

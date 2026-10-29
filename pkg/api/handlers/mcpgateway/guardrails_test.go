@@ -67,7 +67,7 @@ func newGuardrailChainWithConfig(t *testing.T, config apitypes.MCPGuardrailFilte
 	if _, ok := servers["mwv1b-secrets"]; ok || len(servers) != 1 {
 		t.Fatalf("a guardrail filter must not have a filter server: %#v", servers)
 	}
-	engine := guardrails.New(&guardrailStore{}, nil)
+	engine := guardrails.New(&guardrailStore{})
 	return guardrailChain{
 		runner:     &scriptedMCPHookRunner{run: run},
 		hooks:      hooks,

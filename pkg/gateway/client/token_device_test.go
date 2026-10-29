@@ -67,9 +67,7 @@ func TestAuthorizeTokenRequestByDeviceCode(t *testing.T) {
 		Name:        "CLI token",
 		Description: "device login",
 		Scopes: types.APIKeyScopes{
-			CanAccessAPI:         true,
 			CanAccessSkills:      true,
-			CanAccessLLMProxy:    true,
 			CanAccessDeviceScans: true,
 			MCPServerIDs:         []string{"*"},
 		},

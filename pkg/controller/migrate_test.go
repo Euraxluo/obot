@@ -14,8 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	ktypes "k8s.io/apimachinery/pkg/types"
 	kuser "k8s.io/apiserver/pkg/authentication/user"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -27,99 +25,6 @@ func newFakeClient(t *testing.T, objects ...kclient.Object) kclient.Client {
 		WithScheme(storagescheme.Scheme).
 		WithObjects(objects...).
 		Build()
-}
-
-func TestMigrateDefaultModelAccessPolicyModels(t *testing.T) {
-	ctx := t.Context()
-
-	t.Run("missing default policy is a no-op", func(t *testing.T) {
-		client := newFakeClient(t)
-		require.NoError(t, migrateDefaultModelAccessPolicyModels(ctx, client))
-	})
-
-	t.Run("cleans only the default policy and preserves custom policies", func(t *testing.T) {
-		defaultPolicyName := system.ModelAccessPolicyPrefix + "-default"
-		subjects := []types.Subject{{
-			Type: types.SubjectTypeGroup,
-			ID:   "custom-group",
-		}}
-		client := newFakeClient(t,
-			&v1.ModelAccessPolicy{
-				Name:      defaultPolicyName,
-				Namespace: system.DefaultNamespace,
-				Spec: v1.ModelAccessPolicySpec{
-					Manifest: types.ModelAccessPolicyManifest{
-						DisplayName: "Customized Default Policy",
-						Subjects:    subjects,
-						Models: []types.ModelResource{
-							{ID: "obot://llm"},
-							{ID: "obot://text-embedding"},
-							{ID: "m1-custom"},
-							{ID: "obot://image-generation"},
-							{ID: "obot://llm-mini"},
-							{ID: "obot://vision"},
-							{ID: "custom-*"},
-						},
-					},
-				},
-			},
-			&v1.ModelAccessPolicy{
-				Name:      "custom-policy",
-				Namespace: system.DefaultNamespace,
-				Spec: v1.ModelAccessPolicySpec{
-					Manifest: types.ModelAccessPolicyManifest{
-						Subjects: subjects,
-						Models: []types.ModelResource{
-							{ID: "obot://text-embedding"},
-							{ID: "obot://llm"},
-							{ID: "m1-missing"},
-							{ID: "not-a-model"},
-							{ID: "obot://unknown"},
-						},
-					},
-				},
-			},
-			&v1.Model{
-				Name:      "m1-custom",
-				Namespace: system.DefaultNamespace,
-				Spec: v1.ModelSpec{
-					Manifest: types.ModelManifest{
-						Usage: types.ModelUsageLLM,
-					},
-				},
-			},
-		)
-
-		require.NoError(t, migrateDefaultModelAccessPolicyModels(ctx, client))
-		require.NoError(t, migrateDefaultModelAccessPolicyModels(ctx, client))
-
-		var defaultPolicy v1.ModelAccessPolicy
-		require.NoError(t, client.Get(ctx, kclient.ObjectKey{
-			Namespace: system.DefaultNamespace,
-			Name:      defaultPolicyName,
-		}, &defaultPolicy))
-		assert.Equal(t, "Customized Default Policy", defaultPolicy.Spec.Manifest.DisplayName)
-		assert.Equal(t, subjects, defaultPolicy.Spec.Manifest.Subjects)
-		assert.Equal(t, []types.ModelResource{
-			{ID: "obot://llm"},
-			{ID: "m1-custom"},
-			{ID: "obot://llm-mini"},
-			{ID: "custom-*"},
-		}, defaultPolicy.Spec.Manifest.Models)
-
-		var customPolicy v1.ModelAccessPolicy
-		require.NoError(t, client.Get(ctx, kclient.ObjectKey{
-			Namespace: system.DefaultNamespace,
-			Name:      "custom-policy",
-		}, &customPolicy))
-		assert.Equal(t, []types.ModelResource{
-			{ID: "obot://text-embedding"},
-			{ID: "obot://llm"},
-			{ID: "m1-missing"},
-			{ID: "not-a-model"},
-			{ID: "obot://unknown"},
-		}, customPolicy.Spec.Manifest.Models)
-	})
 }
 
 func TestMigrateAuditLogExportSourceTypes(t *testing.T) {
@@ -147,10 +52,6 @@ func TestMigrateAuditLogExportSourceTypes(t *testing.T) {
 				Filters: &types.AuditLogExportFilters{SourceTypes: []types.AuditLogSourceType{types.AuditLogSourceTypeLocalAgentToolCall}},
 			},
 		},
-		&v1.ScheduledAuditLogExport{
-			Name: "llm", Namespace: system.DefaultNamespace,
-			Spec: v1.ScheduledAuditLogExportSpec{Type: types.AuditLogTypeLLM},
-		},
 	)
 
 	require.NoError(t, migrateAuditLogExportSourceTypes(ctx, client))
@@ -165,7 +66,7 @@ func TestMigrateAuditLogExportSourceTypes(t *testing.T) {
 	require.NotNil(t, migrated.Spec.Filters)
 	assert.Equal(t, []types.AuditLogSourceType{types.AuditLogSourceTypeMCP}, migrated.Spec.Filters.SourceTypes)
 
-	for _, name := range []string{"already-explicit", "local-agent", "llm"} {
+	for _, name := range []string{"already-explicit", "local-agent"} {
 		var unchanged v1.ScheduledAuditLogExport
 		require.NoError(t, client.Get(ctx, kclient.ObjectKey{Name: name, Namespace: system.DefaultNamespace}, &unchanged))
 		switch name {
@@ -925,62 +826,4 @@ func TestMigrateVMCPEverythingAdminGroupsUpgrade(t *testing.T) {
 			}))
 		})
 	}
-}
-
-func TestDeleteToolReferenceOwnedModels(t *testing.T) {
-	ctx := t.Context()
-	client := newFakeClient(t,
-		&v1.Model{
-			APIVersion: v1.SchemeGroupVersion.String(),
-			Kind:       "Model",
-			Name:       "tool-reference-owned",
-			Namespace:  system.DefaultNamespace,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: v1.SchemeGroupVersion.String(),
-					Kind:       "ToolReference",
-					Name:       "tool",
-					UID:        ktypes.UID("tool-uid"),
-				},
-			},
-		},
-		&v1.Model{
-			APIVersion: v1.SchemeGroupVersion.String(),
-			Kind:       "Model",
-			Name:       "model-provider-owned",
-			Namespace:  system.DefaultNamespace,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					APIVersion: v1.SchemeGroupVersion.String(),
-					Kind:       "ModelProvider",
-					Name:       "provider",
-					UID:        ktypes.UID("provider-uid"),
-				},
-			},
-		},
-		&v1.Model{
-			APIVersion: v1.SchemeGroupVersion.String(),
-			Kind:       "Model",
-			Name:       "unowned",
-			Namespace:  system.DefaultNamespace,
-		},
-	)
-
-	require.NoError(t, deleteToolReferenceOwnedModels(ctx, client))
-
-	var model v1.Model
-	err := client.Get(ctx, kclient.ObjectKey{
-		Namespace: system.DefaultNamespace,
-		Name:      "tool-reference-owned",
-	}, &model)
-	require.True(t, apierrors.IsNotFound(err))
-
-	require.NoError(t, client.Get(ctx, kclient.ObjectKey{
-		Namespace: system.DefaultNamespace,
-		Name:      "model-provider-owned",
-	}, &model))
-	require.NoError(t, client.Get(ctx, kclient.ObjectKey{
-		Namespace: system.DefaultNamespace,
-		Name:      "unowned",
-	}, &model))
 }

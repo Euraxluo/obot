@@ -40,8 +40,6 @@ var (
 		"/api/claude-environments",
 		"/api/claude-environments/",
 		"POST /api/openapi-import",
-		"/api/model-proxy",
-		"/api/model-proxy/",
 		"/api/mcp-tunnels",
 		"/api/mcp-tunnels/",
 		"/api/mcp-catalogs",
@@ -67,9 +65,6 @@ var (
 		"GET /api/mcp-audit-logs/",
 		"GET /api/egress-audit-logs",
 		"GET /api/egress-audit-logs/",
-		"GET /api/llm-audit-logs",
-		"GET /api/llm-audit-logs/",
-		"GET /api/llm-audit-logs/filter-options/",
 		"GET /api/mcp-stats",
 		"GET /api/mcp-stats/",
 		"GET /debug/pprof/",
@@ -83,14 +78,7 @@ var (
 		"GET /api/scim-connections/",
 		"/api/local-auth/users",
 		"/api/local-auth/users/",
-		"/api/model-providers",
-		"/api/model-providers/",
-		"/api/llm-gateway/",
 		"GET /api/bookstrap",
-		"/api/models",
-		"/api/models/",
-		"/api/model-access-policies",
-		"/api/model-access-policies/",
 		"DELETE /api/devices/scans/{scan_id}",
 		"/api/devices/scan-stats",
 		"/api/devices/mcp-servers/",
@@ -105,10 +93,6 @@ var (
 		"/api/mdm/asset-source",
 		"/api/mdm/asset-source/",
 		"GET /api/mdm/assets",
-		"/api/available-models",
-		"/api/available-models/",
-		"/api/default-model-aliases",
-		"/api/default-model-aliases/",
 		"/api/users",
 		"POST /api/users/{user_id}/enable",
 		"GET /api/groups",
@@ -176,18 +160,12 @@ var (
 		types.GroupAdmin: adminAndOwnerRules,
 		types.GroupOwner: append(slices.Clone(adminAndOwnerRules), ownerRules...),
 		types.GroupAuditor: {
-			"GET /api/llm-gateway/",
-			"GET /api/model-proxy",
-			"GET /api/model-proxy/usage",
 			"GET /api/admin-api-keys",
 			"GET /api/admin-api-keys/{id}",
 			"GET /api/mcp-audit-logs",
 			"GET /api/mcp-audit-logs/",
 			"GET /api/egress-audit-logs",
 			"GET /api/egress-audit-logs/",
-			"GET /api/llm-audit-logs",
-			"GET /api/llm-audit-logs/",
-			"GET /api/llm-audit-logs/filter-options/",
 			"GET /api/mcp-stats",
 			"GET /api/mcp-stats/",
 			"GET /api/mcp-capacity",
@@ -203,8 +181,6 @@ var (
 			"GET /api/mcp-webhook-validations",
 			"GET /api/mcp-webhook-validations/",
 			"GET /api/mcp-servers/",
-			"GET /api/model-access-policies",
-			"GET /api/model-access-policies/",
 			"GET /api/user-default-role-settings",
 			"GET /api/k8s-settings",
 			"GET /api/image-pull-secrets/capability",
@@ -310,10 +286,7 @@ var (
 			"DELETE /api/claude-environments/{environment}/agent",
 			"POST /api/token-request/verify",
 			// Whether Claude subscriptions may be used, for the gateway's setup instructions.
-			"GET /api/llm-gateway/settings",
 			"POST /api/local-agent-audit-logs",
-			"GET /api/models",
-			"GET /api/model-providers",
 			"GET /api/users",
 			"GET /api/groups",
 
@@ -340,7 +313,6 @@ var (
 
 			"GET /api/users",
 			"GET /api/users/{user_id}",
-			"GET /api/default-model-aliases",
 			"/api/oauth/redirect/{namespace}/{name}",
 			"DELETE /api/me",
 			"PATCH /api/me",
@@ -383,10 +355,6 @@ var (
 			"GET /api/skills",
 		},
 
-		types.GroupLLM: {
-			"/api/llm-proxy/",
-		},
-
 		types.GroupDeviceScans: {
 			// Device scans: any authenticated user can submit a scan via
 			// `obot scan` and read the scans they themselves submitted.
@@ -409,7 +377,6 @@ var (
 
 		MetricsGroup: {
 			"/debug/metrics",
-			"GET /api/llm-gateway/metrics",
 		},
 	}
 

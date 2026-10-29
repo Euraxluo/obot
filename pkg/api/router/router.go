@@ -10,7 +10,6 @@ import (
 	"github.com/obot-platform/obot/pkg/api/handlers/registry"
 	"github.com/obot-platform/obot/pkg/api/handlers/setup"
 	"github.com/obot-platform/obot/pkg/api/handlers/wellknown"
-	"github.com/obot-platform/obot/pkg/controller/handlers/providerconfigurationchange"
 	"github.com/obot-platform/obot/pkg/scim"
 	scimsetup "github.com/obot-platform/obot/pkg/scim/setup"
 	"github.com/obot-platform/obot/pkg/services"
@@ -40,10 +39,6 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 		AuthEnabled:               services.AuthEnabled,
 		ClaudeEnvironmentsEnabled: services.Substrate != nil,
 		HideK8sDetails:            services.HideK8sDetails,
-		ProviderConfiguration:     services.ProviderDispatcher,
-		ModelProxyURL:             services.ModelProxyURL,
-		ModelProxySettings:        services.GatewayClient,
-		ModelProxyCredential:      services.ModelProxyCredential,
 	})
 
 	oauthChecker := oauth.NewMCPOAuthHandlerFactory(services.ServerURL, services.MCPSessionManager, services.StorageClient, services.GatewayClient, services.MCPOAuthTokenStorage, services.MCPSecretBindingAllowedLabel, services.ForceDynamicClient)
@@ -65,7 +60,6 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 		return nil, err
 	}
 
-	models := handlers.NewModelHandler(services.ModelAccessPolicyHelper)
 	mcpCatalogs := handlers.NewMCPCatalogHandler(services.DefaultMCPCatalogPath, services.ServerURL, services.MCPRuntimeBackend, services.MCPSessionManager, oauthChecker, services.GatewayClient, services.AccessControlRuleHelper, services.MCPSecretBindingAllowedLabel)
 	systemMCPCatalogs := handlers.NewSystemMCPCatalogHandler(services.DefaultSystemMCPCatalogPath, services.MCPSessionManager)
 	accessControlRules := handlers.NewAccessControlRuleHandler()
@@ -76,9 +70,6 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	skills := handlers.NewSkillHandler(services.GitMaxRepoSizeMB, services.SkillAccessRuleHelper)
 	powerUserWorkspaces := handlers.NewPowerUserWorkspaceHandler(services.AccessControlRuleHelper, services.MCPSecretBindingAllowedLabel)
 	mcpWebhookValidations := handlers.NewMCPWebhookValidationHandler(services.MCPSessionManager)
-	availableModels := handlers.NewAvailableModelsHandler(services.ProviderDispatcher)
-	modelProviders := handlers.NewModelProviderHandler(services.ProviderDispatcher)
-	modelAccessPolicies := handlers.NewModelAccessPolicyHandler()
 	vmcps := handlers.NewVMCPHandler(services.AccessControlRuleHelper, services.MCPRuntimeBackend, services.MCPSecretBindingAllowedLabel)
 	vmcpInstances := handlers.NewVMCPInstanceHandler()
 	deviceScans := handlers.NewDeviceScansHandler()
@@ -88,23 +79,12 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	deviceEnroll := handlers.NewDeviceEnrollHandler()
 	authProviders := handlers.NewAuthProviderHandler(services.ProviderDispatcher, services.PostgresDSN)
 	localAuth := handlers.NewLocalAuthHandler(services.LocalAuthProvider)
-	defaultModelAliases := handlers.NewDefaultModelAliasHandler()
 	images := handlers.NewImageHandler()
 	mcp := handlers.NewMCPHandler(services.MCPSessionManager, services.AccessControlRuleHelper, oauthChecker, services.Router.Backend(), services.MCPImagePullSecrets, services.ServerURL, services.MCPSecretBindingAllowedLabel, services.ForceDynamicClient)
-
-	mcpTester := handlers.NewMCPTesterHandlerWithModelProxy(services.StorageClient, services.MCPSessionManager, services.AccessControlRuleHelper, services.ModelAccessPolicyHelper, services.LocalServerURL, nil, handlers.MCPTesterModelProxyOptions{
-		URL:           services.ModelProxyURL,
-		Providers:     services.ProviderDispatcher,
-		License:       services.ModelProxyCredential,
-		GatewayClient: services.GatewayClient,
-		Settings:      services.GatewayClient,
-	})
-	modelProxy := handlers.NewModelProxyHandler(services.GatewayClient, services.ModelProxyConfiguredURL, services.ModelProxyURL, services.ProviderDispatcher, services.ModelProxyCredential)
 
 	mcpSecretBindings := handlers.NewMCPSecretBindingHandler(services.MCPRuntimeBackend, services.LocalK8sClient, services.ObotNamespace, services.MCPSecretBindingAllowedLabel)
 	mcpAuditLogs := mcpgateway.NewAuditLogHandler(services.GatewayClient)
 	localAgentAuditLogs := mcpgateway.NewLocalAgentAuditLogHandler()
-	llmAuditLogs := handlers.NewLLMAuditLogHandler()
 	egressAuditLogs := &handlers.EgressAuditLogHandler{}
 	auditLogExports := handlers.NewAuditLogExportHandler(services.GatewayClient)
 	serverInstances := handlers.NewServerInstancesHandler()
@@ -204,7 +184,6 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	mux.HandleFunc("GET /api/vmcp-instances", vmcpInstances.List)
 	mux.HandleFunc("POST /api/vmcp-instances", vmcpInstances.Create)
 	mux.HandleFunc("GET /api/vmcp-instances/{vmcp_instance_id}", vmcpInstances.Get)
-	mux.HandleFunc("POST /api/vmcp-instances/{vmcp_instance_id}/tester/chat", mcpTester.Chat)
 	mux.HandleFunc("PUT /api/vmcp-instances/{vmcp_instance_id}", vmcpInstances.Update)
 	mux.HandleFunc("DELETE /api/vmcp-instances/{vmcp_instance_id}", vmcpInstances.Delete)
 	mux.HandleFunc("POST /api/vmcp-instances/{vmcp_instance_id}/configure", vmcpInstances.Configure)
@@ -386,9 +365,6 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	mux.HandleFunc("GET /api/egress-audit-logs", egressAuditLogs.List)
 	mux.HandleFunc("GET /api/egress-audit-logs/environments", egressAuditLogs.Environments)
 	mux.HandleFunc("GET /api/egress-audit-logs/{audit_log_id}", egressAuditLogs.Get)
-	mux.HandleFunc("GET /api/llm-audit-logs", llmAuditLogs.List)
-	mux.HandleFunc("GET /api/llm-audit-logs/filter-options/{filter}", llmAuditLogs.ListFilterOptions)
-	mux.HandleFunc("GET /api/llm-audit-logs/detail/{audit_log_id}", llmAuditLogs.Get)
 
 	// Audit Log Exports
 	mux.HandleFunc("POST /api/audit-log-exports", auditLogExports.CreateAuditLogExport)
@@ -503,48 +479,17 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 		ErrorHandling: promhttp.HTTPErrorOnError,
 	}))
 
-	// LLM gateway (embedded Bifrost)
-	llmGateway := handlers.NewLLMGatewayHandler(services.BifrostEngine, handlers.LLMGatewayRevisions{
-		Current: providerconfigurationchange.CurrentLLMGatewayRevision,
-		Advance: providerconfigurationchange.AdvanceLLMGatewayRevision,
-	}, services.ModelAccessPolicyHelper)
-	mux.HandleFunc("GET /api/llm-gateway/status", llmGateway.Status)
-	mux.HandleFunc("GET /api/llm-gateway/metrics", llmGateway.Metrics)
-	mux.HandleFunc("POST /api/llm-gateway/sync-models", llmGateway.SyncModels)
-	mux.HandleFunc("GET /api/llm-gateway/settings", llmGateway.GetSettings)
-	mux.HandleFunc("PUT /api/llm-gateway/settings", llmGateway.UpdateSettings)
-	mux.HandleFunc("GET /api/llm-gateway/budgets", llmGateway.ListBudgets)
-	mux.HandleFunc("POST /api/llm-gateway/budgets", llmGateway.CreateBudget)
-	mux.HandleFunc("GET /api/llm-gateway/budgets/{budget_id}", llmGateway.GetBudget)
-	mux.HandleFunc("PUT /api/llm-gateway/budgets/{budget_id}", llmGateway.UpdateBudget)
-	mux.HandleFunc("DELETE /api/llm-gateway/budgets/{budget_id}", llmGateway.DeleteBudget)
-	mux.HandleFunc("GET /api/llm-gateway/budgets/{budget_id}/usage", llmGateway.BudgetUsage)
-	mux.HandleFunc("/api/llm-gateway/admin/{path...}", llmGateway.Proxy)
-
-	// Guardrails, for LLM gateway traffic and MCP tool calls
+	// Guardrail providers and configurations for MCP filters
 	guardrailsHandler := handlers.NewGuardrailsHandler(services.GuardrailEngine)
-	mux.HandleFunc("GET /api/llm-gateway/guardrails/providers", guardrailsHandler.Providers)
-	mux.HandleFunc("POST /api/llm-gateway/guardrails/providers/{type}/fields/{field}/options", guardrailsHandler.FieldOptions)
-	mux.HandleFunc("POST /api/llm-gateway/guardrails/validate-condition", guardrailsHandler.ValidateCondition)
-	mux.HandleFunc("GET /api/llm-gateway/guardrail-policies", guardrailsHandler.ListPolicies)
-	mux.HandleFunc("POST /api/llm-gateway/guardrail-policies", guardrailsHandler.CreatePolicy)
-	mux.HandleFunc("GET /api/llm-gateway/guardrail-policies/{policy_id}", guardrailsHandler.GetPolicy)
-	mux.HandleFunc("PUT /api/llm-gateway/guardrail-policies/{policy_id}", guardrailsHandler.UpdatePolicy)
-	mux.HandleFunc("DELETE /api/llm-gateway/guardrail-policies/{policy_id}", guardrailsHandler.DeletePolicy)
-	mux.HandleFunc("GET /api/llm-gateway/guardrails", guardrailsHandler.ListGuardrails)
-	mux.HandleFunc("POST /api/llm-gateway/guardrails", guardrailsHandler.CreateGuardrail)
-	mux.HandleFunc("GET /api/llm-gateway/guardrails/{guardrail_id}", guardrailsHandler.GetGuardrail)
-	mux.HandleFunc("PUT /api/llm-gateway/guardrails/{guardrail_id}", guardrailsHandler.UpdateGuardrail)
-	mux.HandleFunc("DELETE /api/llm-gateway/guardrails/{guardrail_id}", guardrailsHandler.DeleteGuardrail)
-	mux.HandleFunc("POST /api/llm-gateway/guardrails/{guardrail_id}/test", guardrailsHandler.TestGuardrail)
-
-	// Model providers
-	mux.HandleFunc("GET /api/model-providers", modelProviders.List)
-	mux.HandleFunc("GET /api/model-proxy", modelProxy.Get)
-	mux.HandleFunc("PUT /api/model-proxy", modelProxy.Update)
-	mux.HandleFunc("GET /api/model-proxy/usage", modelProxy.Usage)
-	mux.HandleFunc("GET /api/model-providers/{model_provider_id}", modelProviders.ByID)
-	mux.HandleFunc("POST /api/model-providers/{model_provider_id}/refresh-models", modelProviders.RefreshModels)
+	mux.HandleFunc("GET /api/guardrails/providers", guardrailsHandler.Providers)
+	mux.HandleFunc("POST /api/guardrails/providers/{type}/fields/{field}/options", guardrailsHandler.FieldOptions)
+	mux.HandleFunc("POST /api/guardrails/validate-condition", guardrailsHandler.ValidateCondition)
+	mux.HandleFunc("GET /api/guardrails", guardrailsHandler.ListGuardrails)
+	mux.HandleFunc("POST /api/guardrails", guardrailsHandler.CreateGuardrail)
+	mux.HandleFunc("GET /api/guardrails/{guardrail_id}", guardrailsHandler.GetGuardrail)
+	mux.HandleFunc("PUT /api/guardrails/{guardrail_id}", guardrailsHandler.UpdateGuardrail)
+	mux.HandleFunc("DELETE /api/guardrails/{guardrail_id}", guardrailsHandler.DeleteGuardrail)
+	mux.HandleFunc("POST /api/guardrails/{guardrail_id}/test", guardrailsHandler.TestGuardrail)
 
 	// Auth providers
 	mux.HandleFunc("GET /api/auth-providers", authProviders.List)
@@ -594,20 +539,6 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	mux.HandleFunc("POST /api/setup/confirm-owner", setupHandler.ConfirmOwner)
 	mux.HandleFunc("POST /api/setup/cancel-temp-login", setupHandler.CancelTempLogin)
 
-	// Models
-	mux.HandleFunc("POST /api/models", models.Create)
-	mux.HandleFunc("GET /api/models", models.List)
-	mux.HandleFunc("GET /api/models/{id}", models.ByID)
-	mux.HandleFunc("DELETE /api/models/{id}", models.Delete)
-	mux.HandleFunc("PUT /api/models/{id}", models.Update)
-
-	// Model Permission Rules
-	mux.HandleFunc("GET /api/model-access-policies", modelAccessPolicies.List)
-	mux.HandleFunc("GET /api/model-access-policies/{id}", modelAccessPolicies.Get)
-	mux.HandleFunc("POST /api/model-access-policies", modelAccessPolicies.Create)
-	mux.HandleFunc("PUT /api/model-access-policies/{id}", modelAccessPolicies.Update)
-	mux.HandleFunc("DELETE /api/model-access-policies/{id}", modelAccessPolicies.Delete)
-
 	// Device Scans
 	mux.HandleFunc("POST /api/devices/scans", deviceScans.Submit)
 	mux.HandleFunc("GET /api/devices/scans", deviceScans.List)
@@ -643,17 +574,6 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 
 	// Device enrollment (authenticated by an enrollment token -> MDMConfiguration principal)
 	mux.HandleFunc("POST /api/mdm/enroll", deviceEnroll.Enroll)
-
-	// Available Models
-	mux.HandleFunc("GET /api/available-models", availableModels.List)
-	mux.HandleFunc("GET /api/available-models/{model_provider_id}", availableModels.ListForModelProvider)
-
-	// Default Model Aliases
-	mux.HandleFunc("POST /api/default-model-aliases", defaultModelAliases.Create)
-	mux.HandleFunc("GET /api/default-model-aliases", defaultModelAliases.List)
-	mux.HandleFunc("DELETE /api/default-model-aliases/{id}", defaultModelAliases.Delete)
-	mux.HandleFunc("GET /api/default-model-aliases/{id}", defaultModelAliases.GetByID)
-	mux.HandleFunc("PUT /api/default-model-aliases/{id}", defaultModelAliases.Update)
 
 	// Uploaded images
 	mux.HandleFunc("POST /api/image/upload", images.UploadImage)

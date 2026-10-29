@@ -92,7 +92,7 @@ func TestCheckDestinations(t *testing.T) {
 }
 
 func TestEngineClientRefusesBlockedAddresses(t *testing.T) {
-	client := New(nil, nil).deps.HTTPClient
+	client := New(nil).deps.HTTPClient
 	for _, u := range []string{"http://169.254.169.254/v2/guard", "http://[fd00:ec2::254]/", "http://127.0.0.1:1/"} {
 		if _, err := client.Post(u, "application/json", strings.NewReader("{}")); err == nil || !strings.Contains(err.Error(), "blocked") {
 			t.Errorf("POST %s: expected it to be blocked, got %v", u, err)

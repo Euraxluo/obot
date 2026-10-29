@@ -9,7 +9,6 @@ import (
 	"github.com/obot-platform/obot/apiclient/types"
 	"github.com/obot-platform/obot/pkg/controller/handlers/catalogmigration"
 	"github.com/obot-platform/obot/pkg/controller/handlers/compositemigration"
-	"github.com/obot-platform/obot/pkg/modelaccesspolicy"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	"github.com/obot-platform/obot/pkg/system"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -19,47 +18,6 @@ import (
 const (
 	vmcpEverythingAdminGroupsMigrationName = "migrated_vmcp_everything_admin_obot_groups"
 )
-
-func migrateDefaultModelAccessPolicyModels(ctx context.Context, client kclient.Client) error {
-	var policy v1.ModelAccessPolicy
-	if err := client.Get(ctx, kclient.ObjectKey{
-		Namespace: system.DefaultNamespace,
-		Name:      system.ModelAccessPolicyPrefix + "-default",
-	}, &policy); apierrors.IsNotFound(err) {
-		return nil
-	} else if err != nil {
-		return fmt.Errorf("failed to get default model access policy: %w", err)
-	}
-
-	models := make([]types.ModelResource, 0, len(policy.Spec.Manifest.Models))
-	for _, model := range policy.Spec.Manifest.Models {
-		err := modelaccesspolicy.ValidateModelResource(
-			ctx,
-			client,
-			policy.Namespace,
-			model,
-		)
-		if err == nil {
-			models = append(models, model)
-			continue
-		}
-		if modelaccesspolicy.IsInvalidModelResource(err) || apierrors.IsNotFound(err) {
-			continue
-		}
-		return fmt.Errorf("failed to validate default model access policy: %w", err)
-	}
-
-	if len(models) == len(policy.Spec.Manifest.Models) {
-		return nil
-	}
-
-	policy.Spec.Manifest.Models = models
-	if err := client.Update(ctx, &policy); err != nil {
-		return fmt.Errorf("failed to update default model access policy: %w", err)
-	}
-
-	return nil
-}
 
 func addCatalogIDToAccessControlRules(ctx context.Context, client kclient.Client) error {
 	var acRules v1.AccessControlRuleList
@@ -292,27 +250,4 @@ func migratedRuleProfileMatches(profile types.VMCPProfile, preceding []types.VMC
 			}
 			return a == b
 		})
-}
-
-func deleteToolReferenceOwnedModels(ctx context.Context, client kclient.Client) error {
-	var models v1.ModelList
-	if err := client.List(ctx, &models); err != nil {
-		return err
-	}
-
-	for i := range models.Items {
-		model := &models.Items[i]
-		for _, owner := range model.OwnerReferences {
-			if owner.Kind != "ToolReference" {
-				continue
-			}
-
-			if err := kclient.IgnoreNotFound(client.Delete(ctx, model)); err != nil {
-				return fmt.Errorf("failed to delete ToolReference-owned model %s/%s: %w", model.Namespace, model.Name, err)
-			}
-			break
-		}
-	}
-
-	return nil
 }

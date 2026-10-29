@@ -13,12 +13,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-const (
-	// ClaudeLLMCredentialContext stores each session's LLM proxy key apart from its MCP key,
-	// so MCP grant changes never revoke LLM access.
-	ClaudeLLMCredentialContext = "substrate-agent-llm"
-)
-
 var (
 	ErrClaudeCredentialRevoked = errors.New("the Claude session API key has been revoked")
 )
@@ -80,11 +74,6 @@ func (c *Client) EnsureClaudeCredential(ctx context.Context, userID uint, name s
 		return types.Credential{}, fmt.Errorf("an unexpired session and explicit MCP scopes are required")
 	}
 	return c.ensureClaudeCredential(ctx, "substrate-agent", userID, name, "Claude session "+name, types.APIKeyScopes{MCPServerIDs: servers}, expires)
-}
-
-// EnsureClaudeLLMCredential is EnsureClaudeCredential for the session's LLM proxy key.
-func (c *Client) EnsureClaudeLLMCredential(ctx context.Context, userID uint, name string, expires time.Time) (types.Credential, error) {
-	return c.ensureClaudeCredential(ctx, ClaudeLLMCredentialContext, userID, name, "Claude session LLM "+name, types.APIKeyScopes{CanAccessLLMProxy: true}, expires)
 }
 
 func (c *Client) ensureClaudeCredential(ctx context.Context, credentialContext string, userID uint, name, keyName string, scopes types.APIKeyScopes, expires time.Time) (types.Credential, error) {
@@ -176,11 +165,6 @@ func (c *Client) CurrentClaudeCredential(ctx context.Context, userID uint, name 
 	return c.currentClaudeCredential(ctx, "substrate-agent", userID, name, types.APIKeyScopes{MCPServerIDs: servers}, expires)
 }
 
-// CurrentClaudeLLMCredential is CurrentClaudeCredential for the session's LLM proxy key.
-func (c *Client) CurrentClaudeLLMCredential(ctx context.Context, userID uint, name string, expires time.Time) (types.Credential, bool, error) {
-	return c.currentClaudeCredential(ctx, ClaudeLLMCredentialContext, userID, name, types.APIKeyScopes{CanAccessLLMProxy: true}, expires)
-}
-
 func (c *Client) currentClaudeCredential(ctx context.Context, credentialContext string, userID uint, name string, scopes types.APIKeyScopes, expires time.Time) (types.Credential, bool, error) {
 	credential, err := c.RevealCredential(ctx, []string{credentialContext}, name)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -218,10 +202,10 @@ func (c *Client) currentClaudeCredential(ctx context.Context, credentialContext 
 	return credential, true, nil
 }
 
-// RevokeClaudeCredentials revokes a session's MCP and LLM keys. The revoked keys stay
-// referenced as revocation markers, so neither can be reissued for the session.
+// RevokeClaudeCredentials revokes a session's MCP key. The revoked key stays referenced
+// as a revocation marker, so it cannot be reissued for the session.
 func (c *Client) RevokeClaudeCredentials(ctx context.Context, name string) error {
-	for _, credentialContext := range []string{"substrate-agent", ClaudeLLMCredentialContext} {
+	for _, credentialContext := range []string{"substrate-agent"} {
 		if err := c.RevokeClaudeCredential(ctx, credentialContext, name); err != nil {
 			return err
 		}

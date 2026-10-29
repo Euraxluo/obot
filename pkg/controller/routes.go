@@ -2,7 +2,6 @@ package controller
 
 import (
 	"github.com/obot-platform/nah/pkg/router"
-	"github.com/obot-platform/obot/pkg/controller/generationed"
 	"github.com/obot-platform/obot/pkg/controller/handlers/accesscontrolrule"
 	"github.com/obot-platform/obot/pkg/controller/handlers/adminworkspace"
 	"github.com/obot-platform/obot/pkg/controller/handlers/agentinstance"
@@ -19,8 +18,6 @@ import (
 	"github.com/obot-platform/obot/pkg/controller/handlers/mcpserverinstance"
 	"github.com/obot-platform/obot/pkg/controller/handlers/mcpwebhookvalidation"
 	"github.com/obot-platform/obot/pkg/controller/handlers/mdmassetsource"
-	"github.com/obot-platform/obot/pkg/controller/handlers/model"
-	"github.com/obot-platform/obot/pkg/controller/handlers/modelaccesspolicy"
 	"github.com/obot-platform/obot/pkg/controller/handlers/poweruserworkspace"
 	"github.com/obot-platform/obot/pkg/controller/handlers/provider"
 	"github.com/obot-platform/obot/pkg/controller/handlers/providerconfigurationchange"
@@ -64,28 +61,11 @@ func (c *Controller) setupRoutes() {
 	systemMCPServerHandler := systemmcpserver.New(c.services.GatewayClient, c.services.MCPSessionManager, c.services.ServerURL)
 	imagePullSecretHandler := imagepullsecret.New(c.services.GatewayClient, c.services.LocalK8sClient, c.services.MCPRuntimeBackend, c.services.MCPServerNamespace, c.services.ServiceNamespace, c.services.ServiceAccountName, c.services.MCPImagePullSecrets, c.services.ServiceAccountIssuerURL)
 	gitCredentialHandler := gitcredentialhandler.New(c.services.GatewayClient)
-	modelHandler := model.NewHandler(c.services.GatewayClient)
 	mcpClientSessionHandler := mcpclientsession.New()
 	mcpHookCorrelationHandler := mcphookcorrelation.New()
 
 	// AuthProviders
 	root.Type(&v1.AuthProvider{}).HandlerFunc(providers.SetAuthProviderConfiguredStatus)
-
-	// ModelProviders
-	root.Type(&v1.ModelProvider{}).HandlerFunc(providers.SetModelProviderConfiguredStatus)
-	root.Type(&v1.ModelProvider{}).HandlerFunc(providers.BackPopulateModels)
-	root.Type(&v1.ModelProvider{}).FinalizeFunc(v1.ModelProviderFinalizer, providers.CleanupModelProvider)
-
-	// Models
-	root.Type(&v1.Model{}).HandlerFunc(modelHandler.RemoveApplyUpdateAnnotation)
-	root.Type(&v1.Model{}).HandlerFunc(modelHandler.Cleanup)
-	root.Type(&v1.Model{}).HandlerFunc(modelHandler.EnsureModelInfo)
-	root.Type(&v1.Model{}).HandlerFunc(alias.AssignAlias)
-	root.Type(&v1.Model{}).HandlerFunc(generationed.UpdateObservedGeneration)
-
-	// DefaultModelAliases
-	root.Type(&v1.DefaultModelAlias{}).HandlerFunc(alias.AssignAlias)
-	root.Type(&v1.DefaultModelAlias{}).HandlerFunc(generationed.UpdateObservedGeneration)
 
 	// Alias
 	root.Type(&v1.Alias{}).HandlerFunc(alias.UnassignAlias)
@@ -98,8 +78,6 @@ func (c *Controller) setupRoutes() {
 
 	// Provider Configuration Changes
 	root.Type(&v1.ProviderConfigurationChange{}).HandlerFunc(providerConfigurationChanges.Reconcile)
-
-	root.Type(&v1.ModelInfo{}).HandlerFunc(cleanup.Cleanup)
 
 	// MDMAssetSource
 	root.Type(&v1.MDMAssetSource{}).Namespace(system.DefaultNamespace).Name(system.DefaultMDMAssetSource).HandlerFunc(mdmAssetSource.Sync)
@@ -201,10 +179,6 @@ func (c *Controller) setupRoutes() {
 	root.Type(&v1.AccessControlRule{}).FinalizeFunc(v1.AccessControlRuleFinalizer, func(router.Request, router.Response) error {
 		return nil
 	})
-
-	// ModelAccessPolicys
-	root.Type(&v1.ModelAccessPolicy{}).HandlerFunc(modelaccesspolicy.PruneDefaultPolicy)
-	root.Type(&v1.ModelAccessPolicy{}).FinalizeFunc(v1.ModelAccessPolicyFinalizer, modelaccesspolicy.DeleteProfileBudgetsAndGuardrailPolicies(c.services.GatewayClient))
 
 	// OAuthClients
 	root.Type(&v1.OAuthClient{}).IncludeFinalizing().HandlerFunc(cleanup.OAuthClients)

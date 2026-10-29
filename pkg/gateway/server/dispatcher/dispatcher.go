@@ -38,9 +38,8 @@ type Dispatcher struct {
 	authProviderExtraEnv map[string]string
 	ports                *ports
 
-	builtinLock          sync.RWMutex
-	builtinAuthProvider  map[string]url.URL
-	builtinModelProvider map[string]BuiltinModelProvider
+	builtinLock         sync.RWMutex
+	builtinAuthProvider map[string]url.URL
 }
 
 func New(sessionManager *mcp.SessionManager, c kclient.Client, gatewayClient *client.Client, serverURL, internalServerURL, postgresDSN string) *Dispatcher {
@@ -281,10 +280,6 @@ func (d *Dispatcher) isAuthProviderConfigured(ctx context.Context, authProvider 
 
 func providerKeyForAuthProvider(namespace, providerName string) string {
 	return providerKey("auth-provider", namespace, providerName)
-}
-
-func providerKeyForModelProvider(namespace, providerName string) string {
-	return providerKey("model-provider", namespace, providerName)
 }
 
 func providerKey(providerType, namespace, providerName string) string {

@@ -295,33 +295,23 @@ func TestAdvanceDaemonSyncIsMonotonicAndRecreatesSingleton(t *testing.T) {
 			ProviderName: "auth-provider",
 		},
 	}
-	modelChange := &v1.ProviderConfigurationChange{
-		Namespace: system.DefaultNamespace,
-		Spec: v1.ProviderConfigurationChangeSpec{
-			ProviderType: v1.ProviderTypeModel,
-			ProviderName: "model-provider",
-		},
-	}
+
 	require.NoError(t, handler.advanceDaemonSync(t.Context(), client, authChange))
 
 	var daemonSync v1.ProviderSync
 	key := kclient.ObjectKey{Namespace: system.DefaultNamespace, Name: system.ProviderSyncName}
 	require.NoError(t, client.Get(t.Context(), key, &daemonSync))
 	authRevisionKey := providerDaemonRevisionKey(v1.ProviderTypeAuth, authChange.Namespace, authChange.Spec.ProviderName)
-	modelRevisionKey := providerDaemonRevisionKey(v1.ProviderTypeModel, modelChange.Namespace, modelChange.Spec.ProviderName)
 	assert.Equal(t, int64(1), daemonSync.Spec.Revisions[authRevisionKey].Revision)
 
 	require.NoError(t, handler.advanceDaemonSync(t.Context(), client, authChange))
-	require.NoError(t, handler.advanceDaemonSync(t.Context(), client, modelChange))
 	require.NoError(t, client.Get(t.Context(), key, &daemonSync))
 	assert.Equal(t, int64(2), daemonSync.Spec.Revisions[authRevisionKey].Revision)
-	assert.Equal(t, int64(1), daemonSync.Spec.Revisions[modelRevisionKey].Revision)
 
 	require.NoError(t, client.Delete(t.Context(), &daemonSync))
 	require.NoError(t, handler.advanceDaemonSync(t.Context(), client, authChange))
 	require.NoError(t, client.Get(t.Context(), key, &daemonSync))
 	assert.Equal(t, int64(1), daemonSync.Spec.Revisions[authRevisionKey].Revision)
-	assert.NotContains(t, daemonSync.Spec.Revisions, modelRevisionKey)
 }
 
 func newProviderChangeTestClient(objects ...kclient.Object) kclient.WithWatch {
@@ -332,7 +322,6 @@ func newProviderChangeTestClient(objects ...kclient.Object) kclient.WithWatch {
 		}).
 		WithStatusSubresource(
 			&v1.AuthProvider{},
-			&v1.ModelProvider{},
 			&v1.ProviderConfigurationChange{},
 		).
 		WithObjects(objects...).
@@ -348,7 +337,7 @@ func newProviderChangeTestGateway(t *testing.T) *gatewayclient.Client {
 	require.NoError(t, database.AutoMigrate())
 	ctx, cancel := context.WithCancel(t.Context())
 	t.Cleanup(cancel)
-	gateway := gatewayclient.New(ctx, database, nil, nil, nil, nil, nil, time.Hour, 10, 0, 0, 0, false)
+	gateway := gatewayclient.New(ctx, database, nil, nil, nil, nil, nil, time.Hour, 10, 0, 0)
 	t.Cleanup(func() { _ = gateway.Close() })
 	return gateway
 }
@@ -359,19 +348,6 @@ func TestValidateChange(t *testing.T) {
 		change  v1.ProviderConfigurationChange
 		wantErr string
 	}{
-		{
-			name: "valid model configuration",
-			change: v1.ProviderConfigurationChange{
-				Name:      "pcc1-model-provider",
-				Namespace: system.DefaultNamespace,
-				Spec: v1.ProviderConfigurationChangeSpec{
-					ProviderType:         v1.ProviderTypeModel,
-					ProviderName:         "model-provider",
-					DesiredState:         v1.ProviderDesiredStateConfigured,
-					StagedCredentialName: "stage",
-				},
-			},
-		},
 		{
 			name: "configuration requires stage",
 			change: v1.ProviderConfigurationChange{

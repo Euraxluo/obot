@@ -59,11 +59,6 @@ type TokenContext struct {
 
 	// This is used for requesting community license
 	InstallationID string `json:"installation_id,omitempty"`
-
-	// The following fields are for runs
-	Namespace     string
-	ModelProvider string
-	Model         string
 }
 
 func NewTokenService(serverURL string, gatewayClient *client.Client) (*TokenService, error) {
@@ -330,9 +325,6 @@ func (t *TokenService) DecodeToken(ctx context.Context, token string) (*TokenCon
 		AuthProviderUserID:    getStringClaim("AuthProviderUserID"),
 		MCPID:                 getStringClaim("MCPID"),
 		AuthorizedMCPIDs:      authorizedMCPIDs,
-		Namespace:             getStringClaim("Namespace"),
-		ModelProvider:         getStringClaim("ModelProvider"),
-		Model:                 getStringClaim("Model"),
 		// These fields were the latter names and changed the former.
 		// This makes this backwards compatible with older tokens.
 		UserName:  getStringClaim("name", "UserName"),

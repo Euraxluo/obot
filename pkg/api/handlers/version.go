@@ -2,15 +2,12 @@ package handlers
 
 import (
 	"context"
-	"log/slog"
-	"net/url"
 	"os"
 	"strings"
 
 	"github.com/obot-platform/obot/pkg/api"
 	"github.com/obot-platform/obot/pkg/gateway/client"
 	"github.com/obot-platform/obot/pkg/mcp"
-	"github.com/obot-platform/obot/pkg/mcptester"
 	"github.com/obot-platform/obot/pkg/version"
 )
 
@@ -22,10 +19,6 @@ const (
 type SessionStore string
 
 type VersionHandlerOptions struct {
-	ProviderConfiguration     mcptester.ProviderConfigurationResolver
-	ModelProxyURL             *url.URL
-	ModelProxySettings        mcptester.ModelProxySettingsReader
-	ModelProxyCredential      mcptester.LicenseSource
 	GatewayClient             *client.Client
 	PostgresDSN               string
 	Engine                    string
@@ -102,23 +95,6 @@ func (v *VersionHandler) getVersionResponse(ctx context.Context) (map[string]any
 			values[strings.TrimSpace(key)] = strings.TrimSpace(value)
 		}
 	}
-
-	// Model configuration can be changing independently of the rest of the app.
-	// Keep the version response available, but never interpret lookup failure as
-	// permission to use the external model service.
-	availability, availabilityErr := mcptester.ResolveModelProxyAvailability(ctx, v.ModelProxyURL, v.ProviderConfiguration, v.ModelProxySettings)
-	if availabilityErr != nil {
-		slog.Warn("model provider availability unresolved", "error", availabilityErr)
-	}
-	proxyCredentialConfigured := false
-	if availabilityErr == nil && availability.Enabled && v.ModelProxyCredential != nil {
-		key, err := v.ModelProxyCredential.LicenseKey(ctx)
-		proxyCredentialConfigured = err == nil && key != ""
-	}
-
-	// Set after OBOT_SERVER_VERSIONS so capability values cannot be overridden.
-	values["hasModelProvider"] = availability.HasModelProvider
-	values["mcpTesterModelProxyAvailable"] = proxyCredentialConfigured
 
 	return values, nil
 }

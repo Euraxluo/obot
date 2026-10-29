@@ -1,8 +1,7 @@
-// Package guardrails checks LLM requests and responses against administrator-defined policies,
-// and MCP traffic with guardrail filters. Policies and guardrail filters decide which traffic
+// Package guardrails checks MCP traffic against administrator-defined guardrail filters. Policies and guardrail filters decide which traffic
 // is checked and what happens on a finding (block, redact or log); guardrails
 // configure the checkers that do the checking, from built-in regex, secrets detection and
-// LLM-judge policies to external services such as Presidio, AWS Bedrock Guardrails or Azure
+// and external services such as Presidio, AWS Bedrock Guardrails or Azure
 // AI Content Safety.
 package guardrails
 
@@ -16,7 +15,6 @@ import (
 	"sync"
 
 	"github.com/obot-platform/obot/pkg/gateway/types"
-	"github.com/obot-platform/obot/pkg/messagepolicy"
 )
 
 const (
@@ -136,8 +134,6 @@ type ProviderInfo struct {
 
 // Deps are services checkers may use.
 type Deps struct {
-	// Judge evaluates natural-language policies with an LLM.
-	Judge *messagepolicy.Helper
 	// HTTPClient is used for calls to external guardrail services.
 	HTTPClient *http.Client
 }

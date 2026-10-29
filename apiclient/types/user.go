@@ -39,7 +39,6 @@ const (
 	GroupCompositeMCP  = "composite-mcp"
 	GroupSkills        = "skills"
 	GroupAPI           = "api"
-	GroupLLM           = "llm"
 	GroupDeviceScans   = "device-scans"
 	GroupDeviceEnroll  = "device-enroll"
 	GroupTunnel        = "obot-tunnel"
@@ -176,7 +175,7 @@ func (u Role) groups(onlyRoleGroups bool) []string {
 		groups = append(groups, GroupAuthenticated)
 
 		if !onlyRoleGroups {
-			groups = append(groups, GroupAPI, GroupLLM, GroupSkills, GroupMCP, GroupDeviceScans)
+			groups = append(groups, GroupAPI, GroupSkills, GroupMCP, GroupDeviceScans)
 		}
 	}
 

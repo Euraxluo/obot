@@ -16,51 +16,10 @@ const (
 	guardrailSecretContext = "guardrail"
 )
 
-func (c *Client) ListGuardrailPolicies(ctx context.Context) ([]types.GuardrailPolicy, error) {
-	return c.ListGuardrailPoliciesForProfile(ctx, "")
-}
-
 // ListGuardrailPoliciesForProfile lists the policies of one gateway profile, or every policy if
 // profileID is empty.
-func (c *Client) ListGuardrailPoliciesForProfile(ctx context.Context, profileID string) ([]types.GuardrailPolicy, error) {
-	var policies []types.GuardrailPolicy
-	q := c.db.WithContext(ctx).Order("created_at")
-	if profileID != "" {
-		q = q.Where("profile_id = ?", profileID)
-	}
-	return policies, q.Find(&policies).Error
-}
-
-func (c *Client) GetGuardrailPolicy(ctx context.Context, id string) (*types.GuardrailPolicy, error) {
-	var policy types.GuardrailPolicy
-	if err := c.db.WithContext(ctx).Where("id = ?", id).First(&policy).Error; err != nil {
-		return nil, err
-	}
-	return &policy, nil
-}
-
-func (c *Client) CreateGuardrailPolicy(ctx context.Context, policy *types.GuardrailPolicy) error {
-	if policy.ID == "" {
-		policy.ID = uuid.NewString()
-	}
-	return c.db.WithContext(ctx).Create(policy).Error
-}
-
-func (c *Client) UpdateGuardrailPolicy(ctx context.Context, policy *types.GuardrailPolicy) error {
-	return c.db.WithContext(ctx).Model(policy).
-		Select("name", "description", "enabled", "target", "apply_to", "action", "condition", "sampling_rate",
-			"input_scope", "fail_closed", "block_message", "guardrail_ids", "profile_id").
-		Updates(policy).Error
-}
-
-func (c *Client) DeleteGuardrailPolicy(ctx context.Context, id string) error {
-	return c.db.WithContext(ctx).Where("id = ?", id).Delete(&types.GuardrailPolicy{}).Error
-}
 
 // DeleteGuardrailPoliciesForProfile deletes the policies of a gateway profile that was deleted.
-func (c *Client) DeleteGuardrailPoliciesForProfile(ctx context.Context, profileID string) error {
-	return c.db.WithContext(ctx).Where("profile_id = ?", profileID).Delete(&types.GuardrailPolicy{}).Error
-}
 
 func (c *Client) ListGuardrails(ctx context.Context) ([]types.Guardrail, error) {
 	var guardrails []types.Guardrail

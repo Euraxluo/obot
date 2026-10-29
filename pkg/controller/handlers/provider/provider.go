@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"crypto/sha256"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -11,25 +10,19 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
-	"slices"
 	"strings"
 	"time"
 
-	openai "github.com/obot-platform/chat-completion-client"
 	"github.com/obot-platform/nah/pkg/apply"
-	"github.com/obot-platform/nah/pkg/name"
 	"github.com/obot-platform/nah/pkg/router"
 	"github.com/obot-platform/obot/apiclient/types"
 	"github.com/obot-platform/obot/pkg/api/handlers/providers"
 	"github.com/obot-platform/obot/pkg/auth"
 	gateway "github.com/obot-platform/obot/pkg/gateway/client"
 	"github.com/obot-platform/obot/pkg/gateway/server/dispatcher"
-	"github.com/obot-platform/obot/pkg/llmengine"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	"github.com/obot-platform/obot/pkg/system"
 	"go.yaml.in/yaml/v3"
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/fields"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -52,7 +45,7 @@ type Handler struct {
 	registryPaths []string
 }
 
-type providerFromFile[T types.ModelProviderManifest | types.AuthProviderManifest] struct {
+type providerFromFile[T types.AuthProviderManifest] struct {
 	Name     string `yaml:"-"`
 	Manifest T      `yaml:",inline"`
 }
@@ -99,7 +92,7 @@ func isYAMLFile(path string) bool {
 	}
 }
 
-func readProviderDirectory[T types.ModelProviderManifest | types.AuthProviderManifest](dir string) ([]providerFromFile[T], error) {
+func readProviderDirectory[T types.AuthProviderManifest](dir string) ([]providerFromFile[T], error) {
 	fileInfo, err := os.Stat(dir)
 	if err != nil {
 		return nil, err
@@ -140,7 +133,7 @@ func readProviderDirectory[T types.ModelProviderManifest | types.AuthProviderMan
 	return providers, nil
 }
 
-func readProviderDirectoryIgnoreMissing[T types.ModelProviderManifest | types.AuthProviderManifest](dir string) ([]providerFromFile[T], error) {
+func readProviderDirectoryIgnoreMissing[T types.AuthProviderManifest](dir string) ([]providerFromFile[T], error) {
 	entries, err := readProviderDirectory[T](dir)
 	if errors.Is(err, os.ErrNotExist) {
 		return nil, nil
@@ -306,256 +299,4 @@ func SetAuthProviderConfiguredStatus(ctx context.Context, gatewayClient *gateway
 	authProvider.Status.ObservedGeneration = authProvider.Generation
 
 	return nil
-}
-
-// SetModelProviderConfiguredStatus marks a built-in model provider, the LLM gateway,
-// configured once it has an upstream provider. Legacy model providers are left as they are
-// until the gateway migrates them.
-func (h *Handler) SetModelProviderConfiguredStatus(req router.Request, _ router.Response) error {
-	modelProvider := req.Object.(*v1.ModelProvider)
-	builtin, ok := h.dispatcher.BuiltinModelProvider(modelProvider.Namespace, modelProvider.Name)
-	if !ok {
-		return nil
-	}
-	modelProvider.Status.Configured = builtin.HasUpstreamProviders(req.Ctx)
-	modelProvider.Status.MissingConfigurationParameters = nil
-	modelProvider.Status.ObservedGeneration = modelProvider.Generation
-	return nil
-}
-
-func (h *Handler) BackPopulateModels(req router.Request, _ router.Response) error {
-	modelProvider := req.Object.(*v1.ModelProvider)
-	return BackPopulateModels(req.Ctx, req.Client, h.dispatcher, modelProvider)
-}
-
-func BackPopulateModels(ctx context.Context, client kclient.Client, dispatcher *dispatcher.Dispatcher, modelProvider *v1.ModelProvider) error {
-	builtin, isBuiltin := dispatcher.BuiltinModelProvider(modelProvider.Namespace, modelProvider.Name)
-	// Only built-in providers (the LLM gateway) list models. A built-in provider always lists,
-	// even with no upstream providers, so that removing its last provider prunes its models.
-	// While it is still starting, keep the current models until it can list them.
-	if !isBuiltin || !builtin.Ready() {
-		return nil
-	}
-
-	availableModels, err := dispatcher.FreshModelsForProvider(ctx, *modelProvider)
-	if err != nil {
-		// Don't error and retry because it will likely fail again. Log the error, and the user can re-sync manually.
-		// Also, the modelProvider.Status.Error field will bubble up to the user in the UI.
-
-		// Check if the model provider returned a properly formatted error message and set it as status
-		modelProvider.Status.Error = err.Error()
-		match := jsonErrRegexp.FindString(err.Error())
-		if match != "" {
-			modelProvider.Status.Error = match
-			type errorResponse struct {
-				Error string `json:"error"`
-			}
-
-			// custom response from model-provider implementation
-			var eR errorResponse
-			if err := json.Unmarshal([]byte(match), &eR); err == nil {
-				modelProvider.Status.Error = eR.Error
-			} else {
-				type openAIErrResponse struct {
-					Error struct {
-						Message string `json:"message"`
-					} `json:"error"`
-				}
-
-				// OpenAI API style response
-				var eR openAIErrResponse
-				if err := json.Unmarshal([]byte(match), &eR); err == nil {
-					modelProvider.Status.Error = eR.Error.Message
-				}
-			}
-		}
-
-		slog.Error("Failed to list models for model provider", "provider", modelProvider.Name, "error", err)
-		return nil
-	}
-	modelProvider.Status.Error = ""
-
-	// Administrators can rename, deactivate and re-categorize models, and override their
-	// cost. Keep those edits: models are re-applied from the provider's list on every sync.
-	var existingModels v1.ModelList
-	if err := client.List(ctx, &existingModels, kclient.InNamespace(modelProvider.Namespace), kclient.MatchingFields{"spec.manifest.modelProvider": modelProvider.Name}); err != nil {
-		return fmt.Errorf("failed to list models of model provider %q: %w", modelProvider.Name, err)
-	}
-	existing := make(map[string]types.ModelManifest, len(existingModels.Items))
-	for _, m := range existingModels.Items {
-		existing[m.Name] = m.Spec.Manifest
-	}
-
-	models := make([]kclient.Object, 0, len(availableModels.Models))
-	for _, model := range availableModels.Models {
-		displayName := model.Metadata["displayName"]
-		if displayName == "" {
-			displayName = model.ID
-		}
-		dialect := modelDialect(model.Metadata, modelProvider.Spec.Dialect)
-		discovered := &v1.Model{
-			Namespace: modelProvider.Namespace,
-			Name:      modelName(modelProvider.Name, model.ID),
-			Spec: v1.ModelSpec{
-				Manifest: types.ModelManifest{
-					Name:          strings.ReplaceAll(model.ID, "/", "-"),
-					DisplayName:   displayName,
-					TargetModel:   model.ID,
-					ModelProvider: modelProvider.Name,
-					Active:        true,
-					Usage:         types.ModelUsage(model.Metadata["usage"]),
-					Dialect:       dialect,
-				},
-			},
-		}
-
-		if prior, ok := existing[discovered.Name]; ok {
-			keepModelEdits(&discovered.Spec.Manifest, prior)
-		}
-
-		models = append(models, discovered)
-
-		// The embedded gateway reports its own pricing, so project it into ModelInfo for
-		// the model controller to copy onto the model's status. It comes from no model info
-		// source, so deleting one doesn't delete it; this provider's apply owns it.
-		if modelProvider.Name == system.LLMGatewayModelProvider {
-			if cost, ok := llmengine.CostFromMetadata(model.Metadata); ok {
-				models = append(models, &v1.ModelInfo{
-					Namespace: modelProvider.Namespace,
-					Name:      v1.ModelInfoName(modelProvider.Name, model.ID),
-					Spec: v1.ModelInfoSpec{
-						Provider: modelProvider.Name,
-						Model:    model.ID,
-						Cost:     cost,
-					},
-				})
-			}
-		}
-	}
-
-	if lister, ok := builtin.(upstreamProviderLister); ok {
-		kept, err := unlistedProviderModels(ctx, client, lister, availableModels, existingModels.Items)
-		if err != nil {
-			return err
-		}
-		models = append(models, kept...)
-	}
-
-	if err = apply.New(client).Apply(ctx, modelProvider, models...); err != nil {
-		return fmt.Errorf("failed to create models for model provider %q: %w", modelProvider.Name, err)
-	}
-	slog.Info("Back-populated models for model provider", "provider", modelProvider.Name, "models", len(models))
-
-	if modelProvider.Name == system.LLMGatewayModelProvider {
-		// Move what refers to legacy providers' models over to the models just synced.
-		if err := llmengine.MigrateLegacyModels(ctx, client, llmengine.LegacyImportDone(modelProvider)); err != nil {
-			slog.Warn("failed to migrate legacy models to the LLM gateway", "error", err)
-		}
-		if err := llmengine.FillDefaultModelAliases(ctx, client); err != nil {
-			slog.Warn("failed to set default model aliases", "error", err)
-		}
-	}
-
-	return nil
-}
-
-// unlistedProviderModels keeps the models, and their pricing, of upstream providers that are
-// still configured but are missing from a listing: a provider whose list call fails (an
-// outage, an expired key) lists nothing, and syncing without its models would delete them,
-// and with them the default model aliases, access policies and edits that refer to them.
-// Only removing a provider removes its models.
-func unlistedProviderModels(ctx context.Context, client kclient.Client, lister upstreamProviderLister, listed *openai.ModelsList, existing []v1.Model) ([]kclient.Object, error) {
-	configured, err := lister.ConfiguredProviders(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list upstream providers: %w", err)
-	}
-	listedProviders := map[string]bool{}
-	for _, m := range listed.Models {
-		provider, _, _ := strings.Cut(m.ID, "/")
-		listedProviders[provider] = true
-	}
-	var kept []kclient.Object
-	for _, m := range existing {
-		provider, _, _ := strings.Cut(m.Spec.Manifest.TargetModel, "/")
-		if listedProviders[provider] || !slices.Contains(configured, provider) {
-			continue
-		}
-		kept = append(kept, &v1.Model{Namespace: m.Namespace, Name: m.Name, Spec: m.Spec})
-		var info v1.ModelInfo
-		if err := client.Get(ctx, kclient.ObjectKey{Namespace: m.Namespace, Name: v1.ModelInfoName(m.Spec.Manifest.ModelProvider, m.Spec.Manifest.TargetModel)}, &info); err == nil {
-			kept = append(kept, &v1.ModelInfo{Namespace: info.Namespace, Name: info.Name, Spec: info.Spec})
-		} else if !apierrors.IsNotFound(err) {
-			return nil, err
-		}
-	}
-	return kept, nil
-}
-
-// keepModelEdits keeps the fields administrators edit from a model's current manifest.
-func keepModelEdits(discovered *types.ModelManifest, prior types.ModelManifest) {
-	discovered.DisplayName = prior.DisplayName
-	discovered.Active = prior.Active
-	discovered.Alias = prior.Alias
-	discovered.OverrideCost = prior.OverrideCost
-	if prior.Usage != "" {
-		discovered.Usage = prior.Usage
-	}
-}
-
-func modelDialect(metadata map[string]string, fallback string) string {
-	if dialect := metadata["dialect"]; dialect != "" {
-		return dialect
-	}
-	return fallback
-}
-
-func removeModelsForProvider(ctx context.Context, c kclient.Client, namespace, name string) error {
-	var models v1.ModelList
-	if err := c.List(ctx, &models, &kclient.ListOptions{
-		Namespace: namespace,
-		FieldSelector: fields.SelectorFromSet(fields.Set{
-			"spec.manifest.modelProvider": name,
-		}),
-	}); err != nil {
-		return fmt.Errorf("failed to list models for model provider %q for cleanup: %w", name, err)
-	}
-
-	var (
-		errs    []error
-		deleted int
-	)
-	for _, model := range models.Items {
-		if err := kclient.IgnoreNotFound(c.Delete(ctx, &model)); err != nil {
-			errs = append(errs, fmt.Errorf("failed to delete model %q for cleanup: %w", model.Name, err))
-		} else {
-			deleted++
-		}
-	}
-	if deleted > 0 {
-		slog.Info("Removed stale models for provider", "provider", name, "models", deleted)
-	}
-
-	return errors.Join(errs...)
-}
-
-func (h *Handler) CleanupModelProvider(req router.Request, _ router.Response) error {
-	modelProvider := req.Object.(*v1.ModelProvider)
-	if idx := slices.Index(modelProvider.Finalizers, "obot.obot.ai/tool-reference"); idx != -1 {
-		// Remove the old finalizer.
-		modelProvider.Finalizers = slices.Delete(modelProvider.Finalizers, idx, idx+1)
-		if err := req.Client.Update(req.Ctx, modelProvider); err != nil {
-			return fmt.Errorf("failed to remove old finalizer from model provider during cleanup: %w", err)
-		}
-
-		// Return, we'll be called again without the old finalizer.
-		return nil
-	}
-
-	// A legacy model provider's credential is kept: the LLM gateway only imports some of them,
-	// and an administrator may still need the others to configure the gateway.
-	return removeModelsForProvider(req.Ctx, req.Client, req.Namespace, req.Name)
-}
-
-func modelName(modelProviderName, modelName string) string {
-	return name.SafeConcatName(system.ModelPrefix, modelProviderName, fmt.Sprintf("%x", sha256.Sum256([]byte(modelName))))
 }
