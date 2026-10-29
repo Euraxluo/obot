@@ -3,6 +3,7 @@ package authz
 import (
 	"context"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 
@@ -518,6 +519,17 @@ func defaultRules(devMode bool, registryNoAuth bool) []rule {
 	registryRuleMCPOAuth.mux.Handle("GET /v0.1", f)
 	registryRuleMCPOAuth.mux.Handle("GET /v0.1/", f)
 	rules = append(rules, registryRuleBasic, registryRuleMCPOAuth)
+
+	if os.Getenv("OBOT_DEV_LOGIN") == "true" {
+		// The login page needs the feature flag before it has a session. The explicit
+		// environment gate keeps /api/version authenticated in normal deployments.
+		devVersionRule := rule{
+			group: anyGroup,
+			mux:   http.NewServeMux(),
+		}
+		devVersionRule.mux.Handle("GET /api/version", f)
+		rules = append(rules, devVersionRule)
+	}
 
 	if devMode {
 		for group := range devModeRules {

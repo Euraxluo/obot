@@ -18,7 +18,9 @@ export default defineConfig(({ mode }) => {
 	// This is needed for EventSource requests which don't support custom headers
 	const proxyConfig = {
 		target: apiTarget,
-		changeOrigin: true,
+		// Keep the browser's Origin and the proxied Host aligned. The local auth
+		// provider rejects login forms whose Origin does not match the API Host.
+		changeOrigin: false,
 		secure: true,
 		// The agent terminal is a websocket under /api, and the proxy ignores
 		// upgrade requests unless this is set.

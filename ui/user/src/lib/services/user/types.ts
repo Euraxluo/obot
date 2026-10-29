@@ -1096,6 +1096,7 @@ export interface Version {
 	sessionStore?: string;
 	obot?: string;
 	authEnabled?: boolean;
+	devLoginEnabled?: boolean;
 	userCount?: number;
 	deviceCount?: number;
 	engine?: 'docker' | 'kubernetes' | 'local';

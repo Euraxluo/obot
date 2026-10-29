@@ -75,6 +75,7 @@ func (v *VersionHandler) getVersionResponse(ctx context.Context) (map[string]any
 	values := map[string]any{
 		"obot":                    version.Get().String(),
 		"authEnabled":             v.AuthEnabled,
+		"devLoginEnabled":         os.Getenv("OBOT_DEV_LOGIN") == "true",
 		"sessionStore":            v.sessionStore,
 		"userCount":               userCount,
 		"deviceCount":             deviceCount,
