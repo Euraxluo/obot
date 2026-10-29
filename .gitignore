@@ -42,6 +42,12 @@ node_modules/
 .vscode/
 .idea/
 *.iml
+.claude/
+
+# Ignore local agent/runtime artifacts
+.codex-runs/
+ui/user/.npmrc
+ui/user/.prettier-cache
 
 # Ignore OS specific files
 .DS_Store
