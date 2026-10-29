@@ -183,8 +183,10 @@ func (m *MCPHandler) ListEntriesFromAllSources(req api.Context) error {
 			hasAccess bool
 		)
 
-		if marketVisibilityOpen {
+		if marketVisibilityOpen && (req.UserIsAdmin() || req.UserIsAuditor()) {
 			hasAccess = true
+		} else if marketVisibilityOpen && entry.Spec.MCPCatalogName != "" {
+			hasAccess = marketPublished(entry)
 		} else if entry.Spec.MCPCatalogName != "" {
 			hasAccess, err = m.acrHelper.UserHasAccessToMCPServerCatalogEntryInCatalog(req.User, entry.Name, entry.Spec.MCPCatalogName)
 		} else if entry.Spec.PowerUserWorkspaceID != "" {
@@ -213,6 +215,10 @@ func (m *MCPHandler) ListEntriesFromAllSources(req api.Context) error {
 
 func ConvertMCPServerCatalogEntry(entry v1.MCPServerCatalogEntry) types.MCPServerCatalogEntry {
 	return ConvertMCPServerCatalogEntryWithWorkspace(entry, "", "")
+}
+
+func marketPublished(entry v1.MCPServerCatalogEntry) bool {
+	return entry.Spec.Manifest.Metadata[types.MarketPublishedMetadataKey] == "true"
 }
 
 func ConvertMCPServerCatalogEntryWithWorkspace(entry v1.MCPServerCatalogEntry, powerUserWorkspaceID, powerUserID string) types.MCPServerCatalogEntry {

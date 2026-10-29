@@ -127,15 +127,16 @@ func TestListEntriesFromAllSourcesFullByDefault(t *testing.T) {
 
 func TestListEntriesFromAllSourcesMarketOpenSkipsACRVisibility(t *testing.T) {
 	entry := minimalResponseTestEntry()
+	entry.Spec.Manifest.Metadata[types.MarketPublishedMetadataKey] = "true"
 	storageClient := storage.Client(fake.NewClientBuilder().
 		WithScheme(storagescheme.Scheme).
 		WithObjects(&entry).
 		Build())
 	indexer := gocache.NewIndexer(gocache.MetaNamespaceKeyFunc, map[string]gocache.IndexFunc{
-		"selectors": func(obj any) ([]string, error) {
+		"selectors": func(any) ([]string, error) {
 			return nil, nil
 		},
-		"catalog-entry-names": func(obj any) ([]string, error) {
+		"catalog-entry-names": func(any) ([]string, error) {
 			return nil, nil
 		},
 	})
@@ -177,6 +178,130 @@ func TestListEntriesFromAllSourcesMarketOpenSkipsACRVisibility(t *testing.T) {
 		},
 	})
 	require.NoError(t, err)
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	require.Len(t, response.Items, 1)
+}
+
+func TestListEntriesFromAllSourcesMarketOpenRequiresPublication(t *testing.T) {
+	indexer := gocache.NewIndexer(gocache.MetaNamespaceKeyFunc, map[string]gocache.IndexFunc{
+		"selectors": func(any) ([]string, error) {
+			return nil, nil
+		},
+		"catalog-entry-names": func(any) ([]string, error) {
+			return nil, nil
+		},
+	})
+	listForBasicUser := func(t *testing.T, marketplaceValue string) types.MCPServerCatalogEntryList {
+		t.Helper()
+		entry := minimalResponseTestEntry()
+		if marketplaceValue != "" {
+			entry.Spec.Manifest.Metadata[types.MarketPublishedMetadataKey] = marketplaceValue
+		}
+		storageClient := storage.Client(fake.NewClientBuilder().
+			WithScheme(storagescheme.Scheme).
+			WithObjects(&entry).
+			Build())
+		request := httptest.NewRequest(http.MethodGet, "/api/all-mcps/entries", nil)
+		recorder := httptest.NewRecorder()
+		err := (&MCPHandler{
+			serverURL: "https://example.com",
+			acrHelper: accesscontrolrule.NewAccessControlRuleHelper(indexer, nil),
+		}).ListEntriesFromAllSources(api.Context{
+			Request:        request,
+			ResponseWriter: recorder,
+			Storage:        storageClient,
+			User: &kuser.DefaultInfo{
+				Name:   "basic",
+				UID:    "1",
+				Groups: []string{types.GroupBasic, types.GroupAuthenticated},
+			},
+		})
+		require.NoError(t, err)
+
+		var response types.MCPServerCatalogEntryList
+		require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+		return response
+	}
+
+	t.Run("market closed preserves ACR behavior", func(t *testing.T) {
+		require.Empty(t, listForBasicUser(t, "").Items)
+	})
+
+	t.Run("market closed ignores publication", func(t *testing.T) {
+		require.Empty(t, listForBasicUser(t, "true").Items)
+	})
+
+	t.Setenv("OBOT_MARKET_OPEN", "true")
+	t.Run("unpublished entries are hidden", func(t *testing.T) {
+		require.Empty(t, listForBasicUser(t, "").Items)
+	})
+
+	t.Run("explicitly unpublished entries are hidden", func(t *testing.T) {
+		require.Empty(t, listForBasicUser(t, "false").Items)
+	})
+
+	t.Run("published entries are visible", func(t *testing.T) {
+		require.Len(t, listForBasicUser(t, "true").Items, 1)
+	})
+}
+
+func TestListEntriesFromAllSourcesMarketClosedKeepsACRVisibility(t *testing.T) {
+	entry := minimalResponseTestEntry()
+	entry.Spec.Manifest.Metadata[types.MarketPublishedMetadataKey] = "false"
+	storageClient := storage.Client(fake.NewClientBuilder().
+		WithScheme(storagescheme.Scheme).
+		WithObjects(&entry).
+		Build())
+	indexer := gocache.NewIndexer(gocache.MetaNamespaceKeyFunc, map[string]gocache.IndexFunc{
+		"selectors": func(obj any) ([]string, error) {
+			rule := obj.(*v1.AccessControlRule)
+			if rule.Spec.MCPCatalogID != system.DefaultCatalog {
+				return nil, nil
+			}
+			for _, resource := range rule.Spec.Manifest.Resources {
+				if resource.Type == types.ResourceTypeSelector {
+					return []string{resource.ID}, nil
+				}
+			}
+			return nil, nil
+		},
+		"catalog-entry-names": func(any) ([]string, error) {
+			return nil, nil
+		},
+	})
+	require.NoError(t, indexer.Add(&v1.AccessControlRule{
+		Name:      "basic-market-access",
+		Namespace: system.DefaultNamespace,
+		Spec: v1.AccessControlRuleSpec{
+			MCPCatalogID: system.DefaultCatalog,
+			Manifest: types.AccessControlRuleManifest{
+				Subjects:  []types.Subject{{Type: types.SubjectTypeGroup, ID: types.GroupBasic}},
+				Resources: []types.Resource{{Type: types.ResourceTypeSelector, ID: "*"}},
+			},
+		},
+	}))
+	request := httptest.NewRequest(http.MethodGet, "/api/all-mcps/entries", nil)
+	recorder := httptest.NewRecorder()
+
+	err := (&MCPHandler{
+		serverURL: "https://example.com",
+		acrHelper: accesscontrolrule.NewAccessControlRuleHelper(indexer, nil),
+	}).ListEntriesFromAllSources(api.Context{
+		Request:        request,
+		ResponseWriter: recorder,
+		Storage:        storageClient,
+		User: &kuser.DefaultInfo{
+			Name:   "basic",
+			UID:    "1",
+			Groups: []string{types.GroupBasic, types.GroupAuthenticated},
+			Extra: map[string][]string{
+				"auth_provider_groups": {types.GroupBasic},
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	var response types.MCPServerCatalogEntryList
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
 	require.Len(t, response.Items, 1)
 }

@@ -91,6 +91,24 @@ export function isDeprecatedMCPServer(
 	return item?.manifest?.metadata?.deprecated === 'true';
 }
 
+export const MARKET_PUBLISHED_METADATA_KEY = 'marketPublished';
+
+export function isMarketPublished(
+	item?: { manifest?: Pick<MCPCatalogEntryServerManifest, 'metadata'> } | null
+) {
+	return item?.manifest?.metadata?.[MARKET_PUBLISHED_METADATA_KEY] === 'true';
+}
+
+export function withMarketPublishedMetadata(
+	metadata: MCPCatalogEntryServerManifest['metadata'] | undefined,
+	published: boolean
+) {
+	return {
+		...metadata,
+		[MARKET_PUBLISHED_METADATA_KEY]: published ? 'true' : 'false'
+	};
+}
+
 export function convertEnvHeadersToRecord(
 	envs: MCPServerInfo['env'],
 	headers: MCPServerInfo['headers'],
@@ -272,6 +290,8 @@ const MCP_VALUE_LABELS: Record<string, () => string> = {
 	'Up to date': m.core_mcp_value_up_to_date,
 	'Needs Scheduling Update': m.core_mcp_value_needs_scheduling_update,
 	'Not Configured': m.core_mcp_value_not_configured,
+	Published: m.mcps_servers_market_published_badge,
+	'Not Published': m.mcps_servers_market_not_published,
 	'Tunnel Disconnected': m.core_mcp_value_tunnel_disconnected
 };
 
@@ -392,6 +412,7 @@ export function convertEntriesToTableData(
 				name: getMCPDisplayName(entry),
 				icon: entry.manifest?.icon,
 				data: entry,
+				published: isMarketPublished(entry) ? 'Published' : 'Not Published',
 				users: isMultiUserEntry
 					? configuredServers.reduce(
 							(acc, server) => acc + (server.mcpServerInstanceUserCount ?? 0),

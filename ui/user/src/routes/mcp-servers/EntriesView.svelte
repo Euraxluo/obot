@@ -4,6 +4,7 @@
 	import DotDotDot from '$lib/components/DotDotDot.svelte';
 	import Search from '$lib/components/Search.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
+	import Toggle from '$lib/components/Toggle.svelte';
 	import McpConfirmDelete from '$lib/components/mcp/McpConfirmDelete.svelte';
 	import McpDeprecatedNotice from '$lib/components/mcp/McpDeprecatedNotice.svelte';
 	import McpDetachedNotice from '$lib/components/mcp/McpDetachedNotice.svelte';
@@ -28,18 +29,22 @@
 		getMCPDisplayName,
 		hasEditableConfiguration,
 		isDeprecatedMCPServer,
+		isMarketPublished,
 		getMcpValueLabel,
-		mcpTableDisplayValue
+		mcpTableDisplayValue,
+		withMarketPublishedMetadata
 	} from '$lib/services/user/mcp';
 	import {
 		getMcpTunnelConnectionsKey,
 		isMcpTunnelDisconnected
 	} from '$lib/services/user/mcpTunnel';
-	import { mcpServersAndEntries, mcpTunnelConnections, profile } from '$lib/stores';
+	import { errors, mcpServersAndEntries, mcpTunnelConnections, profile } from '$lib/stores';
 	import { formatTimeAgo } from '$lib/time';
 	import { setUrlParamAndUpdateUrl } from '$lib/url';
 	import { openUrl } from '$lib/utils';
 	import {
+		Eye,
+		EyeOff,
 		CircleFadingArrowUp,
 		Ellipsis,
 		GitBranch,
@@ -50,6 +55,7 @@
 		TriangleAlert
 	} from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { slide } from 'svelte/transition';
 
 	type Item = ReturnType<typeof convertEntriesToTableData>[number];
@@ -89,6 +95,8 @@
 
 	let deletingEntry = $state<MCPCatalogEntry>();
 	let deletingServer = $state<MCPCatalogServer>();
+	let publishingEntryIDs = new SvelteSet<string>();
+	let bulkPublishing = $state(false);
 
 	let oauthConfigModal = $state<ReturnType<typeof StaticOAuthConfigureModal>>();
 	let oauthConfigEntry = $state<MCPCatalogEntry>();
@@ -146,8 +154,62 @@
 		return `/mcp-servers/c/${d.data.id}${query ? `?${query}` : ''}`;
 	}
 
+	let isMarketAdmin = $derived(
+		entity === 'catalog' &&
+			!readonly &&
+			profile.current.isAdmin?.() &&
+			!profile.current.isAdminReadonly?.()
+	);
+
 	async function fetch() {
 		await mcpServersAndEntries.refreshAll();
+	}
+
+	async function updateMarketPublication(entry: MCPCatalogEntry, published: boolean) {
+		if (!isMarketAdmin || publishingEntryIDs.has(entry.id)) return;
+
+		publishingEntryIDs.add(entry.id);
+		try {
+			const manifest = {
+				...entry.manifest,
+				metadata: withMarketPublishedMetadata(entry.manifest.metadata, published)
+			};
+			const updated = entry.powerUserWorkspaceID
+				? await UserService.updateWorkspaceMCPCatalogEntry(
+						entry.powerUserWorkspaceID,
+						entry.id,
+						manifest
+					)
+				: await AdminService.updateMCPCatalogEntry(catalog?.id ?? 'default', entry.id, manifest);
+			mcpServersAndEntries.current = {
+				...mcpServersAndEntries.current,
+				entries: mcpServersAndEntries.current.entries.map((item) =>
+					item.id === updated.id ? { ...item, ...updated } : item
+				)
+			};
+		} catch (err) {
+			errors.append(err);
+		} finally {
+			publishingEntryIDs.delete(entry.id);
+		}
+	}
+
+	async function updateSelectedMarketPublication(
+		selected: Record<string, Item>,
+		published: boolean
+	) {
+		if (!isMarketAdmin || bulkPublishing) return;
+
+		bulkPublishing = true;
+		try {
+			await Promise.all(
+				Object.values(selected)
+					.filter((item) => isMarketPublished(item.data) !== published)
+					.map((item) => updateMarketPublication(item.data, published))
+			);
+		} finally {
+			bulkPublishing = false;
+		}
 	}
 
 	async function deleteServerDeployment(server: MCPCatalogServer) {
@@ -253,17 +315,22 @@
 			<Table
 				data={filteredTableData}
 				remeasureKey={tunnelConnectionsKey}
+				tableSelectActions={isMarketAdmin ? selectMarketActions : undefined}
+				validateSelect={(item) => Boolean(isMarketAdmin && !item.data.powerUserWorkspaceID)}
+				disabledSelectMessage={m.mcps_servers_market_workspace_entry_not_selectable()}
+				noAutoHideFields={['name', 'published']}
 				fields={profile.current.hasAdminAccess?.()
-					? ['name', 'type', 'users', 'created', 'source']
+					? ['name', 'type', 'users', 'published', 'created', 'source']
 					: ['name', 'created']}
 				headers={[
 					{ title: m.core_name(), property: 'name' },
 					{ title: m.mcps_servers_col_type(), property: 'type' },
 					{ title: m.mcps_servers_info_users(), property: 'users' },
+					{ title: m.mcps_servers_col_market(), property: 'published' },
 					{ title: m.core_col_created(), property: 'created' },
 					{ title: m.core_col_source(), property: 'source' }
 				]}
-				filterable={['name', 'type', 'source']}
+				filterable={['name', 'type', 'published', 'source']}
 				displayValue={mcpTableDisplayValue}
 				{filters}
 				onClickRow={(d, isCtrlClick) => {
@@ -273,7 +340,7 @@
 				{onFilter}
 				{onClearAllFilters}
 				{onSort}
-				sortable={['name', 'type', 'users', 'created', 'source']}
+				sortable={['name', 'type', 'users', 'published', 'created', 'source']}
 				noDataMessage={m.mcps_servers_no_catalog_servers()}
 				classes={{
 					root: 'rounded-none rounded-b-md shadow-none',
@@ -356,6 +423,26 @@
 						{/if}
 					{:else if property === 'created'}
 						{formatTimeAgo(d.created).relativeTime}
+					{:else if property === 'published'}
+						{#if isMarketAdmin && !d.data.powerUserWorkspaceID}
+							{@const publishing = publishingEntryIDs.has(d.data.id)}
+							<div role="presentation" onclick={(e) => e.stopPropagation()}>
+								<Toggle
+									label={m.mcps_servers_market_publish()}
+									labelInline
+									checked={isMarketPublished(d.data)}
+									disabled={publishing || bulkPublishing}
+									onChange={(published) => updateMarketPublication(d.data, published)}
+								/>
+							</div>
+						{:else if isMarketPublished(d.data)}
+							<span class="badge badge-success badge-sm"
+								>{m.mcps_servers_market_published_badge()}</span
+							>
+						{:else}
+							<span class="text-muted-content text-xs">{m.mcps_servers_market_not_published()}</span
+							>
+						{/if}
 					{:else if property === 'source'}
 						{#if d.sourceType === 'git'}
 							<a
@@ -437,6 +524,26 @@
 					{/if}
 				{/snippet}
 			</Table>
+			{#snippet selectMarketActions(currentSelected: Record<string, Item>)}
+				<div class="flex grow items-center justify-end gap-2 px-4 py-2">
+					<button
+						class="btn btn-secondary flex items-center gap-1 text-sm font-normal"
+						disabled={bulkPublishing}
+						onclick={() => updateSelectedMarketPublication(currentSelected, true)}
+					>
+						<Eye class="size-4" />
+						{m.mcps_servers_market_publish_selected()}
+					</button>
+					<button
+						class="btn btn-secondary flex items-center gap-1 text-sm font-normal"
+						disabled={bulkPublishing}
+						onclick={() => updateSelectedMarketPublication(currentSelected, false)}
+					>
+						<EyeOff class="size-4" />
+						{m.mcps_servers_market_unpublish_selected()}
+					</button>
+				</div>
+			{/snippet}
 		{/if}
 	{/if}
 </div>

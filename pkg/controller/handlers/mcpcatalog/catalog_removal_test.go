@@ -251,6 +251,31 @@ func TestFilterConflictingCatalogEntriesPreservesDuplicateOrder(t *testing.T) {
 	assert.Equal(t, "second", filtered[1].(*v1.MCPServerCatalogEntry).Spec.SourceURL)
 }
 
+func TestFilterConflictingCatalogEntriesPreservesMarketPublication(t *testing.T) {
+	catalog := testCatalog()
+	existing := managedCatalogEntry(t, catalog, "default-context7-12345678")
+	existing.Spec.Manifest.Metadata = map[string]string{
+		types.MarketPublishedMetadataKey: "true",
+		"categories":                     "developer-tools",
+	}
+	desired := existing.DeepCopy()
+	desired.Spec.Manifest.Metadata = map[string]string{"categories": "developer-tools"}
+	desired.Spec.Manifest.Description = "Updated upstream description"
+	desired.Labels = nil
+	desired.Annotations = nil
+	desired.OwnerReferences = nil
+	c := newCatalogFakeClient(existing)
+
+	filtered, errs, err := filterConflictingCatalogEntries(t.Context(), c, catalog.Namespace, []kclient.Object{desired})
+	require.NoError(t, err)
+	assert.Empty(t, errs)
+	require.Len(t, filtered, 1)
+	entry := filtered[0].(*v1.MCPServerCatalogEntry)
+	assert.Equal(t, "true", entry.Spec.Manifest.Metadata[types.MarketPublishedMetadataKey])
+	assert.Equal(t, "developer-tools", entry.Spec.Manifest.Metadata["categories"])
+	assert.Equal(t, "Updated upstream description", entry.Spec.Manifest.Description)
+}
+
 func TestReconcileRemovedEntriesListsServersOnce(t *testing.T) {
 	catalog := testCatalog()
 	referenced := managedCatalogEntry(t, catalog, "default-referenced-12345678")

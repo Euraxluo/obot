@@ -704,6 +704,8 @@ export interface MCPCatalogEntryServerManifest {
 		deprecated?: string;
 		'allow-multiple'?: string;
 		displayNameZh?: string;
+		/** "true" lists this catalog entry in the terminal user marketplace when market mode is open. */
+		marketPublished?: string;
 		/** Pipe- or newline-separated example prompts, shown as 试试这样用. */
 		usageExamples?: string;
 	};
