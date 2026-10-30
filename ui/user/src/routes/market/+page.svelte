@@ -349,7 +349,7 @@
 				return `$z=Join-Path $env:TEMP '${skillName}.zip'; Invoke-WebRequest "${publicDownloadUrl}" -OutFile $z; Expand-Archive -LiteralPath $z -DestinationPath "$env:USERPROFILE\\.workbuddy\\skills\\${skillName}" -Force; Remove-Item $z`;
 			}
 
-			return `tmp="$(mktemp -d)" && curl -fsSL "${publicDownloadUrl}" -o "$tmp/skill.zip" && unzip -oq "$tmp/skill.zip" -d "$HOME/.workbuddy/skills/${skillName}" && rm -rf "$tmp"`;
+			return `tmp="$(mktemp -d)" && curl -fsSL "${publicDownloadUrl}" -o "$tmp/skill.zip" && mkdir -p "$HOME/.workbuddy/skills/${skillName}" && unzip -oq "$tmp/skill.zip" -d "$HOME/.workbuddy/skills/${skillName}" && rm -rf "$tmp"`;
 		};
 
 		return [
