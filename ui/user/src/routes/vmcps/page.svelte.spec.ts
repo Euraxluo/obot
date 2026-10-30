@@ -182,7 +182,9 @@ describe('vMCPs Page', () => {
 			await page.getByRole('button', { name: 'Servers', exact: true }).click();
 			await page.getByRole('combobox', { name: 'Filter by Servers...' }).click();
 			await page.getByRole('button', { name: 'GitHub', exact: true }).click();
-			await page.getByCSS('#click-catch').click({ position: { x: 1, y: 1 } });
+			while (document.querySelector('#click-catch')) {
+				(document.querySelector('#click-catch') as HTMLElement).click();
+			}
 
 			expect(appPage.url.searchParams.get('components')).toBe('entry-github');
 			await expect.element(page.getByRole('button', { name: 'Remove GitHub' })).toBeVisible();
@@ -231,7 +233,9 @@ describe('vMCPs Page', () => {
 			await page.getByRole('button', { name: 'Created By', exact: true }).click();
 			await page.getByRole('combobox', { name: 'Filter by Created By...' }).click();
 			await page.getByRole('button', { name: 'Alice', exact: true }).click();
-			await page.getByCSS('#click-catch').click({ position: { x: 1, y: 1 } });
+			while (document.querySelector('#click-catch')) {
+				(document.querySelector('#click-catch') as HTMLElement).click();
+			}
 			expect(appPage.url.searchParams.get('creator')).toBe('alice');
 			await expect.element(page.getByRole('button', { name: 'Remove Alice' })).toBeVisible();
 			await page.getByRole('button', { name: 'Grid View' }).click();

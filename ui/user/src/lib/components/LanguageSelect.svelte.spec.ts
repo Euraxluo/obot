@@ -1,23 +1,28 @@
 import LanguageSelect from './LanguageSelect.svelte';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from 'vitest-browser-svelte';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
+import { overwriteSetLocale, setLocale } from '$lib/paraglide/runtime';
 
-const { setLocale } = vi.hoisted(() => ({ setLocale: vi.fn() }));
-
-vi.mock('$lib/paraglide/runtime', async (importOriginal) => ({
-	...(await importOriginal<typeof import('$lib/paraglide/runtime')>()),
-	// The real implementation reloads the page, which would tear down the test.
-	setLocale
-}));
+const originalSetLocale = setLocale;
 
 describe('LanguageSelect.svelte', () => {
-	beforeEach(() => {
-		setLocale.mockClear();
+	const mockSetLocale = vi.fn();
+
+	beforeEach(async () => {
+		await cleanup();
+		mockSetLocale.mockClear();
+		originalSetLocale('en', { reload: false });
+		overwriteSetLocale(mockSetLocale);
+	});
+
+	afterEach(async () => {
+		await cleanup();
+		overwriteSetLocale(originalSetLocale);
 	});
 
 	it('lists every supported language by its native name, defaulting to English', async () => {
-		render(LanguageSelect);
+		await render(LanguageSelect);
 
 		await expect.element(page.getByRole('button', { name: /Language/ })).toMatchTextContent('EN');
 		await page.getByRole('button', { name: /Language/ }).click();
@@ -30,28 +35,28 @@ describe('LanguageSelect.svelte', () => {
 	});
 
 	it('switches the locale when a different language is applied', async () => {
-		render(LanguageSelect);
+		await render(LanguageSelect);
 
 		await page.getByRole('button', { name: /Language/ }).click();
 		await page.getByRole('radio', { name: '日本語' }).click();
 		await page.getByRole('button', { name: 'Apply' }).click();
 
-		expect(setLocale).toHaveBeenCalledWith('ja');
+		expect(mockSetLocale).toHaveBeenCalledWith('ja');
 	});
 
 	it('keeps the current locale when the dialog is cancelled', async () => {
-		render(LanguageSelect);
+		await render(LanguageSelect);
 
 		await page.getByRole('button', { name: /Language/ }).click();
 		await page.getByRole('radio', { name: '한국어' }).click();
 		await page.getByRole('button', { name: 'Cancel' }).click();
 
-		expect(setLocale).not.toHaveBeenCalled();
+		expect(mockSetLocale).not.toHaveBeenCalled();
 	});
 
 	it('renders in the locale saved from a previous visit', async () => {
 		localStorage.setItem('PARAGLIDE_LOCALE', 'ja');
-		render(LanguageSelect);
+		await render(LanguageSelect);
 
 		await page.getByRole('button', { name: /言語/ }).click();
 

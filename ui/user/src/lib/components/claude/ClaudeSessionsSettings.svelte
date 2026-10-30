@@ -21,25 +21,25 @@
 	}
 
 	export const SESSION_SORT_OPTIONS: SessionFilterOption[] = [
-		{ id: 'lastUsed', label: m.hosted_agents_sessions_last_used() },
-		{ id: 'displayName', label: m.core_name() },
-		{ id: 'user', label: m.hosted_agents_sessions_user() },
-		{ id: 'status', label: m.core_status() }
+		{ id: 'lastUsed', get label() { return m.hosted_agents_sessions_last_used(); } },
+		{ id: 'displayName', get label() { return m.core_name(); } },
+		{ id: 'user', get label() { return m.hosted_agents_sessions_user(); } },
+		{ id: 'status', get label() { return m.core_status(); } }
 	];
 
 	export const SESSION_SORT_DIRECTION_OPTIONS: SessionFilterOption[] = [
-		{ id: 'asc', label: m.hosted_agents_sessions_sort_ascending() },
-		{ id: 'desc', label: m.hosted_agents_sessions_sort_descending() }
+		{ id: 'asc', get label() { return m.hosted_agents_sessions_sort_ascending(); } },
+		{ id: 'desc', get label() { return m.hosted_agents_sessions_sort_descending(); } }
 	];
 
 	export const SESSION_STATUS_FILTER_OPTIONS: SessionFilterOption[] = [
-		{ id: 'running', label: m.hosted_agents_sessions_running() },
-		{ id: 'resuming', label: m.hosted_agents_sessions_resuming() },
-		{ id: 'suspending', label: m.hosted_agents_sessions_suspending() },
-		{ id: 'pending', label: m.hosted_agents_sessions_pending() },
-		{ id: 'error', label: m.hosted_agents_sessions_error() },
-		{ id: 'suspended', label: m.hosted_agents_sessions_suspended() },
-		{ id: 'deleting', label: m.hosted_agents_sessions_deleting() }
+		{ id: 'running', get label() { return m.hosted_agents_sessions_running(); } },
+		{ id: 'resuming', get label() { return m.hosted_agents_sessions_resuming(); } },
+		{ id: 'suspending', get label() { return m.hosted_agents_sessions_suspending(); } },
+		{ id: 'pending', get label() { return m.hosted_agents_sessions_pending(); } },
+		{ id: 'error', get label() { return m.hosted_agents_sessions_error(); } },
+		{ id: 'suspended', get label() { return m.hosted_agents_sessions_suspended(); } },
+		{ id: 'deleting', get label() { return m.hosted_agents_sessions_deleting(); } }
 	];
 </script>
 

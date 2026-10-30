@@ -387,16 +387,16 @@ describe('Identity & Access Page', () => {
 			});
 
 			await expect
-				.element(page.getByRole('button', { name: 'Users', exact: true }))
+				.element(page.getByRole('tab', { name: 'Users', exact: true }))
 				.not.toBeInTheDocument();
 			await expect
-				.element(page.getByRole('button', { name: 'Groups', exact: true }))
+				.element(page.getByRole('tab', { name: 'Groups', exact: true }))
 				.not.toBeInTheDocument();
 			await expect
-				.element(page.getByRole('button', { name: 'Roles', exact: true }))
+				.element(page.getByRole('tab', { name: 'Roles', exact: true }))
 				.not.toBeInTheDocument();
 			await expect
-				.element(page.getByRole('button', { name: 'Auth Providers', exact: true }))
+				.element(page.getByRole('tab', { name: 'Auth Providers', exact: true }))
 				.not.toBeInTheDocument();
 			await expect
 				.element(page.getByRole('button', { name: 'Create Agent Identity', exact: true }))
@@ -1030,7 +1030,7 @@ describe('Identity & Access Page', () => {
 				await renderIdentityAccessPage({ authProviders: [googleProvider], bootstrap: true });
 
 				await expect
-					.element(page.getByRole('button', { name: 'Auth Providers', exact: true }))
+					.element(page.getByRole('tab', { name: 'Auth Providers', exact: true }))
 					.toBeVisible();
 				await configureGoogleProvider();
 

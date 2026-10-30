@@ -75,11 +75,11 @@ it('shows session status and confirms workspace deletion', async () => {
 	);
 	await render(Sessions);
 	await expect
-		.element(page.getByRole('button', { name: 'Environments', exact: true }))
+		.element(page.getByRole('tab', { name: 'Environments', exact: true }))
 		.toBeVisible();
-	await expect.element(page.getByRole('button', { name: 'Sessions', exact: true })).toBeVisible();
+	await expect.element(page.getByRole('tab', { name: 'Sessions', exact: true })).toBeVisible();
 	await expect
-		.element(page.getByRole('button', { name: 'Account Management', exact: true }))
+		.element(page.getByRole('tab', { name: 'Account Management', exact: true }))
 		.not.toBeInTheDocument();
 	await expect
 		.element(page.getByRole('listitem').getByText('Suspended', { exact: true }))
@@ -152,9 +152,9 @@ it('shows all sessions with owner attribution', async () => {
 		})
 	);
 	await render(Sessions);
-	await expect.element(page.getByRole('button', { name: 'Sessions', exact: true })).toBeVisible();
+	await expect.element(page.getByRole('tab', { name: 'Sessions', exact: true })).toBeVisible();
 	await expect
-		.element(page.getByRole('button', { name: 'Account Management', exact: true }))
+		.element(page.getByRole('tab', { name: 'Account Management', exact: true }))
 		.toBeVisible();
 	await expect
 		.element(page.getByRole('listitem').getByText('Suspended', { exact: true }))
@@ -191,7 +191,7 @@ it('loads only the current user’s sessions and hides the owner filter', async 
 		})
 	);
 	await render(Sessions);
-	await expect.element(page.getByRole('button', { name: 'Sessions', exact: true })).toBeVisible();
+	await expect.element(page.getByRole('tab', { name: 'Sessions', exact: true })).toBeVisible();
 	await expect
 		.element(page.getByRole('button', { name: 'All Claude Sessions', exact: true }))
 		.not.toBeInTheDocument();
@@ -347,7 +347,7 @@ it('explains Kubernetes is required on Docker without showing sessions', async (
 			)
 		)
 		.toBeVisible();
-	expect(page.getByRole('button', { name: 'Sessions', exact: true }).all()).toHaveLength(0);
+	expect(page.getByRole('tab', { name: 'Sessions', exact: true }).all()).toHaveLength(0);
 	expect(page.getByRole('button', { name: 'Add environment', exact: true }).all()).toHaveLength(0);
 });
 
@@ -367,7 +367,7 @@ it.each(['sessions', 'all-sessions'])(
 		await render(Sessions);
 		await expect.element(page.getByText('Claude environments are disabled.')).toBeVisible();
 		await expect
-			.element(page.getByRole('button', { name: 'Sessions', exact: true }))
+			.element(page.getByRole('tab', { name: 'Sessions', exact: true }))
 			.not.toBeInTheDocument();
 		await expect
 			.element(page.getByRole('button', { name: 'All Claude Sessions', exact: true }))
@@ -393,7 +393,7 @@ it('opens the environment form when the environment query is set', async () => {
 	await render(Sessions);
 	await expect.element(page.getByLabelText('Display name', { exact: true })).toBeVisible();
 	await expect
-		.element(page.getByRole('button', { name: 'Sessions', exact: true }))
+		.element(page.getByRole('tab', { name: 'Sessions', exact: true }))
 		.not.toBeInTheDocument();
 	await expect.element(page.getByRole('button', { name: 'Profiles', exact: true })).toBeVisible();
 });
