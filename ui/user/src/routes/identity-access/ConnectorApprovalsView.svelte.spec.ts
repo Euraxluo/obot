@@ -52,6 +52,22 @@ describe('ConnectorApprovalsView', () => {
 		vi.restoreAllMocks();
 		errors.items = [];
 	});
+
+	it('shows a banner guiding admins to group policies with a link', async () => {
+		mockRequests([]);
+
+		await renderView();
+
+		await expect
+			.element(page.getByText(m.identity_access_connector_approvals_group_hint()))
+			.toBeVisible();
+
+		const link = page.getByRole('link', {
+			name: new RegExp(m.identity_access_connector_approvals_group_link())
+		});
+		await expect.element(link).toBeVisible();
+		await expect.element(link).toHaveAttribute('href', '/mcp-servers?view=policies');
+	});
 	it('shows a relative request time with the full date as a tooltip', async () => {
 		const pending = requestFixture('car1-time', 'pending');
 		pending.created = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();

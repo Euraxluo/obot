@@ -467,6 +467,8 @@
 	"identity_access_connector_unpublished_warning": "Not published in marketplace; will remain invisible after approval",
 	"identity_access_connector_approvals_delete": "Delete",
 	"identity_access_connector_approvals_delete_confirm_message": "Deleting this request will also revoke any access granted by it.",
+	"identity_access_connector_approvals_group_hint": "To grant connector access to entire user groups without individual approvals, manage group policies directly.",
+	"identity_access_connector_approvals_group_link": "Go to Group Policies",
 	"identity_access_scim_ref_skill_access_rule": "skill access rule",
 	"identity_access_scim_count_referenced_group_other": "{count} referenced groups",
 	"identity_access_scim_count_unprovisioned_user_other": "{count} unprovisioned users",

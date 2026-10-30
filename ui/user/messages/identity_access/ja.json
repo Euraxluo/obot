@@ -467,6 +467,8 @@
 	"identity_access_connector_unpublished_warning": "マーケット未公開のため、承認してもユーザーには表示されません",
 	"identity_access_connector_approvals_delete": "削除",
 	"identity_access_connector_approvals_delete_confirm_message": "この申請を削除すると、付与されたアクセス権限も取り消されます。",
+	"identity_access_connector_approvals_group_hint": "ユーザーグループ全体にコネクタのアクセス権を一括開放する場合、個別承認は不要です。",
+	"identity_access_connector_approvals_group_link": "グループ別ポリシーへ",
 	"identity_access_scim_ref_skill_access_rule": "スキルアクセスルール",
 	"identity_access_scim_count_referenced_group_other": "{count} 個の参照済みグループ",
 	"identity_access_scim_count_unprovisioned_user_other": "{count} 人の未プロビジョニングユーザー",

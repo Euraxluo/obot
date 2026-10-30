@@ -113,6 +113,23 @@
 </script>
 
 <div class="flex flex-col gap-4">
+	<div
+		class="bg-base-100 border-base-300 dark:bg-base-200 flex flex-wrap items-center justify-between gap-2 rounded-xl border p-3 text-xs shadow-xs"
+	>
+		<div class="flex items-center gap-2">
+			<span class="badge badge-info badge-soft badge-xs">TIP</span>
+			<span class="text-muted-content font-light">
+				{m.identity_access_connector_approvals_group_hint()}
+			</span>
+		</div>
+		<a
+			class="link link-primary font-medium hover:underline shrink-0"
+			href="/mcp-servers?view=policies"
+		>
+			{m.identity_access_connector_approvals_group_link()} &rarr;
+		</a>
+	</div>
+
 	<div class="flex items-center justify-between gap-3">
 		<div
 			role="tablist"
