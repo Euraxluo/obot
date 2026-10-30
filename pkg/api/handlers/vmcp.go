@@ -473,11 +473,9 @@ func (h *VMCPHandler) loadComponentSnapshots(req api.Context, manifest *types.VM
 
 // requireConnectorApproval enforces the end-user connector approval flow on
 // personal vMCP composition: a basic-role owner may only add catalog entries
-// that carry an individual grant — a user-subject AccessControlRule (written by
-// approving a ConnectorAccessRequest, or pre-existing) or an approved request.
-// Group-level ACRs only make the entry visible in the marketplace; they do not
-// bypass the approval flow. Shared vMCPs (ownerID == "") are admin-managed and
-// not gated.
+// that have been granted via AccessControlRules (user, group, obotGroup, or
+// wildcard selector) or an approved ConnectorAccessRequest. Shared vMCPs
+// (ownerID == "") are admin-managed and not gated.
 func (h *VMCPHandler) requireConnectorApproval(req api.Context, ownerID string, entry *v1.MCPServerCatalogEntry) error {
 	if ownerID == "" {
 		return nil
@@ -498,8 +496,14 @@ func (h *VMCPHandler) requireConnectorApproval(req api.Context, ownerID string, 
 		return nil
 	}
 
-	if userSubjectGrantsEntry(h.acrHelper, owner, entry) {
-		return nil
+	if h.acrHelper != nil {
+		hasAccess, err := h.acrHelper.UserHasAccessToMCPServerCatalogEntryInCatalog(owner, entry.Name, entry.Spec.MCPCatalogName)
+		if err != nil {
+			return fmt.Errorf("check connector access for %q: %w", entry.Name, err)
+		}
+		if hasAccess {
+			return nil
+		}
 	}
 
 	approved, err := UserHasApprovedConnectorAccess(req, ownerID, entry.Name)
@@ -515,25 +519,6 @@ func (h *VMCPHandler) requireConnectorApproval(req api.Context, ownerID string, 
 		name = entry.Name
 	}
 	return types.NewErrForbidden("connector %q requires an approved access request", name)
-}
-
-// userSubjectGrantsEntry reports whether an AccessControlRule grants the entry
-// to this specific user (not via a group or wildcard).
-func userSubjectGrantsEntry(helper *accesscontrolrule.Helper, u user.Info, entry *v1.MCPServerCatalogEntry) bool {
-	rules, err := helper.GetAccessControlRulesForMCPServerCatalogEntryInCatalog(
-		system.DefaultNamespace, entry.Name, entry.Spec.MCPCatalogName,
-	)
-	if err != nil {
-		return false
-	}
-	for _, rule := range rules {
-		for _, subject := range rule.Spec.Manifest.Subjects {
-			if subject.Type == types.SubjectTypeUser && subject.ID == u.GetUID() {
-				return true
-			}
-		}
-	}
-	return false
 }
 
 // isBasicOnlyUser reports whether the user holds no role above basic. Role
