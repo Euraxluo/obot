@@ -324,17 +324,20 @@
 <Layout title={m.market_title()} subtitle={m.market_subtitle()} showBackButton={false}>
 	<div class="flex min-h-full flex-col gap-4">
 		<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-			<div role="tablist" class="flex items-center gap-1" aria-label={m.market_title()}>
+			<div
+				role="tablist"
+				class="tabs tabs-box bg-base-100 shadow-sm dark:bg-base-300"
+				aria-label={m.market_title()}
+			>
 				{#each tabs as tab (tab.value)}
 					<button
 						type="button"
 						role="tab"
 						aria-selected={activeTab === tab.value}
 						data-testid={`market-tab-${tab.value}`}
-						class="rounded-full px-4 py-2 text-sm font-medium transition-colors {activeTab ===
-						tab.value
-							? 'bg-base-100 dark:bg-base-300 text-base-content shadow-sm'
-							: 'text-muted-content hover:bg-base-100/60 hover:text-base-content'}"
+						class="tab text-xs min-w-24 whitespace-nowrap {activeTab === tab.value
+							? 'tab-active bg-base-300 dark:bg-base-100'
+							: 'text-muted-content'}"
 						onclick={() => switchTab(tab.value)}
 					>
 						{tab.label}
