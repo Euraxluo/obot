@@ -361,12 +361,25 @@
 				command: command('.codex/skills')
 			},
 			{
+				id: 'workbuddy',
+				label: 'WorkBuddy',
+				icon: COMMON_AI_CLIENTS_MAP.get(AiClient.WorkBuddy)?.icon,
+				command: command('.workbuddy/skills')
+			},
+			{
 				id: 'other',
 				label: m.skills_other(),
 				command: command('.agents/skills')
 			}
 		];
 	});
+
+	function getWorkBuddyInstallUrl(skill?: Skill): string {
+		if (!skill || typeof window === 'undefined') return '';
+		const skillName = sanitizeFilenameSegment(skill.name ?? skill.id ?? 'skill');
+		const downloadUrl = `${window.location.origin}/api/skills/${encodeURIComponent(skill.id)}/download`;
+		return `workbuddy://codebuddy-ide/skill/install?skillname=${encodeURIComponent(skillName)}&downloadurl=${encodeURIComponent(downloadUrl)}&channelType=knot&injectid=true`;
+	}
 
 	async function handleDownloadSkill(skill?: Skill) {
 		if (!skill || downloadingSkill) return;
@@ -690,15 +703,28 @@
 									下载技能包压缩文件（{sanitizeFilenameSegment(selectedSkill.name ?? selectedSkill.id)}.zip）
 								</p>
 							</div>
-							<button
-								type="button"
-								class="btn btn-primary btn-sm shrink-0 gap-2 rounded-lg"
-								disabled={downloadingSkill}
-								onclick={() => handleDownloadSkill(selectedSkill)}
-							>
-								<Download class="size-4" />
-								{downloadingSkill ? '下载中...' : m.skills_download()}
-							</button>
+							<div class="flex items-center gap-2 shrink-0">
+								<a
+									class="btn btn-secondary btn-sm gap-1.5 rounded-lg"
+									href={getWorkBuddyInstallUrl(selectedSkill)}
+								>
+									<img
+										src={COMMON_AI_CLIENTS_MAP.get(AiClient.WorkBuddy)?.icon}
+										alt="WorkBuddy"
+										class="size-4"
+									/>
+									一键拉起 WorkBuddy
+								</a>
+								<button
+									type="button"
+									class="btn btn-primary btn-sm gap-2 rounded-lg"
+									disabled={downloadingSkill}
+									onclick={() => handleDownloadSkill(selectedSkill)}
+								>
+									<Download class="size-4" />
+									{downloadingSkill ? '下载中...' : m.skills_download()}
+								</button>
+							</div>
 						</div>
 					</div>
 

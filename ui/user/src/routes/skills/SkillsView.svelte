@@ -87,6 +87,12 @@
 				command: command('.codex/skills')
 			},
 			{
+				id: 'workbuddy',
+				label: 'WorkBuddy',
+				icon: COMMON_AI_CLIENTS_MAP.get(AiClient.WorkBuddy)?.icon,
+				command: command('.workbuddy/skills')
+			},
+			{
 				id: 'other',
 				label: m.skills_other(),
 				command: command('.agents/skills')
@@ -176,6 +182,13 @@
 		} catch (err) {
 			console.error('Failed to download skill', err);
 		}
+	}
+
+	function getWorkBuddyInstallUrl(skill?: Skill): string {
+		if (!skill || typeof window === 'undefined') return '';
+		const skillName = sanitizeFilenameSegment(skill.name ?? skill.id ?? 'skill');
+		const downloadUrl = `${window.location.origin}/api/skills/${encodeURIComponent(skill.id)}/download`;
+		return `workbuddy://codebuddy-ide/skill/install?skillname=${encodeURIComponent(skillName)}&downloadurl=${encodeURIComponent(downloadUrl)}&channelType=knot&injectid=true`;
 	}
 </script>
 
@@ -328,14 +341,25 @@
 					name: selectedSkillToInstall ? skillTitle(selectedSkillToInstall) : ''
 				})}
 			</div>
-			<div class="md:p-0 md:pb-0 p-4">
+			<div class="md:p-0 md:pb-0 p-4 flex gap-2">
 				<button
-					class="btn btn-primary btn-sm w-full"
+					class="btn btn-primary btn-sm flex-1"
 					onclick={() => handleDownloadSkill(selectedSkillToInstall)}
 				>
 					<Download class="size-4" />
 					{m.skills_download()}
 				</button>
+				<a
+					class="btn btn-secondary btn-sm flex-1 flex items-center justify-center gap-1.5"
+					href={getWorkBuddyInstallUrl(selectedSkillToInstall)}
+				>
+					<img
+						src={COMMON_AI_CLIENTS_MAP.get(AiClient.WorkBuddy)?.icon}
+						alt="WorkBuddy"
+						class="size-4"
+					/>
+					一键拉起 WorkBuddy
+				</a>
 			</div>
 		</div>
 		<div class="divider">{m.skills_install_step_unzip()}</div>
