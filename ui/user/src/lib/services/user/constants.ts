@@ -8,7 +8,8 @@ export enum AiClient {
 	Hermes = 'hermes',
 	Goose = 'goose',
 	Zed = 'zed',
-	Windsurf = 'windsurf'
+	Windsurf = 'windsurf',
+	WorkBuddy = 'workbuddy'
 }
 
 export const COMMON_AI_CLIENTS = [
@@ -27,6 +28,11 @@ export const COMMON_AI_CLIENTS = [
 		icon: '/user/images/assistant/cursor-mark.svg',
 		iconDark: '/user/images/assistant/cursor-mark-dark.svg',
 		alt: 'Cursor'
+	},
+	{
+		id: AiClient.WorkBuddy,
+		icon: '/user/images/assistant/workbuddy-mark.svg',
+		alt: 'WorkBuddy'
 	},
 	{
 		id: AiClient.VSCode,
