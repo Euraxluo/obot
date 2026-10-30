@@ -19,7 +19,7 @@ describe('Audit logs page Claude Environments', () => {
 			appPage.url.searchParams.delete('view');
 			await preparePageData({ version: { engine, claudeEnvironmentsEnabled: enabled } });
 			await render(AuditLogsPage);
-			const tab = page.getByRole('button', { name: 'Environments', exact: true });
+			const tab = page.getByRole('tab', { name: 'Environments', exact: true });
 			if (visible) await expect.element(tab).toBeVisible();
 			else await expect.element(tab).not.toBeInTheDocument();
 		}

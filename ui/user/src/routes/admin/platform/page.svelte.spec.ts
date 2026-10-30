@@ -59,9 +59,9 @@ describe('Platform Page', () => {
 	it('defaults to Settings and removes the License surface', async () => {
 		await renderPlatformPage({});
 
-		await expect.element(page.getByRole('button', { name: 'Settings', exact: true })).toBeVisible();
+		await expect.element(page.getByRole('tab', { name: 'Settings', exact: true })).toBeVisible();
 		await expect
-			.element(page.getByRole('button', { name: 'License', exact: true }))
+			.element(page.getByRole('tab', { name: 'License', exact: true }))
 			.not.toBeInTheDocument();
 		await expect
 			.element(page.getByRole('heading', { name: 'Notifications', exact: true }))
@@ -71,7 +71,7 @@ describe('Platform Page', () => {
 	it('retains Branding', async () => {
 		await renderPlatformPage({ view: 'branding' });
 
-		await expect.element(page.getByRole('button', { name: 'Branding', exact: true })).toBeVisible();
+		await expect.element(page.getByRole('tab', { name: 'Branding', exact: true })).toBeVisible();
 	});
 
 	it('hides Registry Connections outside Kubernetes', async () => {
