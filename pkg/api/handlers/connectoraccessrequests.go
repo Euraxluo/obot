@@ -1,18 +1,27 @@
 package handlers
 
 import (
+	"context"
 	"fmt"
+	"strconv"
 
 	"github.com/obot-platform/obot/apiclient/types"
+	"github.com/obot-platform/obot/pkg/accesscontrolrule"
 	"github.com/obot-platform/obot/pkg/api"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	"github.com/obot-platform/obot/pkg/system"
+	kuser "k8s.io/apiserver/pkg/authentication/user"
 )
 
-type ConnectorAccessRequestHandler struct{}
+type ConnectorAccessRequestHandler struct {
+	acrHelper *accesscontrolrule.Helper
+	userInfo  func(context.Context, string) (kuser.Info, error)
+}
 
-func NewConnectorAccessRequestHandler() *ConnectorAccessRequestHandler {
-	return nil
+func NewConnectorAccessRequestHandler(acrHelper *accesscontrolrule.Helper) *ConnectorAccessRequestHandler {
+	return &ConnectorAccessRequestHandler{
+		acrHelper: acrHelper,
+	}
 }
 
 // Create files an end user's request to connect a marketplace connector.
@@ -150,7 +159,7 @@ func (*ConnectorAccessRequestHandler) Delete(req api.Context) error {
 
 // Approve marks a request approved and grants the requester user-level access
 // to the connector via an AccessControlRule.
-func (*ConnectorAccessRequestHandler) Approve(req api.Context) error {
+func (h *ConnectorAccessRequestHandler) Approve(req api.Context) error {
 	var review types.ConnectorAccessReview
 	_ = req.Read(&review) // comment is optional
 
@@ -181,7 +190,7 @@ func (*ConnectorAccessRequestHandler) Approve(req api.Context) error {
 	request.Spec.Manifest.ReviewerUsername = req.User.GetName()
 	request.Spec.Manifest.ReviewComment = review.Comment
 
-	if err := grantConnectorAccess(req, &request); err != nil {
+	if err := h.grantConnectorAccess(req, &request); err != nil {
 		return err
 	}
 	if err := req.Update(&request); err != nil {
@@ -245,9 +254,27 @@ func connectorAccessRequestsFor(req api.Context, requesterUserID, connectorID st
 	return matched, nil
 }
 
+func (h *ConnectorAccessRequestHandler) getRequesterUser(req api.Context, requesterUserID string) (kuser.Info, error) {
+	if h.userInfo != nil {
+		return h.userInfo(req.Context(), requesterUserID)
+	}
+	if req.User != nil && req.User.GetUID() == requesterUserID {
+		return req.User, nil
+	}
+	if req.GatewayClient != nil {
+		id, err := strconv.ParseUint(requesterUserID, 10, 64)
+		if err == nil {
+			return req.GatewayClient.UserInfoByID(req.Context(), uint(id))
+		}
+	}
+	return &kuser.DefaultInfo{
+		UID: requesterUserID,
+	}, nil
+}
+
 // grantConnectorAccess writes the user-subject AccessControlRule that makes the
 // approved connector usable by the requester, unless one already exists.
-func grantConnectorAccess(req api.Context, request *v1.ConnectorAccessRequest) error {
+func (h *ConnectorAccessRequestHandler) grantConnectorAccess(req api.Context, request *v1.ConnectorAccessRequest) error {
 	manifest := request.Spec.Manifest
 
 	catalogID := manifest.MCPCatalogID
@@ -255,18 +282,19 @@ func grantConnectorAccess(req api.Context, request *v1.ConnectorAccessRequest) e
 		catalogID = system.DefaultCatalog
 	}
 
-	var list v1.AccessControlRuleList
-	if err := req.List(&list); err != nil {
-		return fmt.Errorf("failed to list access control rules: %w", err)
+	requesterUser, err := h.getRequesterUser(req, manifest.RequesterUserID)
+	if err != nil {
+		return fmt.Errorf("failed to get requester user: %w", err)
 	}
-	for _, rule := range list.Items {
-		if rule.Spec.MCPCatalogID != catalogID {
-			continue
+
+	if h.acrHelper != nil {
+		hasAccess, err := h.acrHelper.UserHasAccessToMCPServerCatalogEntryInCatalog(requesterUser, manifest.ConnectorID, catalogID)
+		if err != nil {
+			return fmt.Errorf("failed to check connector access for requester: %w", err)
 		}
-		if !acrGrantsConnectorToUser(rule.Spec.Manifest, manifest.ConnectorID, manifest.RequesterUserID) {
-			continue
+		if hasAccess {
+			return nil // already granted via personal ACR, group, obotGroup, or selector:*
 		}
-		return nil // already granted
 	}
 
 	rule := v1.AccessControlRule{
@@ -342,25 +370,6 @@ func revokeConnectorAccess(req api.Context, request *v1.ConnectorAccessRequest) 
 	}
 
 	return nil
-}
-
-func acrGrantsConnectorToUser(manifest types.AccessControlRuleManifest, connectorID, userID string) bool {
-	subjectMatch := false
-	for _, subject := range manifest.Subjects {
-		if subject.Type == types.SubjectTypeUser && subject.ID == userID {
-			subjectMatch = true
-			break
-		}
-	}
-	if !subjectMatch {
-		return false
-	}
-	for _, resource := range manifest.Resources {
-		if resource.Type == types.ResourceTypeMCPServerCatalogEntry && resource.ID == connectorID {
-			return true
-		}
-	}
-	return false
 }
 
 type catalogEntryKey struct {

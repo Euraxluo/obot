@@ -2,12 +2,14 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/obot-platform/obot/apiclient/types"
+	"github.com/obot-platform/obot/pkg/accesscontrolrule"
 	"github.com/obot-platform/obot/pkg/api"
 	"github.com/obot-platform/obot/pkg/storage"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
@@ -17,11 +19,22 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kuser "k8s.io/apiserver/pkg/authentication/user"
+	gocache "k8s.io/client-go/tools/cache"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
 func connectorAccessRequestTestSetup(t *testing.T) (storage.Client, *ConnectorAccessRequestHandler) {
+	t.Helper()
+
+	storageClient, entry := connectorAccessRequestStorage(t)
+	require.NoError(t, storageClient.Create(t.Context(), entry))
+	return storageClient, connectorAccessRequestHandlerWithUser(&kuser.DefaultInfo{UID: "42"})
+}
+
+// connectorAccessRequestStorage returns an empty client and the published test
+// entry, leaving the caller to create it alongside any other fixtures.
+func connectorAccessRequestStorage(t *testing.T) (storage.Client, *v1.MCPServerCatalogEntry) {
 	t.Helper()
 
 	entry := &v1.MCPServerCatalogEntry{
@@ -40,9 +53,107 @@ func connectorAccessRequestTestSetup(t *testing.T) (storage.Client, *ConnectorAc
 
 	storageClient := storage.Client(fake.NewClientBuilder().
 		WithScheme(storagescheme.Scheme).
-		WithObjects(entry).
 		Build())
-	return storageClient, new(ConnectorAccessRequestHandler)
+	return storageClient, entry
+}
+
+func connectorAccessRequestHandlerWithUser(requester kuser.Info) *ConnectorAccessRequestHandler {
+	return connectorAccessRequestHandlerWithUserAndACRs(requester)
+}
+
+// connectorAccessRequestHandlerWithUserAndACRs builds a handler whose ACR helper
+// sees the given rules, so tests can exercise the "already granted" short-circuit.
+func connectorAccessRequestHandlerWithUserAndACRs(requester kuser.Info, acrs ...*v1.AccessControlRule) *ConnectorAccessRequestHandler {
+	return &ConnectorAccessRequestHandler{
+		acrHelper: accesscontrolrule.NewAccessControlRuleHelper(connectorAccessRequestAccessRuleIndexer(acrs...), nil),
+		userInfo: func(context.Context, string) (kuser.Info, error) {
+			return requester, nil
+		},
+	}
+}
+
+func connectorAccessRequestAccessRuleIndexer(acrs ...*v1.AccessControlRule) gocache.Indexer {
+	indexer := gocache.NewIndexer(gocache.MetaNamespaceKeyFunc, map[string]gocache.IndexFunc{
+		"selectors": func(obj any) ([]string, error) {
+			rule := obj.(*v1.AccessControlRule)
+			return connectorAccessRequestResourceIDs(rule, types.ResourceTypeSelector), nil
+		},
+		"catalog-entry-names": func(obj any) ([]string, error) {
+			rule := obj.(*v1.AccessControlRule)
+			return connectorAccessRequestResourceIDs(rule, types.ResourceTypeMCPServerCatalogEntry), nil
+		},
+	})
+	for _, rule := range acrs {
+		if err := indexer.Add(rule); err != nil {
+			panic(err)
+		}
+	}
+	return indexer
+}
+
+func connectorAccessRequestResourceIDs(rule *v1.AccessControlRule, resourceType types.ResourceType) []string {
+	var ids []string
+	for _, resource := range rule.Spec.Manifest.Resources {
+		if resource.Type == resourceType {
+			ids = append(ids, resource.ID)
+		}
+	}
+	return ids
+}
+
+func connectorAccessRequestSubject(subjectType types.SubjectType, subjectID string) types.Subject {
+	return types.Subject{Type: subjectType, ID: subjectID}
+}
+
+func connectorAccessRequestResource(resourceType types.ResourceType, resourceID string) types.Resource {
+	return types.Resource{Type: resourceType, ID: resourceID}
+}
+
+func connectorAccessRequestACR(subjectType types.SubjectType, subjectID string) *v1.AccessControlRule {
+	return &v1.AccessControlRule{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: system.AccessControlRulePrefix,
+			Namespace:    system.DefaultNamespace,
+		},
+		Spec: v1.AccessControlRuleSpec{
+			MCPCatalogID: system.DefaultCatalog,
+			Manifest: types.AccessControlRuleManifest{
+				Subjects:  []types.Subject{connectorAccessRequestSubject(subjectType, subjectID)},
+				Resources: []types.Resource{connectorAccessRequestResource(types.ResourceTypeMCPServerCatalogEntry, "mce1-connector")},
+			},
+		},
+	}
+}
+
+// connectorAccessRequestSelectorACR is a rule whose resource is selector:* —
+// it grants every catalog entry to whoever its subject names.
+func connectorAccessRequestSelectorACR(subjectType types.SubjectType, subjectID string) *v1.AccessControlRule {
+	return &v1.AccessControlRule{
+		ObjectMeta: metav1.ObjectMeta{
+			GenerateName: system.AccessControlRulePrefix,
+			Namespace:    system.DefaultNamespace,
+		},
+		Spec: v1.AccessControlRuleSpec{
+			MCPCatalogID: system.DefaultCatalog,
+			Manifest: types.AccessControlRuleManifest{
+				Subjects:  []types.Subject{connectorAccessRequestSubject(subjectType, subjectID)},
+				Resources: []types.Resource{connectorAccessRequestResource(types.ResourceTypeSelector, "*")},
+			},
+		},
+	}
+}
+
+func connectorAccessRequestUserWithGroups(authProviderGroups, obotGroups []string) *kuser.DefaultInfo {
+	return &kuser.DefaultInfo{
+		UID:    "42",
+		Name:   "enduser",
+		Groups: []string{types.GroupBasic, types.GroupAuthenticated},
+		Extra: map[string][]string{
+			"email":                {"enduser@example.com"},
+			"auth_provider_groups": authProviderGroups,
+			"obot_groups":          obotGroups,
+		},
+	}
 }
 
 func connectorAccessRequestEntryMeta(name string) (meta metav1.ObjectMeta) {
@@ -147,7 +258,10 @@ func TestConnectorAccessRequestCreateApproveFlow(t *testing.T) {
 	var acrs v1.AccessControlRuleList
 	require.NoError(t, storageClient.List(t.Context(), &acrs, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
 	require.Len(t, acrs.Items, 1)
-	require.True(t, acrGrantsConnectorToUser(acrs.Items[0].Spec.Manifest, "mce1-connector", "42"))
+	require.Equal(t, []types.Subject{{Type: types.SubjectTypeUser, ID: "42"}}, acrs.Items[0].Spec.Manifest.Subjects)
+	require.Equal(t, []types.Resource{
+		{Type: types.ResourceTypeMCPServerCatalogEntry, ID: "mce1-connector"},
+	}, acrs.Items[0].Spec.Manifest.Resources)
 }
 
 func TestConnectorAccessRequestRejectRequiresAdmin(t *testing.T) {
@@ -560,4 +674,97 @@ func TestConnectorAccessRequestDeleteNotFound(t *testing.T) {
 	err := handler.Delete(req)
 	require.Error(t, err)
 	require.True(t, apierrors.IsNotFound(err))
+}
+
+// TestConnectorAccessRequestApproveSkipsRedundantACR covers the case where the
+// requester already reaches the connector through some other rule: approving
+// must not write a second, user-subject ACR. Otherwise revoking the group grant
+// later would silently leave that user with access.
+func TestConnectorAccessRequestApproveSkipsRedundantACR(t *testing.T) {
+	endUser := connectorAccessRequestEndUser()
+
+	tests := []struct {
+		name      string
+		existing  *v1.AccessControlRule
+		requester *kuser.DefaultInfo
+	}{
+		{
+			name:      "obot group",
+			existing:  connectorAccessRequestACR(types.SubjectTypeObotGroup, types.GroupBasic),
+			requester: endUser,
+		},
+		{
+			name:      "idp group",
+			existing:  connectorAccessRequestACR(types.SubjectTypeGroup, "engineering"),
+			requester: connectorAccessRequestUserWithGroups([]string{"engineering"}, []string{types.GroupBasic}),
+		},
+		{
+			name: "selector wildcard",
+			// A selector rule is a rule whose *resource* is selector:*, granting every entry.
+			existing:  connectorAccessRequestSelectorACR(types.SubjectTypeUser, "42"),
+			requester: endUser,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			storageClient, entry := connectorAccessRequestStorage(t)
+			require.NoError(t, storageClient.Create(t.Context(), entry))
+			// The pre-existing rule must live in storage too: the handler writes
+			// its own ACR through the same client and the final assertion counts rows.
+			require.NoError(t, storageClient.Create(t.Context(), tt.existing))
+
+			handler := connectorAccessRequestHandlerWithUserAndACRs(tt.requester, tt.existing)
+
+			req := connectorAccessRequestContext(t, storageClient, http.MethodPost,
+				"/api/connector-access-requests",
+				types.ConnectorAccessRequestManifest{ConnectorID: "mce1-connector"}, tt.requester)
+			require.NoError(t, handler.Create(req))
+
+			var list v1.ConnectorAccessRequestList
+			require.NoError(t, storageClient.List(t.Context(), &list, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+			require.Len(t, list.Items, 1)
+			requestID := list.Items[0].Name
+
+			req = connectorAccessRequestContext(t, storageClient, http.MethodPost,
+				"/api/connector-access-requests/"+requestID+"/approve",
+				types.ConnectorAccessReview{}, connectorAccessRequestAdmin())
+			req.SetPathValue("connector_access_request_id", requestID)
+			require.NoError(t, handler.Approve(req))
+
+			// Only the pre-existing rule is present; approval added nothing.
+			var acrs v1.AccessControlRuleList
+			require.NoError(t, storageClient.List(t.Context(), &acrs, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+			require.Len(t, acrs.Items, 1)
+			require.Equal(t, tt.existing.Spec.Manifest.Subjects, acrs.Items[0].Spec.Manifest.Subjects)
+		})
+	}
+}
+
+// TestConnectorAccessRequestApproveWritesACRWhenUnauthorized is the regression
+// guard: with no prior access the approval still has to grant one, otherwise
+// the connector stays unusable.
+func TestConnectorAccessRequestApproveWritesACRWhenUnauthorized(t *testing.T) {
+	storageClient, handler := connectorAccessRequestTestSetup(t)
+	endUser := connectorAccessRequestEndUser()
+
+	req := connectorAccessRequestContext(t, storageClient, http.MethodPost, "/api/connector-access-requests",
+		types.ConnectorAccessRequestManifest{ConnectorID: "mce1-connector"}, endUser)
+	require.NoError(t, handler.Create(req))
+
+	var list v1.ConnectorAccessRequestList
+	require.NoError(t, storageClient.List(t.Context(), &list, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+	require.Len(t, list.Items, 1)
+	requestID := list.Items[0].Name
+
+	req = connectorAccessRequestContext(t, storageClient, http.MethodPost,
+		"/api/connector-access-requests/"+requestID+"/approve",
+		types.ConnectorAccessReview{}, connectorAccessRequestAdmin())
+	req.SetPathValue("connector_access_request_id", requestID)
+	require.NoError(t, handler.Approve(req))
+
+	var acrs v1.AccessControlRuleList
+	require.NoError(t, storageClient.List(t.Context(), &acrs, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+	require.Len(t, acrs.Items, 1)
+	require.Equal(t, []types.Subject{{Type: types.SubjectTypeUser, ID: "42"}}, acrs.Items[0].Spec.Manifest.Subjects)
 }

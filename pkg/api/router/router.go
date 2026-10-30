@@ -67,7 +67,7 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	gitCredentials := handlers.NewGitCredentialHandler()
 	skillAccessRules := handlers.NewSkillAccessRuleHandler()
 	skillPublicationRules := handlers.NewSkillPublicationRuleHandler()
-	connectorAccessRequests := handlers.NewConnectorAccessRequestHandler()
+	connectorAccessRequests := handlers.NewConnectorAccessRequestHandler(services.AccessControlRuleHelper)
 	skills := handlers.NewSkillHandler(services.GitMaxRepoSizeMB, services.SkillAccessRuleHelper)
 	powerUserWorkspaces := handlers.NewPowerUserWorkspaceHandler(services.AccessControlRuleHelper, services.MCPSecretBindingAllowedLabel)
 	mcpWebhookValidations := handlers.NewMCPWebhookValidationHandler(services.MCPSessionManager)
