@@ -159,5 +159,8 @@ describe('SkillsView', () => {
 		await expect
 			.element(dialog.getByText('Claude Code'))
 			.toBeVisible();
+		await expect
+			.element(dialog.getByRole('button', { name: m.skills_download() }))
+			.toBeVisible();
 	});
 });

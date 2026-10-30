@@ -1,6 +1,7 @@
 import { m } from '$lib/i18n';
 import { Group } from '$lib/services';
 import type { ConnectorAccessRequest, Skill } from '$lib/services';
+import { saveBlob } from '$lib/download';
 import { mcpServersAndEntries } from '$lib/stores';
 import { formatTimeAgo } from '$lib/time';
 import { createMCPCatalogEntry, createVMCP } from '../../tests/helpers/mcp';
@@ -18,6 +19,11 @@ vi.mock('$app/state', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('$app/state')>();
 	const { createAppState } = await import('../../tests/helpers/navigation.svelte');
 	return createAppState(actual);
+});
+
+vi.mock('$lib/download', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('$lib/download')>();
+	return { ...actual, saveBlob: vi.fn() };
 });
 
 vi.mock('$app/navigation', async (importOriginal) => {
@@ -310,5 +316,30 @@ describe('market page', () => {
 		// The command embeds the signed download URL
 		const expectedCommand = `tmp="$(mktemp -d)" && curl -fsSL "${window.location.origin}/api/skills/sk1-report/download?expires=1&token=t" -o "$tmp/skill.zip" && mkdir -p "$HOME/.claude/skills/weekly-report-en" && unzip -oq "$tmp/skill.zip" -d "$HOME/.claude/skills/weekly-report-en" && rm -rf "$tmp"`;
 		await expect.element(modal.getByCSS('#command-claudeCode')).toHaveValue(expectedCommand);
+	});
+
+	it('downloads the skill zip locally when the download button is clicked', async () => {
+		vi.mocked(saveBlob).mockClear();
+		worker.use(
+			http.get(`/api/skills/${skill.id}/download-url`, () =>
+				HttpResponse.json({ path: `/api/skills/${skill.id}/download?expires=1&token=t` })
+			),
+			http.get(`/api/skills/${skill.id}/download`, () =>
+				HttpResponse.arrayBuffer(new Uint8Array([0x50, 0x4b, 0x03, 0x04]).buffer)
+			)
+		);
+
+		await renderMarketPage();
+		await page.getByTestId('market-skill-sk1-report').click();
+
+		const modal = page.getByRole('dialog', { name: '中文周报技能' });
+		await modal.getByRole('button', { name: m.skills_download() }).click();
+
+		await expect
+			.poll(() => vi.mocked(saveBlob).mock.calls)
+			.toHaveLength(1);
+		const [blob, filename] = vi.mocked(saveBlob).mock.calls[0];
+		expect(blob).toBeInstanceOf(Blob);
+		expect(filename).toBe('weekly-report-en.zip');
 	});
 });

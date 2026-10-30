@@ -8,14 +8,14 @@
 	import MarketplaceCard from '$lib/components/marketplace/MarketplaceCard.svelte';
 	import MarketplaceGrid from '$lib/components/marketplace/MarketplaceGrid.svelte';
 	import { PAGE_TRANSITION_DURATION } from '$lib/constants';
-	import { sanitizeFilenameSegment } from '$lib/download';
+	import { sanitizeFilenameSegment, saveBlob } from '$lib/download';
 	import { m } from '$lib/i18n';
 	import { AdminService, UserService, type Skill } from '$lib/services';
 	import type { SkillPublicationRule, SkillRepository } from '$lib/services/admin/types';
 	import { buildSkillInstallCommands, type SkillInstallOS } from '$lib/skills/installCommands';
 	import { errors } from '$lib/stores';
 	import { setUrlParamAndUpdateUrl } from '$lib/url';
-	import { Bot, Eye, EyeOff, PencilRuler, TriangleAlert } from '@lucide/svelte';
+	import { Bot, Download, Eye, EyeOff, PencilRuler, TriangleAlert } from '@lucide/svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 	import { twMerge } from 'tailwind-merge';
@@ -46,6 +46,7 @@
 	let selectedTab = $state<SkillInstallOS>('macos/linux');
 	let skillDownloadURL = $state<string | undefined>(undefined);
 	let skillDownloadURLFailed = $state(false);
+	let downloadingSkill = $state(false);
 
 	let skillRepositoriesMap = $derived(
 		new Map(skillRepositories.map((repository) => [repository.id, repository]))
@@ -153,6 +154,20 @@
 		} catch (err) {
 			console.error('Failed to create skill install link', err);
 			skillDownloadURLFailed = true;
+		}
+	}
+
+	async function handleDownloadSkill(skill?: Skill) {
+		if (!skill || downloadingSkill) return;
+		downloadingSkill = true;
+		try {
+			const blob = await UserService.downloadSkill(skill.id);
+			const filename = `${sanitizeFilenameSegment(skill.name ?? skill.id)}.zip`;
+			saveBlob(blob, filename);
+		} catch (err) {
+			console.error('Failed to download skill', err);
+		} finally {
+			downloadingSkill = false;
 		}
 	}
 </script>
@@ -369,6 +384,17 @@
 			{:else}
 				<p class="text-muted-content text-xs my-2">{m.skills_install_url_pending()}</p>
 			{/if}
+		</div>
+		<div class="flex justify-end mt-1">
+			<button
+				type="button"
+				class="btn btn-ghost btn-xs gap-1 rounded-lg text-muted-content hover:text-primary px-2"
+				disabled={downloadingSkill}
+				onclick={() => handleDownloadSkill(selectedSkillToInstall)}
+			>
+				<Download class="size-3.5" />
+				{m.skills_download()}
+			</button>
 		</div>
 
 		<div class="divider">{m.skills_install_step_invoke()}</div>

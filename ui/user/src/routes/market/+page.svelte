@@ -8,7 +8,7 @@
 	import MarketplaceGrid from '$lib/components/marketplace/MarketplaceGrid.svelte';
 	import ConnectVMcp from '$lib/components/vmcps/ConnectVMcp.svelte';
 	import McpServerIcon from '$lib/components/vmcps/McpServerIcon.svelte';
-	import { sanitizeFilenameSegment } from '$lib/download';
+	import { sanitizeFilenameSegment, saveBlob } from '$lib/download';
 	import { m } from '$lib/i18n';
 	import { toHTMLFromMarkdownWithNewTabLinks } from '$lib/markdown';
 	import { UserService, type ConnectorAccessRequest, type Skill } from '$lib/services';
@@ -23,7 +23,7 @@
 	import { mcpServersAndEntries, profile } from '$lib/stores';
 	import { formatTimeAgo } from '$lib/time';
 	import { goto } from '$lib/url';
-	import { Bot, CircleAlert, Lightbulb, SearchX } from '@lucide/svelte';
+	import { Bot, CircleAlert, Download, Lightbulb, SearchX } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { twMerge } from 'tailwind-merge';
@@ -328,6 +328,7 @@
 	let selectedSkillOsTab = $state<SkillInstallOS>('macos/linux');
 	let skillDownloadURL = $state<string | undefined>(undefined);
 	let skillDownloadURLFailed = $state(false);
+	let downloadingSkill = $state(false);
 
 	let skillInstallCommands = $derived(
 		skillDownloadURL && selectedSkill
@@ -348,6 +349,20 @@
 		} catch (err) {
 			console.error('Failed to create skill install link', err);
 			skillDownloadURLFailed = true;
+		}
+	}
+
+	async function handleDownloadSkill(skill?: Skill) {
+		if (!skill || downloadingSkill) return;
+		downloadingSkill = true;
+		try {
+			const blob = await UserService.downloadSkill(skill.id);
+			const filename = `${sanitizeFilenameSegment(skill.name ?? skill.id)}.zip`;
+			saveBlob(blob, filename);
+		} catch (err) {
+			console.error('Failed to download skill', err);
+		} finally {
+			downloadingSkill = false;
 		}
 	}
 
@@ -713,6 +728,17 @@
 						{:else}
 							<p class="text-muted-content text-xs">{m.skills_install_url_pending()}</p>
 						{/if}
+						<div class="flex justify-end">
+							<button
+								type="button"
+								class="btn btn-ghost btn-xs gap-1 rounded-lg text-muted-content hover:text-primary px-2"
+								disabled={downloadingSkill}
+								onclick={() => handleDownloadSkill(selectedSkill)}
+							>
+								<Download class="size-3.5" />
+								{m.skills_download()}
+							</button>
+						</div>
 					</div>
 
 					<!-- Step 2: Run / Use in Chat -->
