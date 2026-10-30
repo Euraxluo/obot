@@ -1,6 +1,7 @@
 {
 	"market_title": "Marketplace",
 	"market_tab_skills": "Skills",
+	"market_skills_subtitle": "Select skills to use and run them directly.",
 	"market_tab_connectors": "Connectors",
 	"market_my_requests": "My requests",
 	"market_my_requests_empty": "You have not requested any connectors yet",

@@ -1,6 +1,7 @@
 {
 	"market_title": "マーケット",
 	"market_tab_skills": "スキル",
+	"market_skills_subtitle": "使用するスキルを選択して、直接実行します。",
 	"market_tab_connectors": "コネクタ",
 	"market_my_requests": "自分の申請",
 	"market_my_requests_empty": "コネクタの申請はまだありません",

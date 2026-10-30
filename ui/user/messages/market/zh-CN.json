@@ -1,6 +1,7 @@
 {
 	"market_title": "市场",
 	"market_tab_skills": "技能",
+	"market_skills_subtitle": "选择要使用的技能并直接运行。",
 	"market_tab_connectors": "连接器",
 	"market_my_requests": "我的申请",
 	"market_my_requests_empty": "你还没有发起连接器申请",

@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { productTitle } from '$lib/branding.svelte';
-	import Layout from '$lib/components/Layout.svelte';
 	import Search from '$lib/components/Search.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
-	import MarketItemCard from '$lib/components/market/MarketItemCard.svelte';
+	import TabLayout, { type TabView } from '$lib/components/TabLayout.svelte';
+	import MarketplaceCard from '$lib/components/marketplace/MarketplaceCard.svelte';
 	import MarketplaceGrid from '$lib/components/marketplace/MarketplaceGrid.svelte';
 	import ConnectVMcp from '$lib/components/vmcps/ConnectVMcp.svelte';
 	import McpServerIcon from '$lib/components/vmcps/McpServerIcon.svelte';
@@ -20,7 +19,7 @@
 	} from '$lib/services/vmcps/utils';
 	import { mcpServersAndEntries, profile } from '$lib/stores';
 	import { formatTimeAgo } from '$lib/time';
-	import { goto, setUrlParamAndUpdateUrl } from '$lib/url';
+	import { goto } from '$lib/url';
 	import { Bot, CircleAlert, Lightbulb, SearchX } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
@@ -40,7 +39,6 @@
 		entryID?: string;
 	};
 
-	let activeTab = $state<Tab>(tabFromURL());
 	let query = $state('');
 	let selected = $state<SelectedItem>();
 	let requests = $state<ConnectorAccessRequest[]>([]);
@@ -60,16 +58,6 @@
 	$effect(() => {
 		requests = data.requests;
 	});
-
-	function tabFromURL(): Tab {
-		const tab = page.url.searchParams.get('tab');
-		return tab === 'connectors' ? tab : 'skills';
-	}
-
-	function switchTab(tab: Tab) {
-		activeTab = tab;
-		setUrlParamAndUpdateUrl(page.url, 'tab', tab === 'skills' ? null : tab);
-	}
 
 	// --- Connectors ---
 
@@ -322,13 +310,9 @@
 		selected?.entryID ? requestByConnector.get(selected.entryID) : undefined
 	);
 
-	let searchPlaceholder = $derived(
-		activeTab === 'skills' ? m.market_search_skills() : m.market_search_connectors()
-	);
-
-	const tabs: { value: Tab; label: string }[] = [
-		{ value: 'skills', label: m.market_tab_skills() },
-		{ value: 'connectors', label: m.market_tab_connectors() }
+	const views: TabView[] = [
+		{ value: 'skills', label: m.market_tab_skills(), content: skillsView },
+		{ value: 'connectors', label: m.market_tab_connectors(), content: connectorsView }
 	];
 </script>
 
@@ -336,147 +320,181 @@
 	<title>{productTitle(m.market_title())}</title>
 </svelte:head>
 
-<Layout title={m.market_title()} showBackButton={false}>
-	<div class="flex min-h-full flex-col gap-4">
+{#snippet skillsView()}
+	<div class="bg-base-200/70 flex min-h-full flex-col gap-4 p-4 md:p-6">
 		<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-			<div
-				role="tablist"
-				class="tabs tabs-box bg-base-100 shadow-sm dark:bg-base-300"
-				aria-label={m.market_title()}
-			>
-				{#each tabs as tab (tab.value)}
-					<button
-						type="button"
-						role="tab"
-						aria-selected={activeTab === tab.value}
-						data-testid={`market-tab-${tab.value}`}
-						class="tab text-xs min-w-24 whitespace-nowrap {activeTab === tab.value
-							? 'tab-active bg-base-300 dark:bg-base-100'
-							: 'text-muted-content'}"
-						onclick={() => switchTab(tab.value)}
-					>
-						{tab.label}
-					</button>
-				{/each}
+			<div>
+				<h2 class="text-xl font-semibold tracking-tight">{m.market_tab_skills()}</h2>
+				<p class="text-muted-content mt-1 text-sm font-light">
+					{m.market_skills_subtitle ? m.market_skills_subtitle() : '选择要使用的技能并直接运行。'}
+				</p>
 			</div>
-			<Search
-				value={query}
-				onChange={(value) => (query = value)}
-				placeholder={searchPlaceholder}
-				class="h-10 w-full rounded-lg border-base-300/70 bg-base-100 shadow-sm md:max-w-md"
-			/>
+			<div class="flex w-full max-w-xl items-center gap-2">
+				<Search
+					value={query}
+					onChange={(val) => (query = val)}
+					placeholder={m.market_search_skills()}
+					class="h-11 rounded-lg border-base-300/70 bg-base-100 shadow-sm"
+				/>
+			</div>
 		</div>
 
-		{#if activeTab === 'connectors'}
-			<section
-				data-testid="market-my-requests"
-				aria-label={m.market_my_requests()}
-				class="bg-base-100 border-base-300 dark:bg-base-200 rounded-xl border p-4 shadow-sm"
+		{#if visibleSkills.length === 0}
+			<div
+				class="bg-base-100 dark:bg-base-200 text-muted-content flex flex-col items-center gap-3 rounded-xl p-12 text-center"
 			>
-				<h2 class="text-sm font-semibold">{m.market_my_requests()}</h2>
-				{#if myRequests.length === 0}
-					<p class="text-muted-content mt-2 text-sm">
-						{m.market_my_requests_empty()}
-					</p>
-				{:else}
-					<ul class="mt-3 flex flex-col divide-y divide-base-200">
-						{#each myRequests as request (request.id)}
-							<li
-								data-testid={`market-request-${request.id}`}
-								class="flex flex-col gap-2 py-3 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
-							>
-								<div class="min-w-0">
-									<p class="truncate text-sm font-medium">{requestConnectorName(request)}</p>
-									<p class="text-muted-content truncate text-xs">
-										{request.manifest.reason || m.market_request_no_reason()}
-									</p>
-								</div>
-								<div class="flex shrink-0 items-center gap-3">
-									<time
-										class="text-muted-content text-xs"
-										title={request.created ? formatTimeAgo(request.created).fullDate : undefined}
-									>
-										{#if request.created}
-											{formatTimeAgo(request.created).relativeTime}
-										{/if}
-									</time>
-									<span class="badge badge-sm {requestStatusClass(request.manifest.status)}">
-										{requestStatusLabel(request.manifest.status)}
-									</span>
-								</div>
-							</li>
-						{/each}
-					</ul>
-				{/if}
-			</section>
-			{#if mcpServersAndEntries.current.loading && allEntries.length === 0}
-				<div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-					{#each Array.from({ length: 6 }) as _, index (index)}
-						<Skeleton type="card" class="h-36 rounded-xl" />
-					{/each}
-				</div>
-			{:else if visibleEntries.length === 0}
-				<div
-					class="bg-base-100 dark:bg-base-200 text-muted-content flex flex-col items-center gap-3 rounded-xl p-12 text-center"
-				>
-					<SearchX class="size-10 opacity-50" />
-					<p class="text-sm">{m.market_empty_connectors()}</p>
-				</div>
-			{:else}
-				<MarketplaceGrid>
-					{#each visibleEntries as entry (entry.id)}
-						<MarketItemCard
-							testId={`market-connector-${entry.id}`}
-							title={catalogEntryDisplayName(entry) || m.market_untitled_connector()}
-							description={entry.manifest.shortDescription || entry.manifest.description}
-							tags={entryCategories(entry)}
-							status={connectorStatus(entry.id)}
-							onSelect={() => openConnector(entry.id)}
-						>
-							{#snippet icon()}
-								<McpServerIcon
-									icon={entry.manifest.icon}
-									width={40}
-									height={40}
-									classes={{ root: 'size-10 rounded-lg' }}
-								/>
-							{/snippet}
-						</MarketItemCard>
-					{/each}
-				</MarketplaceGrid>
-			{/if}
+				<SearchX class="size-10 opacity-50" />
+				<p class="text-sm">{m.market_empty_skills()}</p>
+			</div>
 		{:else}
-			{#if visibleSkills.length === 0}
-				<div
-					class="bg-base-100 dark:bg-base-200 text-muted-content flex flex-col items-center gap-3 rounded-xl p-12 text-center"
-				>
-					<SearchX class="size-10 opacity-50" />
-					<p class="text-sm">{m.market_empty_skills()}</p>
-				</div>
-			{:else}
-				<MarketplaceGrid>
-					{#each visibleSkills as skill (skill.id)}
-						<MarketItemCard
-							testId={`market-skill-${skill.id}`}
-							title={skillTitle(skill)}
-							description={skill.description ?? ''}
-							tags={skillTags(skill)}
-							onSelect={() => openSkill(skill)}
-						>
-							{#snippet icon()}
-								<span
-									class="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-lg"
-								>
-									<Bot class="size-5" />
-								</span>
-							{/snippet}
-						</MarketItemCard>
-					{/each}
-				</MarketplaceGrid>
-			{/if}
+			<MarketplaceGrid>
+				{#each visibleSkills as skill (skill.id)}
+					<MarketplaceCard
+						testId={`market-skill-${skill.id}`}
+						title={skillTitle(skill)}
+						description={skill.description ?? ''}
+						actionLabel={m.market_use()}
+						onAction={() => openSkill(skill)}
+					>
+						{#snippet icon()}
+							<span
+								class="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-lg"
+							>
+								<Bot class="size-5" />
+							</span>
+						{/snippet}
+						{#snippet metadata()}
+							<span class="text-muted-content flex items-center gap-2 text-xs font-light">
+								{#each skillTags(skill) as tag (tag)}
+									<span>{tag}</span>
+								{/each}
+							</span>
+						{/snippet}
+					</MarketplaceCard>
+				{/each}
+			</MarketplaceGrid>
 		{/if}
 	</div>
-</Layout>
+{/snippet}
+
+{#snippet connectorsView()}
+	<div class="bg-base-200/70 flex min-h-full flex-col gap-4 p-4 md:p-6">
+		<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+			<div>
+				<h2 class="text-xl font-semibold tracking-tight">{m.market_tab_connectors()}</h2>
+				<p class="text-muted-content mt-1 text-sm font-light">
+					浏览 {allEntries.length} 个可用连接器，并申请访问或连接。
+				</p>
+			</div>
+			<div class="flex w-full max-w-xl items-center gap-2">
+				<Search
+					value={query}
+					onChange={(val) => (query = val)}
+					placeholder={m.market_search_connectors()}
+					class="h-11 rounded-lg border-base-300/70 bg-base-100 shadow-sm"
+				/>
+			</div>
+		</div>
+
+		<section
+			data-testid="market-my-requests"
+			aria-label={m.market_my_requests()}
+			class="bg-base-100 border-base-300 dark:bg-base-200 rounded-xl border p-4 shadow-sm"
+		>
+			<h2 class="text-sm font-semibold">{m.market_my_requests()}</h2>
+			{#if myRequests.length === 0}
+				<p class="text-muted-content mt-2 text-sm">
+					{m.market_my_requests_empty()}
+				</p>
+			{:else}
+				<ul class="mt-3 flex flex-col divide-y divide-base-200">
+					{#each myRequests as request (request.id)}
+						<li
+							data-testid={`market-request-${request.id}`}
+							class="flex flex-col gap-2 py-3 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+						>
+							<div class="min-w-0">
+								<p class="truncate text-sm font-medium">{requestConnectorName(request)}</p>
+								<p class="text-muted-content truncate text-xs">
+									{request.manifest.reason || m.market_request_no_reason()}
+								</p>
+							</div>
+							<div class="flex shrink-0 items-center gap-3">
+								<time
+									class="text-muted-content text-xs"
+									title={request.created ? formatTimeAgo(request.created).fullDate : undefined}
+								>
+									{#if request.created}
+										{formatTimeAgo(request.created).relativeTime}
+									{/if}
+								</time>
+								<span class="badge badge-sm {requestStatusClass(request.manifest.status)}">
+									{requestStatusLabel(request.manifest.status)}
+								</span>
+							</div>
+						</li>
+					{/each}
+				</ul>
+			{/if}
+		</section>
+
+		{#if mcpServersAndEntries.current.loading && allEntries.length === 0}
+			<MarketplaceGrid>
+				{#each Array.from({ length: 6 }) as _, index (index)}
+					<Skeleton type="card" class="h-28 rounded-xl" />
+				{/each}
+			</MarketplaceGrid>
+		{:else if visibleEntries.length === 0}
+			<div
+				class="bg-base-100 dark:bg-base-200 text-muted-content flex flex-col items-center gap-3 rounded-xl p-12 text-center"
+			>
+				<SearchX class="size-10 opacity-50" />
+				<p class="text-sm">{m.market_empty_connectors()}</p>
+			</div>
+		{:else}
+			<MarketplaceGrid>
+				{#each visibleEntries as entry (entry.id)}
+					<MarketplaceCard
+						testId={`market-connector-${entry.id}`}
+						title={catalogEntryDisplayName(entry) || m.market_untitled_connector()}
+						description={entry.manifest.shortDescription || entry.manifest.description || ''}
+						actionLabel={m.market_connect()}
+						onAction={() => openConnector(entry.id)}
+					>
+						{#snippet icon()}
+							<McpServerIcon
+								icon={entry.manifest.icon}
+								width={40}
+								height={40}
+								classes={{ root: 'size-10 bg-primary/12 rounded-lg' }}
+								class="size-5"
+							/>
+						{/snippet}
+						{#snippet metadata()}
+							<span class="text-muted-content flex items-center gap-2 text-xs font-light">
+								<span>{connectorStatus(entry.id).label}</span>
+								{#if entryCategories(entry).length}
+									<span aria-hidden="true">·</span>
+									<span>{entryCategories(entry).join(', ')}</span>
+								{/if}
+							</span>
+						{/snippet}
+					</MarketplaceCard>
+				{/each}
+			</MarketplaceGrid>
+		{/if}
+	</div>
+{/snippet}
+
+<TabLayout
+	title={m.market_title()}
+	{views}
+	defaultView="skills"
+	classes={{
+		container: 'justify-start md:pt-0',
+		childrenContainer: 'pt-0'
+	}}
+/>
 
 {#if selected}
 	<div class="modal modal-open" role="dialog" aria-modal="true" aria-label={selected.title}>

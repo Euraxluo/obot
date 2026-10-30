@@ -33,7 +33,8 @@ vi.mock('$lib/url', async (importOriginal) => {
 	const { applyTestGoto } = await import('../../tests/helpers/navigation.svelte');
 	return {
 		...actual,
-		goto: (url: string | URL) => applyTestGoto(url)
+		goto: (url: string | URL) => applyTestGoto(url),
+		clearUrlParams: () => undefined
 	};
 });
 
@@ -146,14 +147,14 @@ describe('market page', () => {
 		await expect.element(skillCard.getByText('github.com')).toBeVisible();
 		await expect
 			.element(skillCard.getByText(/根据本周工作记录生成周报。/))
-			.toHaveClass(/\bline-clamp-3\b/);
+			.toHaveClass(/\btruncate\b/);
 		await expect.element(page.getByRole('tab', { name: /Experts/ })).not.toBeInTheDocument();
 
 		// Connectors tab lists the entry with a 未连接 pill.
 		await openConnectorsTab();
 		const card = page.getByTestId(`market-connector-${connectorEntry.id}`);
 		await expect.element(card).toBeVisible();
-		await expect.element(card.getByText('数据')).toBeVisible();
+		await expect.element(card.getByText('数据, 企业')).toBeVisible();
 		await expect.element(card.getByText(m.market_not_connected())).toBeVisible();
 	});
 
