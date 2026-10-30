@@ -55,8 +55,12 @@ connectorEntry.manifest = {
 const skill: Skill = {
 	id: 'sk1-report',
 	type: 'skill',
-	name: '周报生成',
-	description: '根据本周工作记录生成周报'
+	name: 'weekly-report-en',
+	displayName: 'English Weekly Skill',
+	description:
+		'根据本周工作记录生成周报。卡片只保留两到三行摘要，完整说明、数据来源和输出格式要求放在详情弹窗中展示。',
+	metadata: { displayNameZh: '中文周报技能' },
+	repoURL: 'https://github.com/example/weekly-report'
 };
 
 function requestFixture(
@@ -136,13 +140,20 @@ describe('market page', () => {
 			.toHaveAttribute('aria-selected', 'true');
 
 		// Skills is the default; expert/shared-vMCP cards are no longer marketplace entries.
-		await expect.element(page.getByTestId('market-skill-sk1-report')).toBeVisible();
+		const skillCard = page.getByTestId('market-skill-sk1-report');
+		await expect.element(skillCard).toBeVisible();
+		await expect.element(skillCard.getByText('中文周报技能')).toBeVisible();
+		await expect.element(skillCard.getByText('github.com')).toBeVisible();
+		await expect
+			.element(skillCard.getByText(/根据本周工作记录生成周报。/))
+			.toHaveClass(/\bline-clamp-3\b/);
 		await expect.element(page.getByRole('tab', { name: /Experts/ })).not.toBeInTheDocument();
 
 		// Connectors tab lists the entry with a 未连接 pill.
 		await openConnectorsTab();
 		const card = page.getByTestId(`market-connector-${connectorEntry.id}`);
 		await expect.element(card).toBeVisible();
+		await expect.element(card.getByText('数据')).toBeVisible();
 		await expect.element(card.getByText(m.market_not_connected())).toBeVisible();
 	});
 

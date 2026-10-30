@@ -21,7 +21,7 @@
 	import { mcpServersAndEntries, profile } from '$lib/stores';
 	import { formatTimeAgo } from '$lib/time';
 	import { goto, setUrlParamAndUpdateUrl } from '$lib/url';
-	import { Bot, CircleAlert, Lightbulb } from '@lucide/svelte';
+	import { Bot, CircleAlert, Lightbulb, SearchX } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 
@@ -175,13 +175,28 @@
 		data.skills.filter(
 			(skill) =>
 				!query ||
-				(skill.name ?? skill.displayName ?? '').toLowerCase().includes(query.toLowerCase()) ||
+				skillTitle(skill).toLowerCase().includes(query.toLowerCase()) ||
 				(skill.description ?? '').toLowerCase().includes(query.toLowerCase())
 		)
 	);
 
 	function skillTitle(skill: Skill) {
-		return skill.name || skill.displayName || m.market_untitled_skill();
+		const metadataName = skill.metadata?.displayNameZh;
+		return (
+			(typeof metadataName === 'string' ? metadataName.trim() : '') ||
+			skill.displayName ||
+			skill.name ||
+			m.market_untitled_skill()
+		);
+	}
+
+	function skillTags(skill: Skill) {
+		if (!skill.repoURL) return [];
+		try {
+			return [new URL(skill.repoURL).hostname.replace(/^www\./, '')];
+		} catch {
+			return [skill.repoURL];
+		}
 	}
 
 	// --- Detail dialog ---
@@ -321,7 +336,7 @@
 	<title>{productTitle(m.market_title())}</title>
 </svelte:head>
 
-<Layout title={m.market_title()} subtitle={m.market_subtitle()} showBackButton={false}>
+<Layout title={m.market_title()} showBackButton={false}>
 	<div class="flex min-h-full flex-col gap-4">
 		<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 			<div
@@ -401,7 +416,12 @@
 					{/each}
 				</div>
 			{:else if visibleEntries.length === 0}
-				<p class="text-muted-content py-16 text-center text-sm">{m.market_empty_connectors()}</p>
+				<div
+					class="bg-base-100 dark:bg-base-200 text-muted-content flex flex-col items-center gap-3 rounded-xl p-12 text-center"
+				>
+					<SearchX class="size-10 opacity-50" />
+					<p class="text-sm">{m.market_empty_connectors()}</p>
+				</div>
 			{:else}
 				<MarketplaceGrid>
 					{#each visibleEntries as entry (entry.id)}
@@ -427,7 +447,12 @@
 			{/if}
 		{:else}
 			{#if visibleSkills.length === 0}
-				<p class="text-muted-content py-16 text-center text-sm">{m.market_empty_skills()}</p>
+				<div
+					class="bg-base-100 dark:bg-base-200 text-muted-content flex flex-col items-center gap-3 rounded-xl p-12 text-center"
+				>
+					<SearchX class="size-10 opacity-50" />
+					<p class="text-sm">{m.market_empty_skills()}</p>
+				</div>
 			{:else}
 				<MarketplaceGrid>
 					{#each visibleSkills as skill (skill.id)}
@@ -435,6 +460,7 @@
 							testId={`market-skill-${skill.id}`}
 							title={skillTitle(skill)}
 							description={skill.description ?? ''}
+							tags={skillTags(skill)}
 							onSelect={() => openSkill(skill)}
 						>
 							{#snippet icon()}
