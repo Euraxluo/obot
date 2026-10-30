@@ -25,5 +25,8 @@
 	"market_rejected_reason": "거부 사유",
 	"market_close": "닫기",
 	"market_untitled_connector": "제목 없는 커넥터",
-	"market_untitled_skill": "제목 없는 스킬"
+	"market_untitled_skill": "제목 없는 스킬",
+	"market_skill_usage_title": "사용 방법",
+	"market_skill_step_call": "3. AI 클라이언트에서 실행",
+	"market_skill_call_hint": "압축을 푼 후 채팅에서 /{name}을 입력하거나 AI에 요청하여 스킬을 실행합니다."
 }

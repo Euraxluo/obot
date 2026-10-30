@@ -25,5 +25,8 @@
 	"market_rejected_reason": "驳回原因",
 	"market_close": "关闭",
 	"market_untitled_connector": "未命名连接器",
-	"market_untitled_skill": "未命名技能"
+	"market_untitled_skill": "未命名技能",
+	"market_skill_usage_title": "使用指南",
+	"market_skill_step_call": "3. 在 AI 客户端中调用",
+	"market_skill_call_hint": "解压后，在客户端对话中输入 /{name} 或向 AI 描述任务需求，即可自动调用该技能。"
 }

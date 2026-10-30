@@ -25,5 +25,8 @@
 	"market_rejected_reason": "却下理由",
 	"market_close": "閉じる",
 	"market_untitled_connector": "無題のコネクタ",
-	"market_untitled_skill": "無題のスキル"
+	"market_untitled_skill": "無題のスキル",
+	"market_skill_usage_title": "使い方ガイド",
+	"market_skill_step_call": "3. AI クライアントで実行",
+	"market_skill_call_hint": "解凍後、チャットで /{name} と入力するか、AI にタスクを指示してスキルを実行します。"
 }

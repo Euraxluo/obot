@@ -4,6 +4,7 @@ import type { ConnectorAccessRequest, Skill } from '$lib/services';
 import { mcpServersAndEntries } from '$lib/stores';
 import { formatTimeAgo } from '$lib/time';
 import { createMCPCatalogEntry, createVMCP } from '../../tests/helpers/mcp';
+import { applyTestGoto } from '../../tests/helpers/navigation.svelte';
 import { createMockProfile, preparePageData } from '../../tests/helpers/pageData';
 import { worker } from '../../tests/mocks/worker';
 import type { PageData } from './$types';
@@ -112,6 +113,7 @@ async function renderMarketPage({
 	vmcps?: PageData['vmcps'];
 	profile?: ReturnType<typeof createMockProfile>;
 } = {}) {
+	await applyTestGoto('/market');
 	resetStore();
 	mockMarketApis();
 	const data = await preparePageData<PageData>({
@@ -280,5 +282,46 @@ describe('market page', () => {
 		);
 		await expect.element(page.getByCSS('#connect-to-vmcp-dialog')).toBeVisible();
 		await expect.element(page.getByText(m.vmcps_connection_url())).toBeVisible();
+	});
+
+	it('shows how to use skills with download button, unzip commands, and call instructions when clicked', async () => {
+		const downloadCalled = vi.fn();
+		worker.use(
+			http.get(`/api/skills/${skill.id}/download`, () => {
+				downloadCalled();
+				return new HttpResponse(new Blob(['fake-zip']), {
+					headers: { 'Content-Type': 'application/zip' }
+				});
+			})
+		);
+
+		await renderMarketPage();
+		const skillCard = page.getByTestId('market-skill-sk1-report');
+		await skillCard.click();
+
+		// Modal displays the skill usage section and steps
+		const modal = page.getByRole('dialog', { name: '中文周报技能' });
+		await expect.element(modal).toBeVisible();
+		await expect.element(modal.getByText(m.market_skill_usage_title())).toBeVisible();
+		await expect
+			.element(
+				modal.getByText(
+					m.skills_install_step_download({
+						name: skill.displayName || skill.name || ''
+					})
+				)
+			)
+			.toBeVisible();
+		await expect.element(modal.getByText(m.skills_install_step_unzip())).toBeVisible();
+		await expect.element(modal.getByText(m.market_skill_step_call())).toBeVisible();
+
+		// Unzip copy fields for clients (Cursor, Claude Code, Codex) are rendered in modal
+		await expect.element(modal.getByText('Cursor')).toBeVisible();
+		await expect.element(modal.getByText('Claude Code')).toBeVisible();
+		await expect.element(modal.getByText('Codex')).toBeVisible();
+
+		// Download button is clickable
+		const downloadBtn = modal.getByRole('button', { name: new RegExp(m.skills_download()) });
+		await expect.element(downloadBtn).toBeVisible();
 	});
 });

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { productTitle } from '$lib/branding.svelte';
+	import CopyField from '$lib/components/CopyField.svelte';
 	import Search from '$lib/components/Search.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import TabLayout, { type TabView } from '$lib/components/TabLayout.svelte';
@@ -7,9 +8,11 @@
 	import MarketplaceGrid from '$lib/components/marketplace/MarketplaceGrid.svelte';
 	import ConnectVMcp from '$lib/components/vmcps/ConnectVMcp.svelte';
 	import McpServerIcon from '$lib/components/vmcps/McpServerIcon.svelte';
+	import { sanitizeFilenameSegment, saveBlob } from '$lib/download';
 	import { m } from '$lib/i18n';
 	import { toHTMLFromMarkdownWithNewTabLinks } from '$lib/markdown';
 	import { UserService, type ConnectorAccessRequest, type Skill } from '$lib/services';
+	import { AiClient, COMMON_AI_CLIENTS_MAP } from '$lib/services/user/constants';
 	import {
 		catalogEntryToVMCPComponent,
 		catalogEntryDisplayName,
@@ -20,9 +23,10 @@
 	import { mcpServersAndEntries, profile } from '$lib/stores';
 	import { formatTimeAgo } from '$lib/time';
 	import { goto } from '$lib/url';
-	import { Bot, CircleAlert, Lightbulb, SearchX } from '@lucide/svelte';
+	import { Bot, CircleAlert, Download, Lightbulb, SearchX } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
+	import { twMerge } from 'tailwind-merge';
 
 	let { data } = $props();
 
@@ -37,6 +41,7 @@
 		tags: string[];
 		href?: string;
 		entryID?: string;
+		skill?: Skill;
 	};
 
 	let query = $state('');
@@ -211,7 +216,8 @@
 			id: skill.id,
 			title: skillTitle(skill),
 			description: skill.description ?? '',
-			tags: skill.repoURL ? [skill.repoURL] : []
+			tags: skill.repoURL ? [skill.repoURL] : [],
+			skill
 		};
 	}
 
@@ -309,6 +315,72 @@
 	let selectedRequest = $derived(
 		selected?.entryID ? requestByConnector.get(selected.entryID) : undefined
 	);
+
+	let selectedSkill = $derived.by(() => {
+		const current = selected;
+		if (!current || current.tab !== 'skills') return undefined;
+		return current.skill ?? data.skills.find((s) => s.id === current.id);
+	});
+
+	let selectedSkillOsTab = $state<'macos/linux' | 'windows'>('macos/linux');
+	let downloadingSkill = $state(false);
+
+	let clientUnzipCommands = $derived.by(() => {
+		const skillName = sanitizeFilenameSegment(
+			selectedSkill?.name ?? selectedSkill?.id ?? 'skill'
+		);
+		const command = (clientSkillsDirectory: string) => {
+			if (selectedSkillOsTab === 'windows') {
+				const windowsSkillsDirectory = clientSkillsDirectory.replaceAll('/', '\\');
+				return `Expand-Archive -LiteralPath "$env:USERPROFILE\\Downloads\\${skillName}.zip" -DestinationPath "$env:USERPROFILE\\${windowsSkillsDirectory}\\${skillName}" -Force`;
+			}
+
+			return `unzip "$HOME/Downloads/${skillName}.zip" -d "$HOME/${clientSkillsDirectory}/${skillName}"`;
+		};
+
+		return [
+			{
+				id: 'cursor',
+				label: 'Cursor',
+				icon: COMMON_AI_CLIENTS_MAP.get(AiClient.Cursor)?.icon,
+				iconDark: COMMON_AI_CLIENTS_MAP.get(AiClient.Cursor)?.iconDark,
+				command: command('.cursor/skills')
+			},
+			{
+				id: 'claudeCode',
+				label: 'Claude Code',
+				icon: COMMON_AI_CLIENTS_MAP.get(AiClient.Claude)?.icon,
+				iconDark: COMMON_AI_CLIENTS_MAP.get(AiClient.Claude)?.iconDark,
+				command: command('.claude/skills')
+			},
+			{
+				id: 'codex',
+				label: 'Codex',
+				icon: COMMON_AI_CLIENTS_MAP.get(AiClient.Codex)?.icon,
+				iconDark: COMMON_AI_CLIENTS_MAP.get(AiClient.Codex)?.iconDark,
+				command: command('.codex/skills')
+			},
+			{
+				id: 'other',
+				label: m.skills_other(),
+				command: command('.agents/skills')
+			}
+		];
+	});
+
+	async function handleDownloadSkill(skill?: Skill) {
+		if (!skill || downloadingSkill) return;
+		downloadingSkill = true;
+		try {
+			const blob = await UserService.downloadSkill(skill.id);
+			const filename = `${sanitizeFilenameSegment(skill.name ?? skill.id)}.zip`;
+			saveBlob(blob, filename);
+		} catch (err) {
+			console.error('Failed to download skill', err);
+		} finally {
+			downloadingSkill = false;
+		}
+	}
 
 	const views: TabView[] = [
 		{ value: 'skills', label: m.market_tab_skills(), content: skillsView },
@@ -498,7 +570,7 @@
 
 {#if selected}
 	<div class="modal modal-open" role="dialog" aria-modal="true" aria-label={selected.title}>
-		<div class="modal-box bg-base-100 dark:bg-base-200 max-w-lg rounded-2xl">
+		<div class="modal-box bg-base-100 dark:bg-base-200 max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl">
 			<div class="flex items-start justify-between gap-3">
 				<div class="flex items-center gap-3">
 					{#if selected.tab === 'connectors'}
@@ -601,15 +673,110 @@
 						<p class="text-error text-sm">{submitError}</p>
 					{/if}
 				</div>
-			{:else if selected.tab === 'skills'}
-				<div class="divider"></div>
-				<button
-					type="button"
-					class="btn btn-primary btn-sm w-full rounded-lg"
-					onclick={openSkillDetail}
-				>
-					{m.market_use()}
-				</button>
+			{:else if selected.tab === 'skills' && selectedSkill}
+				<div class="divider my-4">{m.market_skill_usage_title()}</div>
+
+				<div class="flex flex-col gap-4">
+					<!-- Step 1: Download zip -->
+					<div class="bg-base-200/50 dark:bg-base-300/40 rounded-xl p-3.5">
+						<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+							<div>
+								<p class="text-xs font-semibold text-base-content">
+									{m.skills_install_step_download({
+										name: selectedSkill.displayName || selectedSkill.name || ''
+									})}
+								</p>
+								<p class="text-xs text-muted-content mt-0.5">
+									下载技能包压缩文件（{sanitizeFilenameSegment(selectedSkill.name ?? selectedSkill.id)}.zip）
+								</p>
+							</div>
+							<button
+								type="button"
+								class="btn btn-primary btn-sm shrink-0 gap-2 rounded-lg"
+								disabled={downloadingSkill}
+								onclick={() => handleDownloadSkill(selectedSkill)}
+							>
+								<Download class="size-4" />
+								{downloadingSkill ? '下载中...' : m.skills_download()}
+							</button>
+						</div>
+					</div>
+
+					<!-- Step 2: Unzip to Client -->
+					<div class="flex flex-col gap-2.5">
+						<div class="flex items-center justify-between">
+							<p class="text-xs font-semibold text-base-content">
+								{m.skills_install_step_unzip()}
+							</p>
+							<div role="tablist" class="tabs tabs-box tabs-xs">
+								<button
+									type="button"
+									role="tab"
+									class={twMerge('tab text-xs', selectedSkillOsTab === 'macos/linux' && 'tab-active')}
+									onclick={() => (selectedSkillOsTab = 'macos/linux')}
+									aria-selected={selectedSkillOsTab === 'macos/linux'}
+								>
+									macOS/Linux
+								</button>
+								<button
+									type="button"
+									role="tab"
+									class={twMerge('tab text-xs', selectedSkillOsTab === 'windows' && 'tab-active')}
+									onclick={() => (selectedSkillOsTab = 'windows')}
+									aria-selected={selectedSkillOsTab === 'windows'}
+								>
+									Windows
+								</button>
+							</div>
+						</div>
+						<div class="flex flex-col gap-2">
+							{#each clientUnzipCommands as client (client.id)}
+								<CopyField
+									value={client.command}
+									id={`command-${client.id}`}
+									classes={{
+										inputLabel: 'bg-base-200/60 dark:bg-base-300',
+										input: 'font-mono text-xs'
+									}}
+								>
+									{#snippet preContent()}
+										<span
+											class="label shrink-0 w-32 mr-0 text-xs text-base-content flex items-center gap-1.5 font-medium"
+										>
+											{#if client.icon || client.iconDark}
+												<img
+													src={client.iconDark ?? client.icon}
+													alt={m.skills_branding_icon_alt({ client: client.label })}
+													class="size-4 dark:block hidden"
+												/>
+												<img
+													src={client?.icon}
+													alt={m.skills_branding_icon_alt({ client: client.label })}
+													class="size-4 block dark:hidden"
+												/>
+											{:else}
+												<Bot class="size-4" />
+											{/if}
+											{client.label}
+										</span>
+									{/snippet}
+								</CopyField>
+							{/each}
+						</div>
+					</div>
+
+					<!-- Step 3: Run / Use in Chat -->
+					<div class="rounded-xl border border-primary/20 bg-primary/5 p-3.5">
+						<p class="text-xs font-semibold text-primary">
+							{m.market_skill_step_call()}
+						</p>
+						<p class="mt-1 text-xs text-muted-content leading-relaxed">
+							{m.market_skill_call_hint({
+								name: sanitizeFilenameSegment(selectedSkill.name ?? selectedSkill.id)
+							})}
+						</p>
+					</div>
+				</div>
 			{/if}
 		</div>
 		<button type="button" class="modal-backdrop" aria-label={m.market_close()} onclick={closeDetail}

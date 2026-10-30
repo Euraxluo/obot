@@ -25,5 +25,8 @@
 	"market_rejected_reason": "Rejection reason",
 	"market_close": "Close",
 	"market_untitled_connector": "Untitled connector",
-	"market_untitled_skill": "Untitled skill"
+	"market_untitled_skill": "Untitled skill",
+	"market_skill_usage_title": "How to Use",
+	"market_skill_step_call": "3. Run in AI Client",
+	"market_skill_call_hint": "After unzipping, type /{name} in your chat or prompt the AI to run this skill."
 }
