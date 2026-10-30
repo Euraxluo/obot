@@ -94,12 +94,12 @@ function mockGroupsApi(groups = [groupDev, groupOps]) {
 	);
 }
 
-async function renderView(rules: AccessControlRule[] = [devAcr]) {
+async function renderView(rules: AccessControlRule[] = [devAcr], groups = [groupDev, groupOps]) {
 	await preparePageData({
 		profile: createMockProfile([Group.ADMIN])
 	});
 	setupStore();
-	mockGroupsApi();
+	mockGroupsApi(groups);
 	return render(McpPoliciesView, {
 		accessControlRules: rules,
 		catalogEntries: [entry1, entry2]
@@ -369,5 +369,170 @@ describe('McpPoliciesView group-based authorization', () => {
 		expect(putSpy).not.toHaveBeenCalled();
 		expect(postSpy).not.toHaveBeenCalled();
 		expect(wildcardAcr).toEqual(originalWildcard);
+	});
+
+	it('allows selecting and saving a built-in obotGroup when auth provider returns no groups', async () => {
+		const postSpy = vi.fn();
+		worker.use(
+			http.get('/api/groups', () =>
+				HttpResponse.json({
+					items: [],
+					nextCursor: undefined,
+					source: 'provider',
+					degraded: false
+				})
+			),
+			http.post('/api/mcp-catalogs/default/access-control-rules', async ({ request }) => {
+				const body = await request.json();
+				postSpy(body);
+				return HttpResponse.json({ id: 'acr-new-basic', ...(body as Record<string, unknown>) });
+			})
+		);
+
+		await renderView([], []);
+
+		await page.getByRole('tab', { name: m.mcps_access_policies_mode_groups() }).click();
+
+		await expect
+			.element(page.getByText(m.mcps_access_policies_group_section_builtin()))
+			.toBeVisible();
+		await expect
+			.element(page.getByText(m.identity_access_groups_none()))
+			.toBeVisible();
+
+		await page.getByRole('button', { name: /Obot Basic/ }).click();
+
+		await expect
+			.element(page.getByText(m.mcps_access_policies_group_no_dedicated_policy()))
+			.toBeVisible();
+
+		const checkbox1 = page.getByRole('checkbox', { name: 'Connector One' });
+		await expect.element(checkbox1).not.toBeChecked();
+		await checkbox1.click();
+		await expect.element(checkbox1).toBeChecked();
+
+		await page.getByRole('button', { name: m.core_save() }).click();
+
+		await vi.waitFor(() => expect(postSpy).toHaveBeenCalledTimes(1));
+		expect(postSpy).toHaveBeenCalledWith(
+			expect.objectContaining({
+				displayName: 'Group: Obot Basic',
+				subjects: [{ type: 'obotGroup', id: 'basic' }],
+				resources: [{ type: 'mcpServerCatalogEntry', id: 'mce1' }]
+			})
+		);
+		await vi.waitFor(() =>
+			expect(vi.mocked(invalidate)).toHaveBeenCalledWith('mcp-access-policies:data')
+		);
+	});
+
+	it('protects obotGroup=admin with selector=* rule as readonly full grant with disabled save', async () => {
+		const adminWildcardAcr: AccessControlRule = {
+			id: 'acr-admin-wildcard',
+			created: '2026-01-01T00:00:00Z',
+			displayName: 'Admin Full Access',
+			subjects: [{ type: 'obotGroup', id: 'admin' }],
+			resources: [{ type: 'selector', id: '*' }]
+		};
+		const originalWildcard = structuredClone(adminWildcardAcr);
+		const putSpy = vi.fn();
+		const postSpy = vi.fn();
+		worker.use(
+			http.put('/api/mcp-catalogs/default/access-control-rules/:id', async ({ request }) => {
+				putSpy(await request.json());
+				return HttpResponse.json(adminWildcardAcr);
+			}),
+			http.post('/api/mcp-catalogs/default/access-control-rules', async ({ request }) => {
+				postSpy(await request.json());
+				return HttpResponse.json(adminWildcardAcr);
+			})
+		);
+
+		await renderView([adminWildcardAcr]);
+
+		await page.getByRole('tab', { name: m.mcps_access_policies_mode_groups() }).click();
+		await page.getByRole('button', { name: /Obot Admin/ }).click();
+
+		await expect
+			.element(page.getByText(m.mcps_access_policies_group_selector_readonly_notice()))
+			.toBeVisible();
+		await expect.element(page.getByRole('checkbox', { name: 'Connector One' })).toBeChecked();
+		await expect.element(page.getByRole('checkbox', { name: 'Connector One' })).toBeDisabled();
+		await expect.element(page.getByRole('checkbox', { name: 'Connector Two' })).toBeChecked();
+		await expect.element(page.getByRole('checkbox', { name: 'Connector Two' })).toBeDisabled();
+		await expect.element(page.getByRole('button', { name: m.core_save() })).toBeDisabled();
+
+		await page.getByRole('button', { name: m.core_save() }).click({ force: true }).catch(() => {});
+		expect(putSpy).not.toHaveBeenCalled();
+		expect(postSpy).not.toHaveBeenCalled();
+		expect(adminWildcardAcr).toEqual(originalWildcard);
+	});
+
+	it('protects shared obotGroup rule from being overwritten and marks shared entries as read-only', async () => {
+		const sharedObotAcr: AccessControlRule = {
+			id: 'acr-shared-obot',
+			created: '2026-01-02T00:00:00Z',
+			displayName: 'Basic + Power User Shared',
+			subjects: [
+				{ type: 'obotGroup', id: 'basic' },
+				{ type: 'obotGroup', id: 'power-user' }
+			],
+			resources: [{ type: 'mcpServerCatalogEntry', id: 'mce1' }]
+		};
+		const originalShared = structuredClone(sharedObotAcr);
+		const putSpy = vi.fn();
+		const postSpy = vi.fn();
+		worker.use(
+			http.put(
+				'/api/mcp-catalogs/default/access-control-rules/:id',
+				async ({ request, params }) => {
+					putSpy({ id: params.id, body: await request.json() });
+					return HttpResponse.json(sharedObotAcr);
+				}
+			),
+			http.post('/api/mcp-catalogs/default/access-control-rules', async ({ request }) => {
+				const body = await request.json();
+				postSpy(body);
+				return HttpResponse.json({ id: 'acr-basic-dedicated', ...(body as Record<string, unknown>) });
+			})
+		);
+
+		await renderView([sharedObotAcr]);
+
+		await page.getByRole('tab', { name: m.mcps_access_policies_mode_groups() }).click();
+		await page.getByRole('button', { name: /Obot Basic/ }).click();
+
+		await expect
+			.element(
+				page.getByText(
+					m.mcps_access_policies_group_shared_rule_notice({
+						name: sharedObotAcr.displayName,
+						count: 1
+					})
+				)
+			)
+			.toBeVisible();
+
+		const inherited = page.getByRole('checkbox', { name: 'Connector One' });
+		await expect.element(inherited).toBeChecked();
+		await expect.element(inherited).toBeDisabled();
+
+		const newConnector = page.getByRole('checkbox', { name: 'Connector Two' });
+		await newConnector.click();
+		await page.getByRole('button', { name: m.core_save() }).click();
+
+		await vi.waitFor(() => expect(postSpy).toHaveBeenCalledTimes(1));
+		await vi.waitFor(() =>
+			expect(vi.mocked(invalidate)).toHaveBeenCalledWith('mcp-access-policies:data')
+		);
+		expect(putSpy).not.toHaveBeenCalled();
+		expect(postSpy).toHaveBeenCalledWith(
+			expect.objectContaining({
+				displayName: 'Group: Obot Basic',
+				subjects: [{ type: 'obotGroup', id: 'basic' }],
+				resources: [{ type: 'mcpServerCatalogEntry', id: 'mce2' }]
+			})
+		);
+		expect(sharedObotAcr).toEqual(originalShared);
 	});
 });

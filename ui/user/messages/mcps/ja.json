@@ -1132,5 +1132,8 @@
 	"mcps_access_policies_group_shared_rule_notice": "このグループの権限は共有ルール「{name}」に由来し、他に {count} 人のユーザー/グループが含まれます。グループ管理では変更できません。「ポリシー規則」ビューで編集してください。",
 	"mcps_access_policies_group_shared_union_notice": "保存すると専用ルールを新規作成し、既存の共有ルールと重ねて和集合になります。共有ルールは置き換えません。",
 	"mcps_access_policies_group_selector_readonly_notice": "このグループには selector/* のワイルドカード権限があります。すべてのコネクタはここでは読み取り専用で、グループビューはそのルールを上書きしません。",
-	"mcps_access_policies_group_from_shared_rule": "共有ルール由来・読み取り専用"
+	"mcps_access_policies_group_from_shared_rule": "共有ルール由来・読み取り専用",
+	"mcps_access_policies_group_section_builtin": "Obot 組み込みグループ",
+	"mcps_access_policies_group_section_directory": "ディレクトリグループ",
+	"mcps_access_policies_group_type_builtin": "組み込み"
 }

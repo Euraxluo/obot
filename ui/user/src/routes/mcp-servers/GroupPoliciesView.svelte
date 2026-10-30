@@ -17,10 +17,29 @@
 	import { catalogEntryDisplayName } from '$lib/services/vmcps/utils';
 	import { mcpServersAndEntries, profile } from '$lib/stores';
 	import { success } from '$lib/stores/success';
-	import { SearchX, Users } from '@lucide/svelte';
+	import { obotGroupDisplayName } from '$lib/subjectResolver';
+	import { Check, SearchX, Users } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { twMerge } from 'tailwind-merge';
+
+	export type PolicyGroupSubjectType = 'group' | 'obotGroup';
+
+	export interface PolicyGroup {
+		id: string;
+		name: string;
+		subjectType: PolicyGroupSubjectType;
+	}
+
+	export const OBOT_ROLE_GROUPS = [
+		'basic',
+		'power-user',
+		'power-user-plus',
+		'admin',
+		'owner',
+		'auditor',
+		'authenticated'
+	];
 
 	interface Props {
 		accessControlRules: AccessControlRule[];
@@ -46,33 +65,38 @@
 		)
 	);
 
-	let selectedGroup = $state<OrgGroup>();
+	let selectedGroup = $state<PolicyGroup>();
+	let selectedGroupKey = $derived(
+		selectedGroup ? `${selectedGroup.subjectType}:${selectedGroup.id}` : undefined
+	);
 	let connectorQuery = $state('');
 	let saving = $state(false);
 	let saveError = $state('');
 
 	export function findDedicatedGroupAcr(
 		rules: AccessControlRule[],
+		subjectType: PolicyGroupSubjectType,
 		groupId: string
 	): AccessControlRule | undefined {
 		return rules.find(
 			(rule) =>
 				rule.subjects?.length === 1 &&
-				rule.subjects[0].type === 'group' &&
+				rule.subjects[0].type === subjectType &&
 				rule.subjects[0].id === groupId
 		);
 	}
 
 	export function findSharedGroupAcrs(
 		rules: AccessControlRule[],
+		subjectType: PolicyGroupSubjectType,
 		groupId: string
 	): AccessControlRule[] {
 		return rules.filter(
 			(rule) =>
-				rule.subjects?.some((subject) => subject.type === 'group' && subject.id === groupId) &&
+				rule.subjects?.some((subject) => subject.type === subjectType && subject.id === groupId) &&
 				!(
 					rule.subjects?.length === 1 &&
-					rule.subjects[0].type === 'group' &&
+					rule.subjects[0].type === subjectType &&
 					rule.subjects[0].id === groupId
 				)
 		);
@@ -97,10 +121,14 @@
 	}
 
 	let dedicatedAcr = $derived(
-		selectedGroup ? findDedicatedGroupAcr(accessControlRules, selectedGroup.id) : undefined
+		selectedGroup
+			? findDedicatedGroupAcr(accessControlRules, selectedGroup.subjectType, selectedGroup.id)
+			: undefined
 	);
 	let sharedAcrs = $derived(
-		selectedGroup ? findSharedGroupAcrs(accessControlRules, selectedGroup.id) : []
+		selectedGroup
+			? findSharedGroupAcrs(accessControlRules, selectedGroup.subjectType, selectedGroup.id)
+			: []
 	);
 	let dedicatedGrantsAll = $derived(Boolean(dedicatedAcr && ruleGrantsAllEntries(dedicatedAcr)));
 	let sharedGrantsAll = $derived(sharedAcrs.some(ruleGrantsAllEntries));
@@ -126,7 +154,11 @@
 			rule,
 			otherSubjects:
 				rule.subjects?.filter(
-					(subject) => !(subject.type === 'group' && subject.id === selectedGroup?.id)
+					(subject) =>
+						!(
+							subject.type === selectedGroup?.subjectType &&
+							subject.id === selectedGroup?.id
+						)
 				).length ?? 0
 		}))
 	);
@@ -138,14 +170,14 @@
 		return locked;
 	});
 	let hasSharedRules = $derived(sharedAcrs.length > 0);
-	let lastLoadedGroupId = $state<string>();
+	let lastLoadedGroupKey = $state<string>();
 	let selectedEntryIds = $state<SvelteSet<string>>(new SvelteSet());
 
 	$effect(() => {
-		const groupId = selectedGroup?.id;
-		if (groupId !== lastLoadedGroupId) {
-			lastLoadedGroupId = groupId;
-			if (groupId) {
+		const currentKey = selectedGroupKey;
+		if (currentKey !== lastLoadedGroupKey) {
+			lastLoadedGroupKey = currentKey;
+			if (currentKey) {
 				selectedEntryIds = new SvelteSet(
 					[...dedicatedEntryIds].filter((id) => !lockedEntryIds.has(id))
 				);
@@ -176,9 +208,9 @@
 		})
 	);
 
-	function groupSubtitle(group: OrgGroup): string | undefined {
-		const dedicated = findDedicatedGroupAcr(accessControlRules, group.id);
-		const shared = findSharedGroupAcrs(accessControlRules, group.id);
+	function groupSubtitle(subjectType: PolicyGroupSubjectType, groupId: string): string | undefined {
+		const dedicated = findDedicatedGroupAcr(accessControlRules, subjectType, groupId);
+		const shared = findSharedGroupAcrs(accessControlRules, subjectType, groupId);
 		if (!dedicated && shared.length === 0) return undefined;
 		if ((dedicated && ruleGrantsAllEntries(dedicated)) || shared.some(ruleGrantsAllEntries)) {
 			return m.mcps_access_policies_group_connector_count({ count: connectors.length });
@@ -188,7 +220,7 @@
 		return count > 0 ? m.mcps_access_policies_group_connector_count({ count }) : undefined;
 	}
 
-	function handleSelectGroup(group: OrgGroup) {
+	function handleSelectGroup(group: PolicyGroup) {
 		selectedGroup = group;
 		saveError = '';
 	}
@@ -225,7 +257,7 @@
 				id
 			}));
 
-			const existing = findDedicatedGroupAcr(accessControlRules, group.id);
+			const existing = findDedicatedGroupAcr(accessControlRules, group.subjectType, group.id);
 
 			if (existing) {
 				const preserved = (existing.resources ?? []).filter(
@@ -243,18 +275,20 @@
 				if (isAdmin) {
 					await AdminService.updateAccessControlRule(existing.id, {
 						...existing,
+						subjects: [{ type: group.subjectType, id: group.id }],
 						resources: updatedResources
 					});
 				} else if (workspaceId) {
 					await UserService.updateWorkspaceAccessControlRule(workspaceId, existing.id, {
 						...existing,
+						subjects: [{ type: group.subjectType, id: group.id }],
 						resources: updatedResources
 					});
 				}
 			} else if (selectedIds.length > 0) {
 				const manifest: AccessControlRuleManifest = {
 					displayName: `Group: ${group.name || group.id}`,
-					subjects: [{ type: 'group', id: group.id }],
+					subjects: [{ type: group.subjectType, id: group.id }],
 					resources: entryResources
 				};
 
@@ -279,7 +313,7 @@
 <div class="flex flex-col md:flex-row gap-6 min-h-[500px]">
 	<!-- Left panel: Group selection -->
 	<div
-		class="w-full md:w-80 shrink-0 flex flex-col gap-3 border-b md:border-b-0 md:border-r border-base-300 dark:border-base-400 pb-4 md:pb-0 md:pr-4"
+		class="w-full md:w-80 shrink-0 flex flex-col gap-4 border-b md:border-b-0 md:border-r border-base-300 dark:border-base-400 pb-4 md:pb-0 md:pr-4"
 	>
 		<div class="flex items-center justify-between">
 			<h3 class="text-sm font-semibold flex items-center gap-2">
@@ -287,13 +321,73 @@
 				{m.mcps_access_policies_select_group()}
 			</h3>
 		</div>
-		<div class="grow flex flex-col min-h-0">
-			<GroupPicker
-				onSelect={(g) => handleSelectGroup(g)}
-				selectedId={selectedGroup?.id}
-				subtitle={groupSubtitle}
-				pageSize={20}
-			/>
+
+		<!-- Built-in Obot Groups Section -->
+		<div class="flex flex-col gap-2">
+			<div class="flex items-center justify-between px-0.5">
+				<span class="text-xs font-semibold text-muted-content uppercase tracking-wider">
+					{m.mcps_access_policies_group_section_builtin()}
+				</span>
+			</div>
+			<div class="flex flex-col gap-1.5 max-h-56 overflow-y-auto default-scrollbar-thin pr-0.5">
+				{#each OBOT_ROLE_GROUPS as groupId (groupId)}
+					{@const isSelected =
+						selectedGroup?.subjectType === 'obotGroup' && selectedGroup?.id === groupId}
+					{@const subtitleText = groupSubtitle('obotGroup', groupId)}
+					<button
+						type="button"
+						class={twMerge(
+							'border-base-300 dark:border-base-400 hover:bg-base-100/5 flex items-center gap-3 rounded-lg border p-2 text-left transition-colors',
+							isSelected && 'bg-primary/10 border-primary'
+						)}
+						onclick={() =>
+							handleSelectGroup({
+								id: groupId,
+								name: obotGroupDisplayName(groupId),
+								subjectType: 'obotGroup'
+							})}
+					>
+						<div class="flex grow flex-col min-w-0">
+							<div class="flex items-center gap-1.5">
+								<span class="font-medium text-xs truncate">{obotGroupDisplayName(groupId)}</span>
+								<span
+									class="badge badge-ghost badge-xs text-[9px] uppercase tracking-wider shrink-0 opacity-70"
+								>
+									{m.mcps_access_policies_group_type_builtin()}
+								</span>
+							</div>
+							{#if subtitleText}
+								<span class="text-muted-content text-[11px] mt-0.5">{subtitleText}</span>
+							{/if}
+						</div>
+						{#if isSelected}
+							<Check class="text-primary size-4 shrink-0" />
+						{/if}
+					</button>
+				{/each}
+			</div>
+		</div>
+
+		<!-- Directory Groups Section -->
+		<div class="flex flex-col gap-2 grow min-h-0">
+			<div class="flex items-center justify-between px-0.5">
+				<span class="text-xs font-semibold text-muted-content uppercase tracking-wider">
+					{m.mcps_access_policies_group_section_directory()}
+				</span>
+			</div>
+			<div class="grow flex flex-col min-h-[220px]">
+				<GroupPicker
+					onSelect={(g) =>
+						handleSelectGroup({
+							id: g.id,
+							name: g.name,
+							subjectType: 'group'
+						})}
+					selectedId={selectedGroup?.subjectType === 'group' ? selectedGroup.id : undefined}
+					subtitle={(g) => groupSubtitle('group', g.id)}
+					pageSize={20}
+				/>
+			</div>
 		</div>
 	</div>
 
@@ -350,14 +444,16 @@
 				</div>
 			</div>
 
-			{#each sharedSubjectCounts as { rule, otherSubjects } (rule.id)}
-				<div class="notification-info text-xs p-3 rounded-lg" role="status">
-					{m.mcps_access_policies_group_shared_rule_notice({
-						name: rule.displayName,
-						count: otherSubjects
-					})}
-				</div>
-			{/each}
+			{#if sharedSubjectCounts.length > 0}
+				{#each sharedSubjectCounts as { rule, otherSubjects } (rule.id)}
+					<div class="notification-info text-xs p-3 rounded-lg" role="status">
+						{m.mcps_access_policies_group_shared_rule_notice({
+							name: rule.displayName,
+							count: otherSubjects
+						})}
+					</div>
+				{/each}
+			{/if}
 
 			{#if hasSharedRules && !dedicatedAcr}
 				<div class="notification-warning text-xs p-3 rounded-lg" role="status">
@@ -387,7 +483,7 @@
 						class="h-9 text-xs rounded-lg border-base-300/70 bg-base-100 dark:bg-base-300 shadow-sm"
 					/>
 				</div>
-				{#if !isReadonly && connectors.length > 0}
+				{#if !isReadonly && !selectorGrantsAll && connectors.length > 0}
 					<div class="flex items-center gap-2 shrink-0">
 						<button type="button" class="btn btn-ghost btn-xs text-xs" onclick={selectAllFiltered}>
 							{m.mcps_access_policies_group_select_all()}
@@ -412,7 +508,8 @@
 				<div class="flex flex-col gap-2 max-h-[600px] overflow-y-auto default-scrollbar-thin pr-1">
 					{#each filteredConnectors as entry (entry.id)}
 						{@const inherited = inheritedEntryIds.has(entry.id) || sharedGrantsAll}
-						{@const isChecked = inherited || dedicatedGrantsAll || selectedEntryIds.has(entry.id)}
+						{@const isChecked =
+							inherited || dedicatedGrantsAll || selectedEntryIds.has(entry.id)}
 						{@const isLocked = inherited || selectorGrantsAll}
 						{@const displayName = catalogEntryDisplayName(entry) || entry.manifest.name}
 						<label
