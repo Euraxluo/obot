@@ -31,6 +31,7 @@ export default defineConfig(({ mode }) => {
 	return {
 		server: {
 			port: 5174,
+			allowedHosts: true,
 			proxy:
 				mode === 'test'
 					? undefined
