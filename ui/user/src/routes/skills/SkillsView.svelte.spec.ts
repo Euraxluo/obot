@@ -131,4 +131,22 @@ describe('SkillsView', () => {
 			published: false
 		});
 	});
+
+	it('opens the install skill dialog when clicking a skill card', async () => {
+		render(SkillsView, {
+			props: {
+				skills,
+				skillRepositories: [],
+				showLicenseError: false
+			}
+		});
+
+		const card = page.getByTestId('skill-card-skill-marketplace');
+		await card.click();
+
+		const dialog = page.getByRole('dialog');
+		await expect.element(dialog).toBeVisible();
+		await expect.element(dialog.getByText('Marketplace Name')).toBeVisible();
+		await expect.element(dialog.getByText(m.skills_download())).toBeVisible();
+	});
 });

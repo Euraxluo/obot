@@ -110,8 +110,8 @@
 		}))
 	);
 
-	function skillTitle(skill: Skill) {
-		return skill.name || skill.displayName;
+	function skillTitle(skill: Skill): string {
+		return skill.name || skill.displayName || '';
 	}
 
 	function isPublished(skillID: string) {
@@ -218,14 +218,16 @@
 					{@const repository = skill.repoID
 						? (skillRepositoriesMap.get(skill.repoID)?.displayName ?? '')
 						: ''}
-					<div class="relative">
+					<div
+						class="group/skill-item relative flex flex-col transition-transform duration-200 hover:-translate-y-0.5"
+					>
 						<MarketplaceCard
 							testId="skill-card-{skill.id}"
 							title={skillTitle(skill) ?? m.skills_no_name()}
 							description={skill.description}
 							actionLabel={m.skills_install()}
-							href={skill.valid ? `/skills/${skill.id}` : undefined}
 							disabled={!skill.valid}
+							class="hover:translate-y-0 w-full"
 							onAction={() => {
 								selectedSkillToInstall = skill;
 								installSkillDialog?.open();
@@ -260,8 +262,9 @@
 						{#if canManagePublication}
 							{@const publishing = publishingSkillIDs.has(skill.id)}
 							<div
-								class="bg-base-100/95 absolute top-3 right-3 z-10 rounded-md px-2 py-1 shadow-sm"
+								class="border-base-300/70 bg-base-100/90 dark:border-base-100/20 dark:bg-base-200/90 absolute top-2.5 right-2.5 z-10 flex items-center rounded-full border px-2.5 py-0.5 shadow-xs backdrop-blur-xs transition-colors group-hover/skill-item:border-primary/40"
 								role="presentation"
+								onclick={(e) => e.stopPropagation()}
 							>
 								<Toggle
 									label={m.skills_market_publish()}
@@ -269,6 +272,10 @@
 									checked={isPublished(skill.id)}
 									disabled={publishing || bulkPublishing}
 									onChange={(published) => updatePublication(skill, published)}
+									classes={{
+										label: 'text-[11px] font-medium text-muted-content select-none gap-1.5',
+										input: 'toggle-xs'
+									}}
 								/>
 							</div>
 						{/if}
@@ -302,13 +309,13 @@
 	bind:this={installSkillDialog}
 	animate="slide"
 	id="install-skill-dialog"
-	title={selectedSkillToInstall?.displayName}
+	title={selectedSkillToInstall ? skillTitle(selectedSkillToInstall) : ''}
 >
 	<div id="install-skill-dialog-content" class="w-full @container md:px-0 px-4">
 		<div id="download-skill-container">
 			<div class="divider md:mt-0">
 				{m.skills_install_step_download({
-					name: selectedSkillToInstall?.displayName ?? ''
+					name: selectedSkillToInstall ? skillTitle(selectedSkillToInstall) : ''
 				})}
 			</div>
 			<div class="md:p-0 md:pb-0 p-4">
@@ -384,5 +391,23 @@
 				</div>
 			{/each}
 		</div>
+
+		<div class="divider">3. 在 AI 客户端中调用</div>
+		<div class="rounded-xl border border-primary/20 bg-primary/5 p-3.5 mb-2">
+			<p class="text-xs text-muted-content leading-relaxed">
+				解压完成后，在客户端对话中输入 <code class="text-primary font-mono font-semibold">/{sanitizeFilenameSegment(selectedSkillToInstall?.name ?? selectedSkillToInstall?.id ?? 'skill')}</code> 或向 AI 描述任务需求，即可自动调用该技能。
+			</p>
+		</div>
+
+		{#if selectedSkillToInstall?.valid}
+			<div class="mt-4 flex justify-end">
+				<a
+					href={`/skills/${selectedSkillToInstall.id}`}
+					class="text-xs text-muted-content hover:text-primary underline underline-offset-2"
+				>
+					查看技能配置与源代码
+				</a>
+			</div>
+		{/if}
 	</div>
 </ResponsiveDialog>

@@ -14,6 +14,7 @@
 		onAction?: (event: MouseEvent) => void;
 		href?: `/${string}`;
 		disabled?: boolean;
+		class?: string;
 	}
 
 	let {
@@ -25,11 +26,16 @@
 		metadata,
 		onAction,
 		href,
-		disabled = false
+		disabled = false,
+		class: customClass
 	}: Props = $props();
 
-	let rootClass =
-		'group bg-base-100 dark:bg-base-200 border-base-300/80 hover:border-primary/40 flex h-full min-h-28 items-center gap-3 rounded-xl border p-4 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(15,23,42,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary';
+	let rootClass = $derived(
+		twMerge(
+			'group bg-base-100 dark:bg-base-200 border-base-300/80 hover:border-primary/40 flex h-full min-h-28 items-center gap-3 rounded-xl border p-4 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(15,23,42,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+			customClass
+		)
+	);
 </script>
 
 {#if href && !disabled}
