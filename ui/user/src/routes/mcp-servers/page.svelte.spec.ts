@@ -260,10 +260,10 @@ describe('MCP Servers Page', () => {
 			await renderMcpServersPage({ view: 'filters' });
 
 			await expect
-				.element(page.getByRole('button', { name: 'Filters', exact: true }))
-				.toBeVisible();
+				.element(page.getByRole('tab', { name: 'Filters', exact: true }))
+				.toHaveAttribute('aria-selected', 'true');
 			await expect
-				.element(page.getByRole('button', { name: 'Guardrails', exact: true }))
+				.element(page.getByRole('tab', { name: 'Guardrails', exact: true }))
 				.not.toBeInTheDocument();
 		});
 
