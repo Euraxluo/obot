@@ -31,6 +31,5 @@
 	"market_skill_call_hint": "解凍後、チャットで /{name} と入力するか、AI にタスクを指示してスキルを実行します。",
 	"market_connectors_subtitle": "利用可能な {count} 個のコネクタを参照して、アクセス申請または接続します。",
 	"market_skill_download_hint": "スキルパッケージ（{filename}）をダウンロード",
-	"market_launch_workbuddy": "WorkBuddy を起動",
 	"market_downloading": "ダウンロード中..."
 }

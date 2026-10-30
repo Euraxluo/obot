@@ -31,6 +31,5 @@
 	"market_skill_call_hint": "After unzipping, type /{name} in your chat or prompt the AI to run this skill.",
 	"market_connectors_subtitle": "Browse {count} available connectors and request access or connect.",
 	"market_skill_download_hint": "Download skill archive ({filename})",
-	"market_launch_workbuddy": "Launch WorkBuddy",
 	"market_downloading": "Downloading..."
 }

@@ -337,6 +337,20 @@
 
 			return `unzip "$HOME/Downloads/${skillName}.zip" -d "$HOME/${clientSkillsDirectory}/${skillName}"`;
 		};
+		// WorkBuddy skills are always marketplace-published here, so the command
+		// can download from the session-less public endpoint in one step. The zip
+		// is staged in a temp directory and cleaned up; the install destination
+		// is WorkBuddy's fixed skills directory.
+		const workBuddyCommand = () => {
+			const publicDownloadUrl = selectedSkill
+				? `${window.location.origin}/api/public/skills/${encodeURIComponent(selectedSkill.id)}/download`
+				: '';
+			if (selectedSkillOsTab === 'windows') {
+				return `$z=Join-Path $env:TEMP '${skillName}.zip'; Invoke-WebRequest "${publicDownloadUrl}" -OutFile $z; Expand-Archive -LiteralPath $z -DestinationPath "$env:USERPROFILE\\.workbuddy\\skills\\${skillName}" -Force; Remove-Item $z`;
+			}
+
+			return `tmp="$(mktemp -d)" && curl -fsSL "${publicDownloadUrl}" -o "$tmp/skill.zip" && unzip -oq "$tmp/skill.zip" -d "$HOME/.workbuddy/skills/${skillName}" && rm -rf "$tmp"`;
+		};
 
 		return [
 			{
@@ -364,7 +378,7 @@
 				id: 'workbuddy',
 				label: 'WorkBuddy',
 				icon: COMMON_AI_CLIENTS_MAP.get(AiClient.WorkBuddy)?.icon,
-				command: command('.workbuddy/skills')
+				command: workBuddyCommand()
 			},
 			{
 				id: 'other',
@@ -373,13 +387,6 @@
 			}
 		];
 	});
-
-	function getWorkBuddyInstallUrl(skill?: Skill): string {
-		if (!skill || typeof window === 'undefined') return '';
-		const skillName = sanitizeFilenameSegment(skill.name ?? skill.id ?? 'skill');
-		const downloadUrl = `${window.location.origin}/api/skills/${encodeURIComponent(skill.id)}/download`;
-		return `workbuddy://codebuddy-ide/skill/install?skillname=${encodeURIComponent(skillName)}&downloadurl=${encodeURIComponent(downloadUrl)}&channelType=knot&injectid=true`;
-	}
 
 	async function handleDownloadSkill(skill?: Skill) {
 		if (!skill || downloadingSkill) return;
@@ -706,17 +713,6 @@
 								</p>
 							</div>
 							<div class="flex items-center gap-2 shrink-0">
-								<a
-									class="btn btn-secondary btn-sm gap-1.5 rounded-lg"
-									href={getWorkBuddyInstallUrl(selectedSkill)}
-								>
-									<img
-										src={COMMON_AI_CLIENTS_MAP.get(AiClient.WorkBuddy)?.icon}
-										alt="WorkBuddy"
-										class="size-4"
-									/>
-									{m.market_launch_workbuddy()}
-								</a>
 								<button
 									type="button"
 									class="btn btn-primary btn-sm gap-2 rounded-lg"

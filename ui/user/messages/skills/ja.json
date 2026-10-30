@@ -101,7 +101,6 @@
 	"skills_no_name": "無題のスキル",
 	"skills_ready_to_install": "インストール可能",
 	"skills_invalid": "無効",
-	"skills_launch_workbuddy": "WorkBuddy を起動",
 	"skills_install_step_invoke": "3. AI クライアントで実行",
 	"skills_install_step_invoke_desc": "解凍後、チャットで /{name} と入力するか、AI にタスクを指示してスキルを実行します。",
 	"skills_view_config_and_source": "スキルの設定とソースコードを表示"
