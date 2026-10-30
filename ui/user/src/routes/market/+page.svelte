@@ -8,6 +8,7 @@
 	import MarketplaceGrid from '$lib/components/marketplace/MarketplaceGrid.svelte';
 	import ConnectVMcp from '$lib/components/vmcps/ConnectVMcp.svelte';
 	import McpServerIcon from '$lib/components/vmcps/McpServerIcon.svelte';
+	import VMcpIcon from '$lib/components/vmcps/VMcpIcon.svelte';
 	import VMcpList from '$lib/components/vmcps/VMcpList.svelte';
 	import { sanitizeFilenameSegment, saveBlob } from '$lib/download';
 	import { m } from '$lib/i18n';
@@ -16,7 +17,8 @@
 		UserService,
 		type ConnectorAccessRequest,
 		type MCPCatalogEntry,
-		type Skill
+		type Skill,
+		type VMCP
 	} from '$lib/services';
 	import {
 		catalogEntryToVMCPComponent,
@@ -117,6 +119,20 @@
 			...vmcp,
 			userID: vmcp.userID || vmcp.creatorUserID
 		}))
+	);
+
+	// Shared vMCPs provisioned by an administrator are available to their
+	// authorized users. Keep personal and shared links out of this list.
+	let enterpriseVMcps = $derived(
+		data.vmcps
+			.filter(
+				(vmcp) =>
+					!vmcp.deleted &&
+					vmcp.userID !== profile.current.id &&
+					vmcp.creatorUserID !== profile.current.id
+			)
+			.filter((vmcp) => !query || matchesQuery(vmcp, query))
+			.sort((left, right) => (right.created ?? '').localeCompare(left.created ?? ''))
 	);
 
 	/** Entry IDs the user already composed into a personal vMCP. */
@@ -350,6 +366,11 @@
 		goto('/vmcps');
 	}
 
+	function openEnterpriseSolution(vmcp: VMCP) {
+		closeDetail();
+		connectDialog?.open(vmcp);
+	}
+
 	function openSkillDetail() {
 		if (!selected) return;
 		const id = selected.id;
@@ -526,6 +547,27 @@
 	</MarketplaceCard>
 {/snippet}
 
+{#snippet enterpriseCard(vmcp: VMCP)}
+	<MarketplaceCard
+		testId={`market-enterprise-${vmcp.id}`}
+		title={vmcp.displayName}
+		description={vmcp.description || ''}
+		actionLabel={m.market_connect()}
+		onAction={() => openEnterpriseSolution(vmcp)}
+	>
+		{#snippet icon()}
+			<VMcpIcon components={resolveVMcpComponents(vmcp)} />
+		{/snippet}
+		{#snippet metadata()}
+			<span class="text-muted-content flex items-center gap-2 text-xs font-light">
+				<span class="badge badge-primary badge-soft badge-sm">{m.market_enterprise_badge()}</span>
+				<span aria-hidden="true">·</span>
+				<span>{m.market_enterprise_services_count({ count: vmcp.components?.length ?? 0 })}</span>
+			</span>
+		{/snippet}
+	</MarketplaceCard>
+{/snippet}
+
 {#snippet connectorsView()}
 	<div class="bg-base-200/70 flex min-h-full flex-col gap-4 p-4 md:p-6">
 		<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -551,7 +593,7 @@
 					<Skeleton type="card" class="h-28 rounded-xl" />
 				{/each}
 			</MarketplaceGrid>
-		{:else if visibleEntries.length === 0}
+		{:else if visibleEntries.length === 0 && enterpriseVMcps.length === 0}
 			<div
 				class="bg-base-100 dark:bg-base-200 text-muted-content flex flex-col items-center gap-3 rounded-xl p-12 text-center"
 			>
@@ -560,6 +602,22 @@
 			</div>
 		{:else}
 			<div class="flex flex-col gap-6">
+				{#if enterpriseVMcps.length > 0}
+					<section class="flex flex-col gap-3">
+						<div>
+							<h3 class="text-sm font-semibold">{m.market_enterprise_solutions()}</h3>
+							<p class="text-muted-content mt-1 text-xs font-light">
+								{m.market_enterprise_solutions_desc()}
+							</p>
+						</div>
+						<MarketplaceGrid>
+							{#each enterpriseVMcps as vmcp (vmcp.id)}
+								{@render enterpriseCard(vmcp)}
+							{/each}
+						</MarketplaceGrid>
+					</section>
+				{/if}
+
 				{#if availableEntries.length > 0}
 					<section class="flex flex-col gap-3">
 						<h3 class="text-sm font-semibold">{m.market_connectors_available()}</h3>

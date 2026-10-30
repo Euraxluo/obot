@@ -302,6 +302,59 @@ describe('market page', () => {
 		);
 	});
 
+	it('shows authorized enterprise vMCPs in the connectors tab and opens the connect dialog', async () => {
+		const profile = createMockProfile([Group.USER]);
+		const enterprise = createVMCP(
+			{
+				id: 'vmcp-enterprise',
+				displayName: '企业数据服务',
+				description: '由企业统一配置的企业级数据连接方案',
+				userID: '',
+				creatorUserID: 'admin-user'
+			},
+			[connectorEntry, createMCPCatalogEntry({ id: 'mce2-enterprise', name: 'Second Service' })]
+		);
+		const personal = createVMCP(
+			{ id: 'vmcp-personal-only', displayName: '我的私有链接', userID: profile.id },
+			[connectorEntry]
+		);
+
+		await renderMarketPage({ profile, vmcps: [enterprise, personal] });
+		await openConnectorsTab();
+
+		const section = page.getByText(m.market_enterprise_solutions());
+		await expect.element(section).toBeVisible();
+		await expect.element(page.getByText(m.market_enterprise_solutions_desc())).toBeVisible();
+
+		const card = page.getByTestId(`market-enterprise-${enterprise.id}`);
+		await expect.element(card).toBeVisible();
+		await expect.element(card.getByText('企业数据服务')).toBeVisible();
+		await expect.element(card.getByText('由企业统一配置的企业级数据连接方案')).toBeVisible();
+		await expect.element(card.getByText(m.market_enterprise_badge())).toBeVisible();
+		await expect
+			.element(card.getByText(m.market_enterprise_services_count({ count: 2 })))
+			.toBeVisible();
+
+		await expect
+			.element(page.getByTestId(`market-enterprise-${personal.id}`))
+			.not.toBeInTheDocument();
+		await expect.element(page.getByText('我的私有链接', { exact: true })).not.toBeInTheDocument();
+
+		// Marketplace search narrows both connector entries and enterprise solutions.
+		await page.getByPlaceholder(m.market_search_connectors()).fill('统一配置');
+		await expect.element(card).toBeVisible();
+		await expect
+			.element(page.getByTestId(`market-connector-${connectorEntry.id}`))
+			.not.toBeInTheDocument();
+
+		await card.click();
+
+		const dialog = page.getByCSS('#connect-to-vmcp-dialog');
+		await expect.element(dialog).toBeVisible();
+		await expect.element(page.getByText(m.vmcps_connection_url())).toBeVisible();
+		await expect.element(dialog.getByRole('heading', { name: '企业数据服务' })).toBeVisible();
+	});
+
 	it('shows rejected review comments and allows re-requesting', async () => {
 		const rejected = {
 			...requestFixture('rejected'),
