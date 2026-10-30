@@ -57,6 +57,17 @@ const devAcr: AccessControlRule = {
 	resources: [{ type: 'mcpServerCatalogEntry', id: 'mce1' }]
 };
 
+const sharedAcr: AccessControlRule = {
+	id: 'acr-shared-1',
+	created: '2026-01-02T00:00:00Z',
+	displayName: 'Engineering + Ops shared',
+	subjects: [
+		{ type: 'group', id: 'group-dev' },
+		{ type: 'group', id: 'group-ops' }
+	],
+	resources: [{ type: 'mcpServerCatalogEntry', id: 'mce1' }]
+};
+
 function setupStore(entries = [entry1, entry2]) {
 	mcpServersAndEntries.current = {
 		entries,
@@ -239,5 +250,117 @@ describe('McpPoliciesView group-based authorization', () => {
 		await searchInput.fill('');
 		await expect.element(page.getByRole('checkbox', { name: 'Connector One' })).toBeVisible();
 		await expect.element(page.getByRole('checkbox', { name: 'Connector Two' })).toBeVisible();
+	});
+
+	it('creates a dedicated rule instead of overwriting a shared group rule', async () => {
+		const putSpy = vi.fn();
+		const postSpy = vi.fn();
+		const originalShared = structuredClone(sharedAcr);
+		worker.use(
+			http.put(
+				'/api/mcp-catalogs/default/access-control-rules/:id',
+				async ({ request, params }) => {
+					putSpy({ id: params.id, body: await request.json() });
+					return HttpResponse.json(sharedAcr);
+				}
+			),
+			http.post('/api/mcp-catalogs/default/access-control-rules', async ({ request }) => {
+				const body = await request.json();
+				postSpy(body);
+				return HttpResponse.json({ id: 'acr-dev-dedicated', ...(body as Record<string, unknown>) });
+			})
+		);
+
+		await renderView([sharedAcr]);
+
+		await page.getByRole('tab', { name: m.mcps_access_policies_mode_groups() }).click();
+		await page.getByRole('button', { name: /Developers/ }).click();
+
+		await expect
+			.element(
+				page.getByText(
+					m.mcps_access_policies_group_shared_rule_notice({
+						name: sharedAcr.displayName,
+						count: 1
+					})
+				)
+			)
+			.toBeVisible();
+
+		const inherited = page.getByRole('checkbox', { name: 'Connector One' });
+		await expect.element(inherited).toBeChecked();
+		await expect.element(inherited).toBeDisabled();
+
+		const newConnector = page.getByRole('checkbox', { name: 'Connector Two' });
+		await newConnector.click();
+		await page.getByRole('button', { name: m.core_save() }).click();
+
+		await vi.waitFor(() => expect(postSpy).toHaveBeenCalledTimes(1));
+		expect(putSpy).not.toHaveBeenCalled();
+		expect(postSpy).toHaveBeenCalledWith(
+			expect.objectContaining({
+				displayName: 'Group: Developers',
+				subjects: [{ type: 'group', id: 'group-dev' }],
+				resources: [{ type: 'mcpServerCatalogEntry', id: 'mce2' }]
+			})
+		);
+		expect(sharedAcr).toEqual(originalShared);
+	});
+
+	it('shows shared-rule entries as read-only and explains the union on save', async () => {
+		await renderView([sharedAcr]);
+
+		await page.getByRole('tab', { name: m.mcps_access_policies_mode_groups() }).click();
+		await page.getByRole('button', { name: /Developers/ }).click();
+
+		await expect
+			.element(page.getByText(m.mcps_access_policies_group_from_shared_rule()))
+			.toBeVisible();
+		await expect
+			.element(page.getByText(m.mcps_access_policies_group_shared_union_notice()))
+			.toBeVisible();
+		await expect.element(page.getByRole('checkbox', { name: 'Connector One' })).toBeDisabled();
+	});
+
+	it('does not overwrite a selector wildcard rule from the group view', async () => {
+		const wildcardAcr: AccessControlRule = {
+			id: 'acr-wildcard',
+			created: '2026-01-03T00:00:00Z',
+			displayName: 'All connectors',
+			subjects: [
+				{ type: 'group', id: 'group-dev' },
+				{ type: 'group', id: 'group-ops' }
+			],
+			resources: [{ type: 'selector', id: '*' }]
+		};
+		const originalWildcard = structuredClone(wildcardAcr);
+		const putSpy = vi.fn();
+		const postSpy = vi.fn();
+		worker.use(
+			http.put('/api/mcp-catalogs/default/access-control-rules/:id', async ({ request }) => {
+				putSpy(await request.json());
+				return HttpResponse.json(wildcardAcr);
+			}),
+			http.post('/api/mcp-catalogs/default/access-control-rules', async ({ request }) => {
+				postSpy(await request.json());
+				return HttpResponse.json(wildcardAcr);
+			})
+		);
+
+		await renderView([wildcardAcr]);
+
+		await page.getByRole('tab', { name: m.mcps_access_policies_mode_groups() }).click();
+		await page.getByRole('button', { name: /Developers/ }).click();
+
+		await expect
+			.element(page.getByText(m.mcps_access_policies_group_selector_readonly_notice()))
+			.toBeVisible();
+		await expect.element(page.getByRole('checkbox', { name: 'Connector One' })).toBeDisabled();
+		await expect.element(page.getByRole('checkbox', { name: 'Connector Two' })).toBeDisabled();
+		await expect.element(page.getByRole('button', { name: m.core_save() })).toBeDisabled();
+
+		expect(putSpy).not.toHaveBeenCalled();
+		expect(postSpy).not.toHaveBeenCalled();
+		expect(wildcardAcr).toEqual(originalWildcard);
 	});
 });

@@ -51,51 +51,93 @@
 	let saving = $state(false);
 	let saveError = $state('');
 
-	export function findGroupAcr(
+	export function findDedicatedGroupAcr(
 		rules: AccessControlRule[],
-		groupId: string,
-		groupName?: string
+		groupId: string
 	): AccessControlRule | undefined {
-		const exactGroupOnly = rules.find(
-			(r) =>
-				r.subjects?.length === 1 && r.subjects[0].type === 'group' && r.subjects[0].id === groupId
+		return rules.find(
+			(rule) =>
+				rule.subjects?.length === 1 &&
+				rule.subjects[0].type === 'group' &&
+				rule.subjects[0].id === groupId
 		);
-		if (exactGroupOnly) return exactGroupOnly;
-
-		const namedGroup = rules.find(
-			(r) =>
-				(r.displayName === `Group: ${groupName}` || r.displayName === `Group: ${groupId}`) &&
-				r.subjects?.some((s) => s.type === 'group' && s.id === groupId)
-		);
-		if (namedGroup) return namedGroup;
-
-		return rules.find((r) => r.subjects?.some((s) => s.type === 'group' && s.id === groupId));
 	}
 
-	let currentAcr = $derived(
-		selectedGroup
-			? findGroupAcr(accessControlRules, selectedGroup.id, selectedGroup.name)
-			: undefined
-	);
+	export function findSharedGroupAcrs(
+		rules: AccessControlRule[],
+		groupId: string
+	): AccessControlRule[] {
+		return rules.filter(
+			(rule) =>
+				rule.subjects?.some((subject) => subject.type === 'group' && subject.id === groupId) &&
+				!(
+					rule.subjects?.length === 1 &&
+					rule.subjects[0].type === 'group' &&
+					rule.subjects[0].id === groupId
+				)
+		);
+	}
 
-	let assignedEntryIds = $derived.by(() => {
-		const set = new SvelteSet<string>();
-		if (!currentAcr) return set;
-		const hasAll = currentAcr.resources?.some((r) => r.type === 'selector' && r.id === '*');
-		if (hasAll) {
-			for (const entry of connectors) {
-				set.add(entry.id);
-			}
-		} else {
-			for (const res of currentAcr.resources ?? []) {
-				if (res.type === 'mcpServerCatalogEntry') {
-					set.add(res.id);
+	function ruleGrantsAllEntries(rule: AccessControlRule) {
+		return Boolean(
+			rule.resources?.some((resource) => resource.type === 'selector' && resource.id === '*')
+		);
+	}
+
+	function entryIdsFromRules(rules: AccessControlRule[]) {
+		const entries = new SvelteSet<string>();
+		for (const rule of rules) {
+			for (const resource of rule.resources ?? []) {
+				if (resource.type === 'mcpServerCatalogEntry') {
+					entries.add(resource.id);
 				}
 			}
 		}
-		return set;
-	});
+		return entries;
+	}
 
+	let dedicatedAcr = $derived(
+		selectedGroup ? findDedicatedGroupAcr(accessControlRules, selectedGroup.id) : undefined
+	);
+	let sharedAcrs = $derived(
+		selectedGroup ? findSharedGroupAcrs(accessControlRules, selectedGroup.id) : []
+	);
+	let dedicatedGrantsAll = $derived(Boolean(dedicatedAcr && ruleGrantsAllEntries(dedicatedAcr)));
+	let sharedGrantsAll = $derived(sharedAcrs.some(ruleGrantsAllEntries));
+	let selectorGrantsAll = $derived(dedicatedGrantsAll || sharedGrantsAll);
+	let dedicatedEntryIds = $derived(entryIdsFromRules(dedicatedAcr ? [dedicatedAcr] : []));
+	let inheritedEntryIds = $derived.by(() => {
+		const inherited = entryIdsFromRules(sharedAcrs);
+		if (sharedGrantsAll) {
+			for (const entry of connectors) {
+				inherited.add(entry.id);
+			}
+		}
+		return inherited;
+	});
+	let effectiveAuthorizedCount = $derived.by(() => {
+		const ids = new SvelteSet(dedicatedEntryIds);
+		for (const id of inheritedEntryIds) ids.add(id);
+		if (dedicatedGrantsAll || sharedGrantsAll) return connectors.length;
+		return ids.size;
+	});
+	let sharedSubjectCounts = $derived(
+		sharedAcrs.map((rule) => ({
+			rule,
+			otherSubjects:
+				rule.subjects?.filter(
+					(subject) => !(subject.type === 'group' && subject.id === selectedGroup?.id)
+				).length ?? 0
+		}))
+	);
+	let lockedEntryIds = $derived.by(() => {
+		const locked = new SvelteSet(inheritedEntryIds);
+		if (dedicatedGrantsAll) {
+			for (const entry of connectors) locked.add(entry.id);
+		}
+		return locked;
+	});
+	let hasSharedRules = $derived(sharedAcrs.length > 0);
 	let lastLoadedGroupId = $state<string>();
 	let selectedEntryIds = $state<SvelteSet<string>>(new SvelteSet());
 
@@ -104,7 +146,9 @@
 		if (groupId !== lastLoadedGroupId) {
 			lastLoadedGroupId = groupId;
 			if (groupId) {
-				selectedEntryIds = new SvelteSet(assignedEntryIds);
+				selectedEntryIds = new SvelteSet(
+					[...dedicatedEntryIds].filter((id) => !lockedEntryIds.has(id))
+				);
 			} else {
 				selectedEntryIds = new SvelteSet();
 			}
@@ -133,13 +177,14 @@
 	);
 
 	function groupSubtitle(group: OrgGroup): string | undefined {
-		const acr = findGroupAcr(accessControlRules, group.id, group.name);
-		if (!acr) return undefined;
-		const hasAll = acr.resources?.some((r) => r.type === 'selector' && r.id === '*');
-		if (hasAll) {
+		const dedicated = findDedicatedGroupAcr(accessControlRules, group.id);
+		const shared = findSharedGroupAcrs(accessControlRules, group.id);
+		if (!dedicated && shared.length === 0) return undefined;
+		if ((dedicated && ruleGrantsAllEntries(dedicated)) || shared.some(ruleGrantsAllEntries)) {
 			return m.mcps_access_policies_group_connector_count({ count: connectors.length });
 		}
-		const count = acr.resources?.filter((r) => r.type === 'mcpServerCatalogEntry').length ?? 0;
+		const ids = entryIdsFromRules([...(dedicated ? [dedicated] : []), ...shared]);
+		const count = ids.size;
 		return count > 0 ? m.mcps_access_policies_group_connector_count({ count }) : undefined;
 	}
 
@@ -150,7 +195,7 @@
 
 	function selectAllFiltered() {
 		for (const c of filteredConnectors) {
-			selectedEntryIds.add(c.id);
+			if (!lockedEntryIds.has(c.id)) selectedEntryIds.add(c.id);
 		}
 	}
 
@@ -159,6 +204,7 @@
 	}
 
 	function toggleConnector(id: string, checked: boolean) {
+		if (lockedEntryIds.has(id) || selectorGrantsAll) return;
 		if (checked) {
 			selectedEntryIds.add(id);
 		} else {
@@ -167,7 +213,7 @@
 	}
 
 	async function save() {
-		if (!selectedGroup || saving) return;
+		if (!selectedGroup || saving || selectorGrantsAll) return;
 		saving = true;
 		saveError = '';
 
@@ -179,13 +225,20 @@
 				id
 			}));
 
-			const existing = findGroupAcr(accessControlRules, group.id, group.name);
+			const existing = findDedicatedGroupAcr(accessControlRules, group.id);
 
 			if (existing) {
 				const preserved = (existing.resources ?? []).filter(
 					(r) => r.type !== 'mcpServerCatalogEntry' && !(r.type === 'selector' && r.id === '*')
 				);
-				const updatedResources = [...preserved, ...entryResources];
+				const resourceIDs = new SvelteSet(selectedIds);
+				const updatedResources = [
+					...preserved,
+					...[...resourceIDs].map((id) => ({
+						type: 'mcpServerCatalogEntry' as const,
+						id
+					}))
+				];
 
 				if (isAdmin) {
 					await AdminService.updateAccessControlRule(existing.id, {
@@ -264,9 +317,9 @@
 				<div class="min-w-0">
 					<div class="flex items-center gap-2">
 						<span class="font-semibold text-base truncate">{selectedGroup.name}</span>
-						{#if currentAcr}
+						{#if dedicatedAcr}
 							<span class="badge badge-sm badge-outline text-xs">
-								{m.mcps_access_policies_group_dedicated_policy({ name: currentAcr.displayName })}
+								{m.mcps_access_policies_group_dedicated_policy({ name: dedicatedAcr.displayName })}
 							</span>
 						{:else}
 							<span class="badge badge-sm badge-warning badge-soft text-xs">
@@ -276,7 +329,7 @@
 					</div>
 					<p class="text-xs text-muted-content mt-1">
 						{m.mcps_access_policies_group_connectors_count({
-							selected: selectedEntryIds.size,
+							selected: effectiveAuthorizedCount,
 							total: connectors.length
 						})}
 					</p>
@@ -285,7 +338,7 @@
 					<button
 						type="button"
 						class="btn btn-primary btn-sm min-w-20"
-						disabled={saving || isReadonly}
+						disabled={saving || isReadonly || selectorGrantsAll}
 						onclick={save}
 					>
 						{#if saving}
@@ -296,6 +349,27 @@
 					</button>
 				</div>
 			</div>
+
+			{#each sharedSubjectCounts as { rule, otherSubjects } (rule.id)}
+				<div class="notification-info text-xs p-3 rounded-lg" role="status">
+					{m.mcps_access_policies_group_shared_rule_notice({
+						name: rule.displayName,
+						count: otherSubjects
+					})}
+				</div>
+			{/each}
+
+			{#if hasSharedRules && !dedicatedAcr}
+				<div class="notification-warning text-xs p-3 rounded-lg" role="status">
+					{m.mcps_access_policies_group_shared_union_notice()}
+				</div>
+			{/if}
+
+			{#if selectorGrantsAll}
+				<div class="notification-warning text-xs p-3 rounded-lg" role="status">
+					{m.mcps_access_policies_group_selector_readonly_notice()}
+				</div>
+			{/if}
 
 			{#if saveError}
 				<div class="notification-error text-xs p-3 rounded-lg">
@@ -337,8 +411,9 @@
 			{:else}
 				<div class="flex flex-col gap-2 max-h-[600px] overflow-y-auto default-scrollbar-thin pr-1">
 					{#each filteredConnectors as entry (entry.id)}
-						{@const isChecked = selectedEntryIds.has(entry.id)}
-						{@const wasAssigned = assignedEntryIds.has(entry.id)}
+						{@const inherited = inheritedEntryIds.has(entry.id) || sharedGrantsAll}
+						{@const isChecked = inherited || dedicatedGrantsAll || selectedEntryIds.has(entry.id)}
+						{@const isLocked = inherited || selectorGrantsAll}
 						{@const displayName = catalogEntryDisplayName(entry) || entry.manifest.name}
 						<label
 							for={`connector-checkbox-${entry.id}`}
@@ -353,7 +428,7 @@
 								aria-label={displayName}
 								class="checkbox checkbox-primary checkbox-sm shrink-0"
 								checked={isChecked}
-								disabled={isReadonly}
+								disabled={isReadonly || isLocked}
 								onchange={(e) => toggleConnector(entry.id, e.currentTarget.checked)}
 							/>
 							<McpServerIcon
@@ -368,7 +443,11 @@
 									<span class="font-medium text-sm truncate">
 										{displayName}
 									</span>
-									{#if wasAssigned}
+									{#if inherited}
+										<span class="badge badge-sm badge-info text-[10px]">
+											{m.mcps_access_policies_group_from_shared_rule()}
+										</span>
+									{:else if isChecked}
 										<span class="badge badge-sm badge-success text-[10px]">
 											{m.mcps_access_policies_group_currently_authorized()}
 										</span>

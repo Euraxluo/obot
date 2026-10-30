@@ -1128,5 +1128,9 @@
 	"mcps_access_policies_mode_groups": "Group Authorization",
 	"mcps_access_policies_mode_rules": "Policy Rules",
 	"mcps_access_policies_select_group": "Select User Group",
-	"mcps_access_policies_view_mode": "Access policies view mode"
+	"mcps_access_policies_view_mode": "Access policies view mode",
+	"mcps_access_policies_group_shared_rule_notice": "This group's access comes from shared rule \"{name}\", which also includes {count} other users/groups. Group management cannot modify it; edit it in Policy Rules.",
+	"mcps_access_policies_group_shared_union_notice": "Saving creates a dedicated rule that adds to the existing shared rules (union). It does not replace them.",
+	"mcps_access_policies_group_selector_readonly_notice": "This group has a selector/* wildcard grant. All connectors are read-only here and the group view will not overwrite that rule.",
+	"mcps_access_policies_group_from_shared_rule": "From shared rule, read-only"
 }

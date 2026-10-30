@@ -1128,5 +1128,9 @@
 	"mcps_access_policies_mode_groups": "按用户组授权",
 	"mcps_access_policies_mode_rules": "按策略规则",
 	"mcps_access_policies_select_group": "选择用户组",
-	"mcps_access_policies_view_mode": "访问策略视图模式"
+	"mcps_access_policies_view_mode": "访问策略视图模式",
+	"mcps_access_policies_group_shared_rule_notice": "此组的访问权来自共享规则「{name}」，其中还包含 {count} 个其他用户/组。按组管理无法修改该共享规则，请到「按策略规则」视图编辑。",
+	"mcps_access_policies_group_shared_union_notice": "保存将新建一条专用规则；它会与现有共享规则叠加取并集，不会替换共享规则。",
+	"mcps_access_policies_group_selector_readonly_notice": "此组拥有 selector/* 通配授权，所有连接器均为只读授权，按组视图不会覆盖该规则。",
+	"mcps_access_policies_group_from_shared_rule": "来自共享规则，只读"
 }

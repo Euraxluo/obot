@@ -1128,5 +1128,9 @@
 	"mcps_access_policies_mode_groups": "그룹 권한",
 	"mcps_access_policies_mode_rules": "정책 규칙",
 	"mcps_access_policies_select_group": "사용자 그룹 선택",
-	"mcps_access_policies_view_mode": "접근 제어 뷰 모드"
+	"mcps_access_policies_view_mode": "접근 제어 뷰 모드",
+	"mcps_access_policies_group_shared_rule_notice": "이 그룹의 권한은 공유 규칙 \"{name}\"에서 비롯되며 다른 사용자/그룹 {count}개가 포함되어 있습니다. 그룹 관리에서는 수정할 수 없으며 정책 규칙 보기에서 편집하세요.",
+	"mcps_access_policies_group_shared_union_notice": "저장하면 전용 규칙이 새로 생성되어 기존 공유 규칙과 합집합으로 적용됩니다. 공유 규칙을 대체하지 않습니다.",
+	"mcps_access_policies_group_selector_readonly_notice": "이 그룹에는 selector/* 와일드카드 권한이 있습니다. 모든 커넥터는 여기서 읽기 전용이며 그룹 보기는 해당 규칙을 덮어쓰지 않습니다.",
+	"mcps_access_policies_group_from_shared_rule": "공유 규칙에서 상속됨, 읽기 전용"
 }
