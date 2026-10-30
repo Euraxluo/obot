@@ -6,8 +6,9 @@
 		type ConnectorAccessRequest,
 		type ConnectorAccessRequestStatus
 	} from '$lib/services';
+	import { errors } from '$lib/stores';
 	import { formatTimeAgo } from '$lib/time';
-	import { Check, Loader2, X } from '@lucide/svelte';
+	import { Check, Loader2, Trash2, X } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 
 	type Filter = 'pending' | 'all';
@@ -20,6 +21,9 @@
 	let rejectDialog = $state<ReturnType<typeof ResponsiveDialog>>();
 	let rejectComment = $state('');
 	let rejecting = $state(false);
+	let deleteTarget = $state<ConnectorAccessRequest>();
+	let deleteDialog = $state<ReturnType<typeof ResponsiveDialog>>();
+	let deleting = $state(false);
 
 	onMount(refresh);
 
@@ -67,6 +71,8 @@
 		try {
 			await UserService.approveConnectorAccessRequest(request.id);
 			requests = requests.filter((candidate) => candidate.id !== request.id);
+		} catch (err) {
+			errors.append(err);
 		} finally {
 			actingID = '';
 		}
@@ -82,8 +88,26 @@
 			rejectTarget = undefined;
 			rejectDialog?.close();
 			rejectComment = '';
+		} catch (err) {
+			errors.append(err);
 		} finally {
 			rejecting = false;
+		}
+	}
+
+	async function confirmDelete() {
+		const target = deleteTarget;
+		if (!target || deleting) return;
+		deleting = true;
+		try {
+			await UserService.deleteConnectorAccessRequest(target.id);
+			requests = requests.filter((candidate) => candidate.id !== target.id);
+			deleteTarget = undefined;
+			deleteDialog?.close();
+		} catch (err) {
+			errors.append(err);
+		} finally {
+			deleting = false;
 		}
 	}
 </script>
@@ -168,8 +192,8 @@
 								</span>
 							</td>
 							<td>
-								{#if request.manifest.status === 'pending'}
-									<div class="flex justify-end gap-2">
+								<div class="flex justify-end gap-2">
+									{#if request.manifest.status === 'pending'}
 										<button
 											type="button"
 											class="btn btn-primary btn-xs rounded-lg"
@@ -198,8 +222,21 @@
 											<X class="size-3" />
 											{m.identity_access_connector_approvals_reject()}
 										</button>
-									</div>
-								{/if}
+									{/if}
+									<button
+										type="button"
+										class="btn btn-ghost btn-xs rounded-lg text-error"
+										title={m.identity_access_connector_approvals_delete()}
+										aria-label={m.identity_access_connector_approvals_delete()}
+										onclick={() => {
+											deleteTarget = request;
+											deleteDialog?.open();
+										}}
+									>
+										<Trash2 class="size-3" />
+										{m.identity_access_connector_approvals_delete()}
+									</button>
+								</div>
 							</td>
 						</tr>
 					{/each}
@@ -242,6 +279,46 @@
 					disabled={rejecting}
 					onclick={confirmReject}
 				>
+					{m.identity_access_connector_approvals_confirm()}
+				</button>
+			</div>
+		</div>
+	{/if}
+</ResponsiveDialog>
+
+<ResponsiveDialog
+	bind:this={deleteDialog}
+	title={m.identity_access_connector_approvals_delete()}
+	onClose={() => (deleteTarget = undefined)}
+>
+	{#if deleteTarget}
+		<div class="flex flex-col gap-3">
+			<p class="text-muted-content text-sm">
+				{deleteTarget.manifest.connectorName || deleteTarget.manifest.connectorID}
+			</p>
+			<p class="text-sm">
+				{m.identity_access_connector_approvals_delete_confirm_message()}
+			</p>
+			<div class="modal-action">
+				<button
+					type="button"
+					class="btn btn-ghost btn-sm"
+					onclick={() => {
+						deleteTarget = undefined;
+						deleteDialog?.close();
+					}}
+				>
+					{m.identity_access_connector_approvals_cancel()}
+				</button>
+				<button
+					type="button"
+					class="btn btn-error btn-sm"
+					disabled={deleting}
+					onclick={confirmDelete}
+				>
+					{#if deleting}
+						<Loader2 class="size-3 animate-spin" />
+					{/if}
 					{m.identity_access_connector_approvals_confirm()}
 				</button>
 			</div>

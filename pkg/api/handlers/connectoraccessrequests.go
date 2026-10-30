@@ -127,6 +127,27 @@ func (*ConnectorAccessRequestHandler) Get(req api.Context) error {
 	return req.Write(convertConnectorAccessRequest(request, published))
 }
 
+// Delete removes a connector access request and, if approved, revokes any
+// strictly matching AccessControlRule created for it. Only admins can delete.
+func (*ConnectorAccessRequestHandler) Delete(req api.Context) error {
+	if !req.UserIsAdmin() {
+		return types.NewErrForbidden("admin only")
+	}
+
+	var request v1.ConnectorAccessRequest
+	if err := req.Get(&request, req.PathValue("connector_access_request_id")); err != nil {
+		return err
+	}
+
+	if request.Spec.Manifest.Status == types.ConnectorAccessRequestApproved {
+		if err := revokeConnectorAccess(req, &request); err != nil {
+			return err
+		}
+	}
+
+	return req.Delete(&request)
+}
+
 // Approve marks a request approved and grants the requester user-level access
 // to the connector via an AccessControlRule.
 func (*ConnectorAccessRequestHandler) Approve(req api.Context) error {
@@ -268,6 +289,58 @@ func grantConnectorAccess(req api.Context, request *v1.ConnectorAccessRequest) e
 	if err := req.Create(&rule); err != nil {
 		return fmt.Errorf("failed to create access control rule: %w", err)
 	}
+	return nil
+}
+
+// revokeConnectorAccess removes any AccessControlRule that strictly matches
+// the one created when the request was approved. If no strictly matching rule
+// exists, it succeeds without error.
+func revokeConnectorAccess(req api.Context, request *v1.ConnectorAccessRequest) error {
+	manifest := request.Spec.Manifest
+
+	catalogID := manifest.MCPCatalogID
+	if catalogID == "" {
+		catalogID = system.DefaultCatalog
+	}
+
+	var list v1.AccessControlRuleList
+	if err := req.List(&list); err != nil {
+		return fmt.Errorf("failed to list access control rules: %w", err)
+	}
+
+	expectedDisplayName := fmt.Sprintf("Connector approval: %s", manifest.ConnectorName)
+
+	for _, rule := range list.Items {
+		if !rule.DeletionTimestamp.IsZero() {
+			continue
+		}
+		if rule.Spec.MCPCatalogID != catalogID {
+			continue
+		}
+		if rule.Spec.Manifest.DisplayName != expectedDisplayName {
+			continue
+		}
+		if len(rule.Spec.Manifest.Subjects) != 1 {
+			continue
+		}
+		subject := rule.Spec.Manifest.Subjects[0]
+		if subject.Type != types.SubjectTypeUser || subject.ID != manifest.RequesterUserID {
+			continue
+		}
+		if len(rule.Spec.Manifest.Resources) != 1 {
+			continue
+		}
+		resource := rule.Spec.Manifest.Resources[0]
+		if resource.Type != types.ResourceTypeMCPServerCatalogEntry || resource.ID != manifest.ConnectorID {
+			continue
+		}
+
+		toDelete := rule
+		if err := req.Delete(&toDelete); err != nil {
+			return fmt.Errorf("failed to delete access control rule: %w", err)
+		}
+	}
+
 	return nil
 }
 

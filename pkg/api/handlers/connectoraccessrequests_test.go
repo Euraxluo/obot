@@ -14,6 +14,7 @@ import (
 	storagescheme "github.com/obot-platform/obot/pkg/storage/scheme"
 	"github.com/obot-platform/obot/pkg/system"
 	"github.com/stretchr/testify/require"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	kuser "k8s.io/apiserver/pkg/authentication/user"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -371,4 +372,192 @@ func TestConnectorAccessRequestListConnectorPublished(t *testing.T) {
 	require.True(t, publishedByID["mce-pub"])
 	require.False(t, publishedByID["mce-unpub"])
 	require.True(t, publishedByID["mce-other-pub"])
+}
+
+func TestConnectorAccessRequestDeleteApprovedRevokesACR(t *testing.T) {
+	storageClient, handler := connectorAccessRequestTestSetup(t)
+	endUser := connectorAccessRequestEndUser()
+	admin := connectorAccessRequestAdmin()
+
+	// 1. Create and approve request
+	req := connectorAccessRequestContext(t, storageClient, http.MethodPost, "/api/connector-access-requests",
+		types.ConnectorAccessRequestManifest{
+			ConnectorID: "mce1-connector",
+			Reason:      "测试批准后撤回",
+		}, endUser)
+	require.NoError(t, handler.Create(req))
+
+	var list v1.ConnectorAccessRequestList
+	require.NoError(t, storageClient.List(t.Context(), &list, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+	require.Len(t, list.Items, 1)
+	requestID := list.Items[0].Name
+
+	req = connectorAccessRequestContext(t, storageClient, http.MethodPost,
+		"/api/connector-access-requests/"+requestID+"/approve",
+		types.ConnectorAccessReview{Comment: "approved"}, admin)
+	req.SetPathValue("connector_access_request_id", requestID)
+	require.NoError(t, handler.Approve(req))
+
+	// Verify ACR was created
+	var acrs v1.AccessControlRuleList
+	require.NoError(t, storageClient.List(t.Context(), &acrs, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+	require.Len(t, acrs.Items, 1)
+	require.True(t, acrs.Items[0].DeletionTimestamp.IsZero())
+
+	// 2. Admin deletes the approved request
+	req = connectorAccessRequestContext(t, storageClient, http.MethodDelete,
+		"/api/connector-access-requests/"+requestID, nil, admin)
+	req.SetPathValue("connector_access_request_id", requestID)
+	require.NoError(t, handler.Delete(req))
+
+	// 3. Request is gone
+	var stored v1.ConnectorAccessRequest
+	err := storageClient.Get(t.Context(), kclient.ObjectKey{
+		Namespace: system.DefaultNamespace,
+		Name:      requestID,
+	}, &stored)
+	require.True(t, apierrors.IsNotFound(err))
+
+	// 4. Strictly matching ACR is deleted (marked for deletion)
+	require.NoError(t, storageClient.List(t.Context(), &acrs, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+	require.Len(t, acrs.Items, 1)
+	require.False(t, acrs.Items[0].DeletionTimestamp.IsZero())
+}
+
+func TestConnectorAccessRequestDeleteApprovedRetainsModifiedACR(t *testing.T) {
+	storageClient, handler := connectorAccessRequestTestSetup(t)
+	endUser := connectorAccessRequestEndUser()
+	admin := connectorAccessRequestAdmin()
+
+	// 1. Create and approve request
+	req := connectorAccessRequestContext(t, storageClient, http.MethodPost, "/api/connector-access-requests",
+		types.ConnectorAccessRequestManifest{
+			ConnectorID: "mce1-connector",
+			Reason:      "测试额外subject规则保留",
+		}, endUser)
+	require.NoError(t, handler.Create(req))
+
+	var list v1.ConnectorAccessRequestList
+	require.NoError(t, storageClient.List(t.Context(), &list, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+	require.Len(t, list.Items, 1)
+	requestID := list.Items[0].Name
+
+	req = connectorAccessRequestContext(t, storageClient, http.MethodPost,
+		"/api/connector-access-requests/"+requestID+"/approve",
+		types.ConnectorAccessReview{Comment: "approved"}, admin)
+	req.SetPathValue("connector_access_request_id", requestID)
+	require.NoError(t, handler.Approve(req))
+
+	// 2. Modify the ACR to add an extra subject (no longer strictly matches only requester)
+	var acrs v1.AccessControlRuleList
+	require.NoError(t, storageClient.List(t.Context(), &acrs, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+	require.Len(t, acrs.Items, 1)
+	modifiedACR := acrs.Items[0]
+	modifiedACR.Spec.Manifest.Subjects = append(modifiedACR.Spec.Manifest.Subjects, types.Subject{
+		Type: types.SubjectTypeUser,
+		ID:   "another-user-99",
+	})
+	require.NoError(t, storageClient.Update(t.Context(), &modifiedACR))
+
+	// 3. Admin deletes the approved request
+	req = connectorAccessRequestContext(t, storageClient, http.MethodDelete,
+		"/api/connector-access-requests/"+requestID, nil, admin)
+	req.SetPathValue("connector_access_request_id", requestID)
+	require.NoError(t, handler.Delete(req))
+
+	// 4. Request is deleted
+	var stored v1.ConnectorAccessRequest
+	err := storageClient.Get(t.Context(), kclient.ObjectKey{
+		Namespace: system.DefaultNamespace,
+		Name:      requestID,
+	}, &stored)
+	require.True(t, apierrors.IsNotFound(err))
+
+	// 5. Modified ACR is RETAINED (DeletionTimestamp is zero)
+	var acrsAfter v1.AccessControlRuleList
+	require.NoError(t, storageClient.List(t.Context(), &acrsAfter, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+	require.Len(t, acrsAfter.Items, 1)
+	require.True(t, acrsAfter.Items[0].DeletionTimestamp.IsZero())
+	require.Len(t, acrsAfter.Items[0].Spec.Manifest.Subjects, 2)
+}
+
+func TestConnectorAccessRequestDeleteRequiresAdmin(t *testing.T) {
+	storageClient, handler := connectorAccessRequestTestSetup(t)
+	endUser := connectorAccessRequestEndUser()
+
+	req := connectorAccessRequestContext(t, storageClient, http.MethodPost, "/api/connector-access-requests",
+		types.ConnectorAccessRequestManifest{ConnectorID: "mce1-connector"}, endUser)
+	require.NoError(t, handler.Create(req))
+
+	var list v1.ConnectorAccessRequestList
+	require.NoError(t, storageClient.List(t.Context(), &list, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+	require.Len(t, list.Items, 1)
+	requestID := list.Items[0].Name
+
+	// Non-admin attempts to delete -> 403 Forbidden ("admin only")
+	req = connectorAccessRequestContext(t, storageClient, http.MethodDelete,
+		"/api/connector-access-requests/"+requestID, nil, endUser)
+	req.SetPathValue("connector_access_request_id", requestID)
+	err := handler.Delete(req)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "admin only")
+	var httpErr *types.ErrHTTP
+	require.ErrorAs(t, err, &httpErr)
+	require.Equal(t, http.StatusForbidden, httpErr.Code)
+
+	// Record still exists
+	var stored v1.ConnectorAccessRequest
+	require.NoError(t, storageClient.Get(t.Context(), kclient.ObjectKey{
+		Namespace: system.DefaultNamespace,
+		Name:      requestID,
+	}, &stored))
+}
+
+func TestConnectorAccessRequestDeletePendingNoACR(t *testing.T) {
+	storageClient, handler := connectorAccessRequestTestSetup(t)
+	endUser := connectorAccessRequestEndUser()
+	admin := connectorAccessRequestAdmin()
+
+	req := connectorAccessRequestContext(t, storageClient, http.MethodPost, "/api/connector-access-requests",
+		types.ConnectorAccessRequestManifest{
+			ConnectorID: "mce1-connector",
+			Reason:      "测试删除pending请求",
+		}, endUser)
+	require.NoError(t, handler.Create(req))
+
+	var list v1.ConnectorAccessRequestList
+	require.NoError(t, storageClient.List(t.Context(), &list, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+	require.Len(t, list.Items, 1)
+	requestID := list.Items[0].Name
+
+	// Admin deletes pending request
+	req = connectorAccessRequestContext(t, storageClient, http.MethodDelete,
+		"/api/connector-access-requests/"+requestID, nil, admin)
+	req.SetPathValue("connector_access_request_id", requestID)
+	require.NoError(t, handler.Delete(req))
+
+	// Request is gone
+	var stored v1.ConnectorAccessRequest
+	err := storageClient.Get(t.Context(), kclient.ObjectKey{
+		Namespace: system.DefaultNamespace,
+		Name:      requestID,
+	}, &stored)
+	require.True(t, apierrors.IsNotFound(err))
+
+	// No ACR was ever created
+	var acrs v1.AccessControlRuleList
+	require.NoError(t, storageClient.List(t.Context(), &acrs, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+	require.Empty(t, acrs.Items)
+}
+
+func TestConnectorAccessRequestDeleteNotFound(t *testing.T) {
+	storageClient, handler := connectorAccessRequestTestSetup(t)
+	admin := connectorAccessRequestAdmin()
+
+	req := connectorAccessRequestContext(t, storageClient, http.MethodDelete,
+		"/api/connector-access-requests/non-existent-id", nil, admin)
+	req.SetPathValue("connector_access_request_id", "non-existent-id")
+	err := handler.Delete(req)
+	require.Error(t, err)
+	require.True(t, apierrors.IsNotFound(err))
 }

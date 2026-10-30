@@ -465,6 +465,8 @@
 	"identity_access_connector_approvals_approved": "已通过",
 	"identity_access_connector_approvals_rejected": "已驳回",
 	"identity_access_connector_unpublished_warning": "未发布到市场，批准后用户仍不可见",
+	"identity_access_connector_approvals_delete": "删除",
+	"identity_access_connector_approvals_delete_confirm_message": "将同时撤销该请求授予的访问权限。",
 	"identity_access_scim_ref_skill_access_rule": "技能访问规则",
 	"identity_access_scim_count_referenced_group_other": "{count} 个被引用的用户组",
 	"identity_access_scim_count_unprovisioned_user_other": "{count} 个未预配用户",

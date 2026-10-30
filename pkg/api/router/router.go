@@ -420,6 +420,7 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	mux.HandleFunc("GET /api/connector-access-requests/{connector_access_request_id}", connectorAccessRequests.Get)
 	mux.HandleFunc("POST /api/connector-access-requests/{connector_access_request_id}/approve", connectorAccessRequests.Approve)
 	mux.HandleFunc("POST /api/connector-access-requests/{connector_access_request_id}/reject", connectorAccessRequests.Reject)
+	mux.HandleFunc("DELETE /api/connector-access-requests/{connector_access_request_id}", connectorAccessRequests.Delete)
 
 	// OAuthClients
 	mux.HandleFunc("GET /api/oauth-clients", oauthClients.List)

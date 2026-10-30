@@ -1,11 +1,12 @@
 import { m } from '$lib/i18n';
 import type { ConnectorAccessRequest } from '$lib/services';
+import { errors } from '$lib/stores';
 import { formatTimeAgo } from '$lib/time';
 import { preparePageData } from '../../tests/helpers/pageData';
 import { worker } from '../../tests/mocks/worker';
 import ConnectorApprovalsView from './ConnectorApprovalsView.svelte';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 
@@ -47,6 +48,10 @@ function mockRequests(requests: ConnectorAccessRequest[]) {
 }
 
 describe('ConnectorApprovalsView', () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+		errors.items = [];
+	});
 	it('shows a relative request time with the full date as a tooltip', async () => {
 		const pending = requestFixture('car1-time', 'pending');
 		pending.created = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString();
@@ -204,5 +209,139 @@ describe('ConnectorApprovalsView', () => {
 			name: m.identity_access_connector_approvals_reject()
 		});
 		await expect.element(rejectBtn).toBeEnabled();
+	});
+
+	it('confirms and deletes a request, removing it from the list', async () => {
+		const pending = requestFixture('car1-delete', 'pending');
+		mockRequests([pending]);
+		const deleteFn = vi.fn();
+		worker.use(
+			http.delete('/api/connector-access-requests/car1-delete', () => {
+				deleteFn();
+				return new HttpResponse(null, { status: 204 });
+			})
+		);
+
+		await renderView();
+
+		const row = page.getByRole('row').filter({ hasText: 'enduser' });
+		await expect.element(row).toBeVisible();
+
+		await row.getByRole('button', { name: m.identity_access_connector_approvals_delete() }).click();
+
+		await expect
+			.element(page.getByText(m.identity_access_connector_approvals_delete_confirm_message()))
+			.toBeVisible();
+
+		await page
+			.getByRole('button', { name: m.identity_access_connector_approvals_confirm() })
+			.click();
+
+		await expect.poll(() => deleteFn).toHaveBeenCalledTimes(1);
+		await expect
+			.element(page.getByRole('row').filter({ hasText: 'enduser' }))
+			.not.toBeInTheDocument();
+	});
+
+	it('allows deleting an approved request from the history tab', async () => {
+		const approved = requestFixture('car1-approved-del', 'approved');
+		mockRequests([approved]);
+		const deleteFn = vi.fn();
+		worker.use(
+			http.delete('/api/connector-access-requests/car1-approved-del', () => {
+				deleteFn();
+				return new HttpResponse(null, { status: 204 });
+			})
+		);
+
+		await renderView();
+
+		await page
+			.getByRole('tab', { name: m.identity_access_connector_approvals_filter_all() })
+			.click();
+
+		const row = page.getByRole('row').filter({ hasText: 'enduser' });
+		await expect.element(row).toBeVisible();
+		await expect
+			.element(row.getByText(m.identity_access_connector_approvals_approved()))
+			.toBeVisible();
+
+		await row.getByRole('button', { name: m.identity_access_connector_approvals_delete() }).click();
+
+		await expect
+			.element(page.getByText(m.identity_access_connector_approvals_delete_confirm_message()))
+			.toBeVisible();
+
+		await page
+			.getByRole('button', { name: m.identity_access_connector_approvals_confirm() })
+			.click();
+
+		await expect.poll(() => deleteFn).toHaveBeenCalledTimes(1);
+		await expect
+			.element(page.getByRole('row').filter({ hasText: 'enduser' }))
+			.not.toBeInTheDocument();
+	});
+	it('keeps the request in the list and reports an error when approval fails with 400', async () => {
+		const append = vi.spyOn(errors, 'append');
+		const pending = requestFixture('car1-approve-fail', 'pending');
+		mockRequests([pending]);
+		worker.use(
+			http.post('/api/connector-access-requests/car1-approve-fail/approve', () => {
+				return HttpResponse.json({ message: 'connector not published' }, { status: 400 });
+			})
+		);
+
+		await renderView();
+
+		const row = page.getByRole('row').filter({ hasText: 'enduser' });
+		await expect.element(row).toBeVisible();
+
+		const approveBtn = row.getByRole('button', {
+			name: m.identity_access_connector_approvals_approve()
+		});
+		await approveBtn.click();
+
+		await vi.waitFor(() => {
+			expect(append.mock.calls.flat().join('\n')).toContain('400');
+		});
+
+		await expect.element(row).toBeVisible();
+		await expect.element(approveBtn).toBeEnabled();
+	});
+
+	it('keeps the confirmation modal open and retains the row when delete fails with 500', async () => {
+		const append = vi.spyOn(errors, 'append');
+		const pending = requestFixture('car1-delete-fail', 'pending');
+		mockRequests([pending]);
+		worker.use(
+			http.delete('/api/connector-access-requests/car1-delete-fail', () => {
+				return HttpResponse.json({ message: 'internal server error' }, { status: 500 });
+			})
+		);
+
+		await renderView();
+
+		const row = page.getByRole('row').filter({ hasText: 'enduser' });
+		await expect.element(row).toBeVisible();
+
+		await row.getByRole('button', { name: m.identity_access_connector_approvals_delete() }).click();
+
+		const confirmMsg = page.getByText(
+			m.identity_access_connector_approvals_delete_confirm_message()
+		);
+		await expect.element(confirmMsg).toBeVisible();
+
+		const confirmBtn = page.getByRole('button', {
+			name: m.identity_access_connector_approvals_confirm()
+		});
+		await confirmBtn.click();
+
+		await vi.waitFor(() => {
+			expect(append.mock.calls.flat().join('\n')).toContain('500');
+		});
+
+		await expect.element(confirmMsg).toBeVisible();
+		await expect.element(row).toBeVisible();
+		await expect.element(confirmBtn).toBeEnabled();
 	});
 });

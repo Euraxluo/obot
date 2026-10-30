@@ -1570,6 +1570,13 @@ export async function rejectConnectorAccessRequest(
 	)) as ConnectorAccessRequest;
 }
 
+export async function deleteConnectorAccessRequest(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<void> {
+	await doDelete(`/connector-access-requests/${encodeURIComponent(id)}`, opts);
+}
+
 // Claude
 
 export async function getClaudeConfig(opts?: { fetch?: Fetcher }): Promise<ClaudeConfig> {
