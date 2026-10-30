@@ -23,6 +23,7 @@ import (
 	"github.com/obot-platform/obot/pkg/gitcredential"
 	"github.com/obot-platform/obot/pkg/skillaccessrule"
 	"github.com/obot-platform/obot/pkg/skillformat"
+	"github.com/obot-platform/obot/pkg/skillpublicationrule"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -174,6 +175,28 @@ func (h *SkillHandler) Download(req api.Context) error {
 		return err
 	}
 
+	return h.writeSkillZip(req, skill)
+}
+
+// DownloadPublished serves the zip of a skill that has been published to the
+// marketplace. The route is reachable without a session so external tools such
+// as the WorkBuddy desktop client can fetch the package with a plain HTTPS GET;
+// unpublished skills are reported as not found.
+func (h *SkillHandler) DownloadPublished(req api.Context) error {
+	skill, err := h.getAccessibleSkill(req, req.PathValue("id"))
+	if err != nil {
+		return err
+	}
+
+	var rule v1.SkillPublicationRule
+	if err := req.Get(&rule, skillpublicationrule.ObjectName(skill.Name)); err != nil || !rule.Spec.Published {
+		return types.NewErrNotFound("skill %s not found", skill.Name)
+	}
+
+	return h.writeSkillZip(req, skill)
+}
+
+func (h *SkillHandler) writeSkillZip(req api.Context, skill *v1.Skill) error {
 	cleanup, skillDir, err := h.materialize(req, skill)
 	if err != nil {
 		return fmt.Errorf("failed to materialize skill source: %w", err)

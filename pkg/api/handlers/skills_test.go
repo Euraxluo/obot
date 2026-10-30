@@ -21,6 +21,7 @@ import (
 	gatewaydb "github.com/obot-platform/obot/pkg/gateway/db"
 	gatewaytypes "github.com/obot-platform/obot/pkg/gateway/types"
 	"github.com/obot-platform/obot/pkg/skillaccessrule"
+	"github.com/obot-platform/obot/pkg/skillpublicationrule"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	storagescheme "github.com/obot-platform/obot/pkg/storage/scheme"
 	storageservices "github.com/obot-platform/obot/pkg/storage/services"
@@ -623,6 +624,73 @@ func TestSkillHandlerDownloadPackagesMaterializedSkill(t *testing.T) {
 	}
 	assert.Contains(t, names, "SKILL.md")
 	assert.Contains(t, names, "scripts/run.sh")
+}
+
+func TestSkillHandlerDownloadPublishedRequiresPublication(t *testing.T) {
+	skill := &v1.Skill{
+		Name: "sk1", Namespace: system.DefaultNamespace,
+		Spec: v1.SkillSpec{
+			SkillManifest: types.SkillManifest{Name: "postgres-helper"},
+			RepoID:        "repo-1",
+			RepoURL:       "https://git.example.com/org/repo.git",
+			CommitSHA:     "abc123",
+			RelativePath:  "skills/postgres-helper",
+		},
+		Status: v1.SkillStatus{Valid: true},
+	}
+	publishedRule := &v1.SkillPublicationRule{
+		Name:      skillpublicationrule.ObjectName(skill.Name),
+		Namespace: system.DefaultNamespace,
+		Spec:      v1.SkillPublicationRuleSpec{SkillID: skill.Name, Published: true},
+	}
+	unpublishedRule := &v1.SkillPublicationRule{
+		Name:      skillpublicationrule.ObjectName(skill.Name),
+		Namespace: system.DefaultNamespace,
+		Spec:      v1.SkillPublicationRuleSpec{SkillID: skill.Name, Published: false},
+	}
+	materialized := func(t *testing.T) *SkillHandler {
+		t.Helper()
+		tempDir := t.TempDir()
+		require.NoError(t, os.WriteFile(tempDir+"/SKILL.md", []byte("---\nname: postgres-helper\ndescription: Test\n---\n"), 0o644))
+		handler := NewSkillHandler(100, newSkillAccessRuleHelper(t))
+		handler.materializeSkillSource = func(_ context.Context, _ *v1.Skill, _ string, _ int) (func(), string, error) {
+			return func() {}, tempDir, nil
+		}
+		return handler
+	}
+	doDownload := func(t *testing.T, storage kclient.WithWatch) (*httptest.ResponseRecorder, error) {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/api/public/skills/sk1/download", nil)
+		req.SetPathValue("id", "sk1")
+		rec := httptest.NewRecorder()
+		err := materialized(t).DownloadPublished(api.Context{
+			ResponseWriter: rec,
+			Request:        req,
+			Storage:        storage,
+			GatewayClient:  newHandlerTestGateway(t),
+			User:           testUser(""),
+		})
+		return rec, err
+	}
+
+	t.Run("published skill downloads without a session", func(t *testing.T) {
+		rec, err := doDownload(t, newFakeStorage(t, skill, publishedRule))
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		assert.Equal(t, "application/zip", rec.Header().Get("Content-Type"))
+		_, zipErr := zip.NewReader(bytes.NewReader(rec.Body.Bytes()), int64(rec.Body.Len()))
+		require.NoError(t, zipErr)
+	})
+
+	t.Run("unpublished skill is not found", func(t *testing.T) {
+		_, err := doDownload(t, newFakeStorage(t, skill, unpublishedRule))
+		require.Error(t, err)
+	})
+
+	t.Run("missing publication rule is not found", func(t *testing.T) {
+		_, err := doDownload(t, newFakeStorage(t, skill))
+		require.Error(t, err)
+	})
 }
 
 func TestSkillHandlerPreviewReturnsSkillMD(t *testing.T) {
