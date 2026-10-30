@@ -124,9 +124,10 @@ export async function getMCPServerOrVMCP(
 
 export async function createVMCP(
 	manifest: VMCPManifest,
-	opts?: { fetch?: Fetcher }
+	opts?: { fetch?: Fetcher; scope?: 'personal' }
 ): Promise<VMCP> {
-	return (await doPost('/vmcps', manifest, opts)) as VMCP;
+	const path = opts?.scope === 'personal' ? '/vmcps?scope=personal' : '/vmcps';
+	return (await doPost(path, manifest, opts)) as VMCP;
 }
 
 export async function revealVMCP(
@@ -1505,10 +1506,7 @@ export async function downloadSkill(
 	})) as Blob;
 }
 
-export async function getSkillDownloadURL(
-	id: string,
-	opts?: { fetch?: Fetcher }
-): Promise<string> {
+export async function getSkillDownloadURL(id: string, opts?: { fetch?: Fetcher }): Promise<string> {
 	const response = (await doGet(`/skills/${encodeURIComponent(id)}/download-url`, opts)) as {
 		path: string;
 	};

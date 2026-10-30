@@ -8,6 +8,7 @@
 	import MarketplaceGrid from '$lib/components/marketplace/MarketplaceGrid.svelte';
 	import ConnectVMcp from '$lib/components/vmcps/ConnectVMcp.svelte';
 	import McpServerIcon from '$lib/components/vmcps/McpServerIcon.svelte';
+	import VMcpList from '$lib/components/vmcps/VMcpList.svelte';
 	import { sanitizeFilenameSegment, saveBlob } from '$lib/download';
 	import { m } from '$lib/i18n';
 	import { toHTMLFromMarkdownWithNewTabLinks } from '$lib/markdown';
@@ -22,13 +23,14 @@
 		catalogEntryDisplayName,
 		entryCategories,
 		matchesQuery,
+		resolveVMcpComponents,
 		sortMcpServers
 	} from '$lib/services/vmcps/utils';
 	import { buildSkillInstallCommands, type SkillInstallOS } from '$lib/skills/installCommands';
-	import { mcpServersAndEntries, profile } from '$lib/stores';
+	import { mcpServersAndEntries, profile, vmcpInstances } from '$lib/stores';
 	import { formatTimeAgo } from '$lib/time';
 	import { goto } from '$lib/url';
-	import { Bot, Cable, CircleAlert, Download, Lightbulb, SearchX } from '@lucide/svelte';
+	import { Bot, CircleAlert, Download, Lightbulb, SearchX } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { twMerge } from 'tailwind-merge';
@@ -102,15 +104,26 @@
 
 	let myVMcps = $derived(
 		data.vmcps
-			.filter((vmcp) => vmcp.userID === profile.current.id && !vmcp.deleted)
+			.filter(
+				(vmcp) =>
+					!vmcp.deleted &&
+					(vmcp.userID === profile.current.id || vmcp.creatorUserID === profile.current.id)
+			)
 			.sort((left, right) => (right.created ?? '').localeCompare(left.created ?? ''))
+	);
+
+	let myLinkVMcps = $derived(
+		myVMcps.map((vmcp) => ({
+			...vmcp,
+			userID: vmcp.userID || vmcp.creatorUserID
+		}))
 	);
 
 	/** Entry IDs the user already composed into a personal vMCP. */
 	let connectedEntryIDs = $derived.by(() => {
 		const connected = new SvelteSet<string>();
 		for (const vmcp of data.vmcps) {
-			if (vmcp.userID !== profile.current.id) continue;
+			if (vmcp.userID !== profile.current.id && vmcp.creatorUserID !== profile.current.id) continue;
 			for (const component of vmcp.components ?? []) {
 				if (component.mcpServerCatalogEntryID) {
 					connected.add(component.mcpServerCatalogEntryID);
@@ -173,17 +186,19 @@
 		}
 	}
 
-	function vmcpConnectorNames(components: { mcpServerCatalogEntryID: string; name: string }[]) {
-		return components.map((component) => {
-			const entry = allEntries.find(
-				(candidate) => candidate.id === component.mcpServerCatalogEntryID
-			);
-			return (
-				(entry ? catalogEntryDisplayName(entry) : '') ||
-				component.name ||
-				component.mcpServerCatalogEntryID
-			);
-		});
+	function vmcpInstanceCount(vmcpID: string) {
+		return vmcpInstances.current.items.filter(
+			(instance) => instance.vmcpID === vmcpID && !instance.deleted
+		).length;
+	}
+
+	function vmcpConfigured(vmcpID: string) {
+		return vmcpInstances.current.items.some(
+			(instance) =>
+				instance.vmcpID === vmcpID &&
+				instance.userID === profile.current.id &&
+				instance.status?.configured === true
+		);
 	}
 
 	let availableEntries = $derived(
@@ -288,7 +303,7 @@
 			const vmcps = await UserService.listVMCPs();
 			const existing = vmcps.find(
 				(vmcp) =>
-					vmcp.userID === profile.current.id &&
+					(vmcp.userID === profile.current.id || vmcp.creatorUserID === profile.current.id) &&
 					vmcp.components?.some((component) => {
 						const catalogEntryID =
 							component.mcpServerCatalogEntryID ||
@@ -298,12 +313,15 @@
 			);
 			const source =
 				existing ??
-				(await UserService.createVMCP({
-					displayName: catalogEntryDisplayName(entry) || entry.id,
-					description: entry.manifest.description || entry.manifest.shortDescription || '',
-					toolSearch: false,
-					components: [catalogEntryToVMCPComponent(entry)]
-				}));
+				(await UserService.createVMCP(
+					{
+						displayName: catalogEntryDisplayName(entry) || entry.id,
+						description: entry.manifest.description || entry.manifest.shortDescription || '',
+						toolSearch: false,
+						components: [catalogEntryToVMCPComponent(entry)]
+					},
+					{ scope: 'personal' }
+				));
 			// Re-read the reconciled vMCP so a connector that became ready after creation
 			// immediately renders the harness instructions rather than a stale setup state.
 			const target = await UserService.getVMCP(source.id);
@@ -406,7 +424,8 @@
 	const views: TabView[] = [
 		{ value: 'skills', label: m.market_tab_skills(), content: skillsView },
 		{ value: 'connectors', label: m.market_tab_connectors(), content: connectorsView },
-		{ value: 'mine', label: m.market_tab_mine(), content: mineView }
+		{ value: 'mine', label: m.market_tab_mine(), content: mineView },
+		{ value: 'my-links', label: m.market_tab_my_links(), content: myLinksView }
 	];
 </script>
 
@@ -617,35 +636,61 @@
 			{#if myVMcps.length === 0}
 				<p class="text-muted-content mt-2 text-sm">{m.market_my_connections_empty()}</p>
 			{:else}
-				<div class="mt-3">
-					<MarketplaceGrid>
-						{#each myVMcps as vmcp (vmcp.id)}
-							{@const connectorNames = vmcpConnectorNames(vmcp.components ?? [])}
-							<MarketplaceCard
-								testId={`market-my-vmcp-${vmcp.id}`}
-								title={vmcp.displayName}
-								description={connectorNames.join(', ')}
-								actionLabel={m.market_manage_connection()}
-								href="/vmcps"
-							>
-								{#snippet icon()}
-									<span
-										class="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-lg"
-									>
-										<Cable class="size-5" />
+				<ul class="mt-3 flex flex-col divide-y divide-base-200">
+					{#each myVMcps as vmcp (vmcp.id)}
+						<li
+							data-testid={`market-my-vmcp-${vmcp.id}`}
+							class="flex flex-col gap-2 py-3 last:pb-0 sm:flex-row sm:items-center sm:justify-between"
+						>
+							<div class="min-w-0">
+								<p class="truncate text-sm font-medium">{vmcp.displayName}</p>
+								<p class="text-muted-content text-xs">
+									<span data-testid={`market-my-vmcp-components-${vmcp.id}`}>
+										{m.market_components_count({ count: vmcp.components?.length ?? 0 })}
 									</span>
-								{/snippet}
-								{#snippet metadata()}
-									<span class="text-primary text-xs font-medium">
-										{m.market_manage_connection()}
+									<span aria-hidden="true"> · </span>
+									<span data-testid={`market-my-vmcp-instances-${vmcp.id}`}>
+										{m.market_instances_count({ count: vmcpInstanceCount(vmcp.id) })}
 									</span>
-								{/snippet}
-							</MarketplaceCard>
-						{/each}
-					</MarketplaceGrid>
-				</div>
+								</p>
+							</div>
+							<div class="flex shrink-0 items-center gap-2">
+								<span
+									class="badge badge-sm {vmcp.status?.ready ? 'badge-success' : 'badge-warning'}"
+								>
+									{vmcp.status?.ready ? m.core_status_ready() : m.market_not_ready()}
+								</span>
+								<span
+									class="badge badge-sm {vmcpConfigured(vmcp.id)
+										? 'badge-success'
+										: 'badge-neutral'}"
+								>
+									{vmcpConfigured(vmcp.id) ? m.core_status_configured() : m.market_not_configured()}
+								</span>
+							</div>
+						</li>
+					{/each}
+				</ul>
 			{/if}
 		</section>
+	</div>
+{/snippet}
+
+{#snippet myLinksView()}
+	<div class="bg-base-200/70 flex min-h-full flex-col gap-4 p-4 md:p-6">
+		<div>
+			<h2 class="text-xl font-semibold tracking-tight">{m.market_tab_my_links()}</h2>
+		</div>
+		<VMcpList
+			items={myLinkVMcps}
+			components={resolveVMcpComponents}
+			usersMap={new Map()}
+			variant="grid"
+		>
+			{#snippet noDataContent()}
+				<p class="text-muted-content text-sm font-light">{m.market_my_links_empty()}</p>
+			{/snippet}
+		</VMcpList>
 	</div>
 {/snippet}
 

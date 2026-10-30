@@ -131,6 +131,7 @@ describe('vMCP operations', () => {
 		const fetcher = vi.fn().mockImplementation(() => response(vmcp));
 
 		expect(await createVMCP(manifest, { fetch: fetcher })).toEqual(vmcp);
+		expect(await createVMCP(manifest, { fetch: fetcher, scope: 'personal' })).toEqual(vmcp);
 		await deleteVMCP(vmcp.id, { fetch: fetcher });
 
 		expect(String(fetcher.mock.calls[0][0])).toMatch(/\/api\/vmcps$/);
@@ -138,8 +139,13 @@ describe('vMCP operations', () => {
 			method: 'POST',
 			body: JSON.stringify(manifest)
 		});
-		expect(String(fetcher.mock.calls[1][0])).toMatch(/\/api\/vmcps\/vmcp-1$/);
-		expect(fetcher.mock.calls[1][1]).toMatchObject({ method: 'DELETE' });
+		expect(String(fetcher.mock.calls[1][0])).toMatch(/\/api\/vmcps\?scope=personal$/);
+		expect(fetcher.mock.calls[1][1]).toMatchObject({
+			method: 'POST',
+			body: JSON.stringify(manifest)
+		});
+		expect(String(fetcher.mock.calls[2][0])).toMatch(/\/api\/vmcps\/vmcp-1$/);
+		expect(fetcher.mock.calls[2][1]).toMatchObject({ method: 'DELETE' });
 		for (const [input] of fetcher.mock.calls) {
 			expect(String(input)).not.toContain('/mcp-catalogs/');
 		}

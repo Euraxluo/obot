@@ -2,7 +2,7 @@ import { saveBlob } from '$lib/download';
 import { m } from '$lib/i18n';
 import { Group } from '$lib/services';
 import type { ConnectorAccessRequest, Skill } from '$lib/services';
-import { mcpServersAndEntries } from '$lib/stores';
+import { mcpServersAndEntries, vmcpInstances } from '$lib/stores';
 import { formatTimeAgo } from '$lib/time';
 import { createMCPCatalogEntry, createVMCP } from '../../tests/helpers/mcp';
 import { applyTestGoto } from '../../tests/helpers/navigation.svelte';
@@ -121,6 +121,7 @@ async function renderMarketPage({
 } = {}) {
 	await applyTestGoto('/market');
 	resetStore();
+	vmcpInstances.current = { items: [], loading: false };
 	mockMarketApis();
 	const data = await preparePageData<PageData>({
 		profile,
@@ -139,8 +140,12 @@ async function openMineTab() {
 	await page.getByRole('tab', { name: m.market_tab_mine() }).click();
 }
 
+async function openMyLinksTab() {
+	await page.getByRole('tab', { name: m.market_tab_my_links() }).click();
+}
+
 describe('market page', () => {
-	it('defaults to Skills and renders Skills, Connectors, and Mine tabs', async () => {
+	it('defaults to Skills and renders Skills, Connectors, Mine, and My links tabs', async () => {
 		await renderMarketPage();
 
 		for (const href of ['/dashboard', '/market', '/vmcps', '/mcp-servers']) {
@@ -149,11 +154,12 @@ describe('market page', () => {
 		await expect.element(page.getByRole('tab', { name: m.market_tab_skills() })).toBeVisible();
 		await expect.element(page.getByRole('tab', { name: m.market_tab_connectors() })).toBeVisible();
 		await expect.element(page.getByRole('tab', { name: m.market_tab_mine() })).toBeVisible();
+		await expect.element(page.getByRole('tab', { name: m.market_tab_my_links() })).toBeVisible();
 		await expect
 			.element(page.getByRole('tab', { name: m.market_tab_skills() }))
 			.toHaveAttribute('aria-selected', 'true');
 		await expect
-			.element(page.getByRole('tab', { name: m.market_tab_mine() }))
+			.element(page.getByRole('tab', { name: m.market_tab_my_links() }))
 			.toHaveAttribute('aria-selected', 'false');
 
 		// Skills is the default; expert/shared-vMCP cards are no longer marketplace entries.
@@ -295,13 +301,100 @@ describe('market page', () => {
 		await expect.element(page.getByTestId('market-my-connections')).toBeVisible();
 		await expect.element(connection).toBeVisible();
 		await expect.element(connection.getByText('我的连接')).toBeVisible();
-		await expect.element(connection.getByText('企业信息查询')).toBeVisible();
-		await expect.element(connection.getByText(m.market_manage_connection()).first()).toBeVisible();
+		await expect
+			.element(page.getByTestId('market-my-vmcp-components-vmcp2-personal'))
+			.toHaveTextContent(m.market_components_count({ count: 1 }));
 		await expect.element(page.getByTestId('market-my-vmcp-vmcp3-other')).not.toBeInTheDocument();
 	});
 
-	it('creates an approved connector and opens the harness dialog in place', async () => {
+	it('shows operational status for my vMCPs under Mine', async () => {
 		const profile = createMockProfile([Group.USER]);
+		const ready = createVMCP({ id: 'vmcp2-ready', displayName: '就绪连接', userID: profile.id }, [
+			connectorEntry
+		]);
+		const pending = createVMCP(
+			{
+				id: 'vmcp3-pending',
+				displayName: '待配置连接',
+				creatorUserID: profile.id,
+				userID: '',
+				status: { ready: false }
+			},
+			[connectorEntry, createMCPCatalogEntry({ id: 'mce2-extra', name: 'Extra' })]
+		);
+
+		await renderMarketPage({ profile, vmcps: [ready, pending] });
+		vmcpInstances.current = {
+			items: [
+				{
+					id: 'vmcpi-ready',
+					vmcpID: ready.id,
+					userID: profile.id,
+					created: '2026-01-01T00:00:00Z',
+					status: { configured: true }
+				}
+			],
+			loading: false
+		};
+		await openMineTab();
+
+		const readyRow = page.getByTestId('market-my-vmcp-vmcp2-ready');
+		await expect.element(readyRow).toBeVisible();
+		await expect.element(readyRow.getByText(m.core_status_ready())).toBeVisible();
+		await expect.element(readyRow.getByText(m.core_status_configured())).toBeVisible();
+		await expect
+			.element(page.getByTestId('market-my-vmcp-instances-vmcp2-ready'))
+			.toHaveTextContent(m.market_instances_count({ count: 1 }));
+
+		const pendingRow = page.getByTestId('market-my-vmcp-vmcp3-pending');
+		await expect.element(pendingRow).toBeVisible();
+		await expect.element(pendingRow.getByText(m.market_not_ready())).toBeVisible();
+		await expect.element(pendingRow.getByText(m.market_not_configured())).toBeVisible();
+		await expect
+			.element(page.getByTestId('market-my-vmcp-components-vmcp3-pending'))
+			.toHaveTextContent(m.market_components_count({ count: 2 }));
+		await expect
+			.element(page.getByTestId('market-my-vmcp-instances-vmcp3-pending'))
+			.toHaveTextContent(m.market_instances_count({ count: 0 }));
+	});
+
+	it('shows only the current user vMCPs under My links', async () => {
+		const profile = createMockProfile([Group.USER]);
+		const owned = createVMCP({ id: 'vmcp2-owned', displayName: '我的链接', userID: profile.id }, [
+			connectorEntry
+		]);
+		const created = createVMCP(
+			{ id: 'vmcp3-created', displayName: '我创建的链接', creatorUserID: profile.id },
+			[connectorEntry]
+		);
+		const anotherUsers = createVMCP(
+			{
+				id: 'vmcp4-other',
+				displayName: '别人的链接',
+				userID: 'another-user',
+				creatorUserID: 'another-user'
+			},
+			[connectorEntry]
+		);
+		await renderMarketPage({ profile, vmcps: [owned, created, anotherUsers] });
+		await openMyLinksTab();
+
+		await expect.element(page.getByText('我的链接', { exact: true }).last()).toBeVisible();
+		await expect.element(page.getByText('我创建的链接', { exact: true })).toBeVisible();
+		await expect.element(page.getByText('别人的链接', { exact: true })).not.toBeInTheDocument();
+		await expect
+			.element(page.getByRole('button', { name: m.vmcps_connect() }).first())
+			.toBeVisible();
+		await expect
+			.element(page.getByRole('button', { name: m.vmcps_copy_connect_url() }).first())
+			.toBeVisible();
+		await expect
+			.element(page.getByRole('button', { name: m.vmcps_test_vmcp() }).first())
+			.toBeVisible();
+	});
+
+	it('creates an approved connector as a personal vMCP and opens the harness dialog in place', async () => {
+		const profile = createMockProfile([Group.ADMIN]);
 		const created = createVMCP(
 			{
 				id: 'vmcp1market',
@@ -311,8 +404,10 @@ describe('market page', () => {
 			[connectorEntry]
 		);
 		const create = vi.fn();
+		const requestURL = vi.fn();
 		worker.use(
 			http.post('/api/vmcps', async ({ request }) => {
+				requestURL(request.url);
 				create(await request.json());
 				return HttpResponse.json(created, { status: 201 });
 			}),
@@ -325,6 +420,7 @@ describe('market page', () => {
 		await page.getByRole('button', { name: m.market_connect() }).click();
 
 		await expect.poll(() => create).toHaveBeenCalledTimes(1);
+		expect(requestURL).toHaveBeenCalledWith(expect.stringMatching(/\/api\/vmcps\?scope=personal$/));
 		expect(create).toHaveBeenCalledWith(
 			expect.objectContaining({
 				components: [expect.objectContaining({ mcpServerCatalogEntryID: connectorEntry.id })]
@@ -337,7 +433,12 @@ describe('market page', () => {
 	it('reuses an existing personal vMCP with the same connector without creating another', async () => {
 		const profile = createMockProfile([Group.USER]);
 		const existing = createVMCP(
-			{ id: 'vmcp1existing', displayName: 'Existing Connector', userID: profile.id },
+			{
+				id: 'vmcp1existing',
+				displayName: 'Existing Connector',
+				creatorUserID: profile.id,
+				userID: ''
+			},
 			[connectorEntry]
 		);
 		existing.components![0].mcpServerCatalogEntryID = '';
