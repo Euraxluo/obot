@@ -718,18 +718,25 @@
 									{request.manifest.reason || m.market_request_no_reason()}
 								</p>
 							</div>
-							<div class="flex shrink-0 items-center gap-3">
-								<time
-									class="text-muted-content text-xs"
-									title={request.created ? formatTimeAgo(request.created).fullDate : undefined}
-								>
-									{#if request.created}
-										{formatTimeAgo(request.created).relativeTime}
-									{/if}
-								</time>
-								<span class="badge badge-sm {requestStatusClass(request.manifest.status)}">
-									{requestStatusLabel(request.manifest.status)}
-								</span>
+							<div class="flex shrink-0 flex-col items-start gap-1 sm:items-end">
+								<div class="flex items-center gap-3">
+									<time
+										class="text-muted-content text-xs"
+										title={request.created ? formatTimeAgo(request.created).fullDate : undefined}
+									>
+										{#if request.created}
+											{formatTimeAgo(request.created).relativeTime}
+										{/if}
+									</time>
+									<span class="badge badge-sm {requestStatusClass(request.manifest.status)}">
+										{requestStatusLabel(request.manifest.status)}
+									</span>
+								</div>
+								{#if request.manifest.status === 'approved' && request.connectorPublished === false}
+									<p class="text-warning text-xs">
+										{m.market_request_approved_unpublished_hint()}
+									</p>
+								{/if}
 							</div>
 						</li>
 					{/each}

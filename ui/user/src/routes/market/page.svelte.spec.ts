@@ -686,4 +686,18 @@ describe('market page', () => {
 		expect(blob).toBeInstanceOf(Blob);
 		expect(filename).toBe('weekly-report-en.zip');
 	});
+	it('shows unpublished hint when an approved request connector is not published in market', async () => {
+		const approvedUnpublished: ConnectorAccessRequest = {
+			...requestFixture('approved'),
+			connectorPublished: false
+		};
+		await renderMarketPage({ requests: [approvedUnpublished] });
+		await openMineTab();
+
+		const item = page.getByTestId('market-request-car1-1');
+		await expect.element(item.getByText(m.market_request_approved())).toBeVisible();
+		await expect
+			.element(item.getByText(m.market_request_approved_unpublished_hint()))
+			.toBeVisible();
+	});
 });

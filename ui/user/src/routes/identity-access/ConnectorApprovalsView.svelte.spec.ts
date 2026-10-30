@@ -180,4 +180,29 @@ describe('ConnectorApprovalsView', () => {
 			.element(page.getByText(m.identity_access_connector_approvals_rejected()))
 			.toBeVisible();
 	});
+	it('flags unpublished connectors and disables approval while keeping rejection enabled', async () => {
+		const unpublished: ConnectorAccessRequest = {
+			...requestFixture('car1-unpublished', 'pending'),
+			connectorPublished: false
+		};
+		mockRequests([unpublished]);
+
+		await renderView();
+
+		const row = page.getByRole('row').filter({ hasText: 'enduser' });
+		await expect.element(row).toBeVisible();
+		await expect
+			.element(row.getByText(m.identity_access_connector_unpublished_warning()))
+			.toBeVisible();
+
+		const approveBtn = row.getByRole('button', {
+			name: m.identity_access_connector_approvals_approve()
+		});
+		await expect.element(approveBtn).toBeDisabled();
+
+		const rejectBtn = row.getByRole('button', {
+			name: m.identity_access_connector_approvals_reject()
+		});
+		await expect.element(rejectBtn).toBeEnabled();
+	});
 });

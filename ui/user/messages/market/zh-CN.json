@@ -25,6 +25,7 @@
 	"market_manage_connection": "管理",
 	"market_request_no_reason": "未填写申请理由",
 	"market_request_approved": "已通过",
+	"market_request_approved_unpublished_hint": "已批准，但连接器尚未发布到市场，暂时无法使用",
 	"market_search_skills": "搜索技能",
 	"market_search_connectors": "搜索连接器",
 	"market_empty_skills": "暂无技能",

@@ -25,6 +25,7 @@
 	"market_manage_connection": "管理",
 	"market_request_no_reason": "申請理由はありません",
 	"market_request_approved": "承認済み",
+	"market_request_approved_unpublished_hint": "承認済みですが、コネクタがマーケットに未公開のため一時的に利用できません",
 	"market_search_skills": "スキルを検索",
 	"market_search_connectors": "コネクタを検索",
 	"market_empty_skills": "スキルはまだありません",

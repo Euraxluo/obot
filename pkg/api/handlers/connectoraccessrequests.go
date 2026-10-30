@@ -73,7 +73,7 @@ func (*ConnectorAccessRequestHandler) Create(req api.Context) error {
 		return fmt.Errorf("failed to create connector access request: %w", err)
 	}
 
-	return req.WriteCreated(convertConnectorAccessRequest(request))
+	return req.WriteCreated(convertConnectorAccessRequest(request, marketPublished(entry)))
 }
 
 // List returns connector access requests. Admins see all (optionally filtered
@@ -87,6 +87,15 @@ func (*ConnectorAccessRequestHandler) List(req api.Context) error {
 	statusFilter := req.URL.Query().Get("status")
 	mineOnly := !req.UserIsAdmin() || req.URL.Query().Get("mine") == "true"
 
+	var entryList v1.MCPServerCatalogEntryList
+	if err := req.List(&entryList); err != nil {
+		return fmt.Errorf("failed to list catalog entries: %w", err)
+	}
+	entryMap := make(map[catalogEntryKey]v1.MCPServerCatalogEntry, len(entryList.Items))
+	for _, entry := range entryList.Items {
+		entryMap[makeCatalogEntryKey(entry.Spec.MCPCatalogName, entry.Name)] = entry
+	}
+
 	items := make([]types.ConnectorAccessRequest, 0, len(list.Items))
 	for _, item := range list.Items {
 		if statusFilter != "" && item.Spec.Manifest.Status != statusFilter {
@@ -95,7 +104,9 @@ func (*ConnectorAccessRequestHandler) List(req api.Context) error {
 		if mineOnly && item.Spec.Manifest.RequesterUserID != req.User.GetUID() {
 			continue
 		}
-		items = append(items, convertConnectorAccessRequest(item))
+		entry, ok := entryMap[makeCatalogEntryKey(item.Spec.Manifest.MCPCatalogID, item.Spec.Manifest.ConnectorID)]
+		published := ok && marketPublished(entry)
+		items = append(items, convertConnectorAccessRequest(item, published))
 	}
 
 	return req.Write(types.ConnectorAccessRequestList{Items: items})
@@ -112,7 +123,8 @@ func (*ConnectorAccessRequestHandler) Get(req api.Context) error {
 		return types.NewErrForbidden("not your connector access request")
 	}
 
-	return req.Write(convertConnectorAccessRequest(request))
+	published := getConnectorPublished(req, request.Spec.Manifest.MCPCatalogID, request.Spec.Manifest.ConnectorID)
+	return req.Write(convertConnectorAccessRequest(request, published))
 }
 
 // Approve marks a request approved and grants the requester user-level access
@@ -124,6 +136,23 @@ func (*ConnectorAccessRequestHandler) Approve(req api.Context) error {
 	request, err := getPendingConnectorAccessRequest(req)
 	if err != nil {
 		return err
+	}
+
+	catalogID := request.Spec.Manifest.MCPCatalogID
+	if catalogID == "" {
+		catalogID = system.DefaultCatalog
+	}
+
+	var entry v1.MCPServerCatalogEntry
+	if err := req.Get(&entry, request.Spec.Manifest.ConnectorID); err != nil {
+		return types.NewErrBadRequest("connector not found: %v", err)
+	}
+	entryCatalog := entry.Spec.MCPCatalogName
+	if entryCatalog == "" {
+		entryCatalog = system.DefaultCatalog
+	}
+	if entryCatalog != catalogID || !marketPublished(entry) {
+		return types.NewErrBadRequest("connector is not published in the marketplace; publish it before approving")
 	}
 
 	request.Spec.Manifest.Status = types.ConnectorAccessRequestApproved
@@ -138,7 +167,7 @@ func (*ConnectorAccessRequestHandler) Approve(req api.Context) error {
 		return fmt.Errorf("failed to update connector access request: %w", err)
 	}
 
-	return req.Write(convertConnectorAccessRequest(request))
+	return req.Write(convertConnectorAccessRequest(request, true))
 }
 
 // Reject marks a request rejected, optionally with a comment.
@@ -160,7 +189,8 @@ func (*ConnectorAccessRequestHandler) Reject(req api.Context) error {
 		return fmt.Errorf("failed to update connector access request: %w", err)
 	}
 
-	return req.Write(convertConnectorAccessRequest(request))
+	published := getConnectorPublished(req, request.Spec.Manifest.MCPCatalogID, request.Spec.Manifest.ConnectorID)
+	return req.Write(convertConnectorAccessRequest(request, published))
 }
 
 func getPendingConnectorAccessRequest(req api.Context) (v1.ConnectorAccessRequest, error) {
@@ -260,10 +290,44 @@ func acrGrantsConnectorToUser(manifest types.AccessControlRuleManifest, connecto
 	return false
 }
 
-func convertConnectorAccessRequest(request v1.ConnectorAccessRequest) types.ConnectorAccessRequest {
+type catalogEntryKey struct {
+	catalogID string
+	entryID   string
+}
+
+func makeCatalogEntryKey(catalogID, entryID string) catalogEntryKey {
+	if catalogID == "" {
+		catalogID = system.DefaultCatalog
+	}
+	return catalogEntryKey{
+		catalogID: catalogID,
+		entryID:   entryID,
+	}
+}
+
+func getConnectorPublished(req api.Context, catalogID, connectorID string) bool {
+	if catalogID == "" {
+		catalogID = system.DefaultCatalog
+	}
+	var entry v1.MCPServerCatalogEntry
+	if err := req.Get(&entry, connectorID); err != nil {
+		return false
+	}
+	entryCatalog := entry.Spec.MCPCatalogName
+	if entryCatalog == "" {
+		entryCatalog = system.DefaultCatalog
+	}
+	if entryCatalog != catalogID {
+		return false
+	}
+	return marketPublished(entry)
+}
+
+func convertConnectorAccessRequest(request v1.ConnectorAccessRequest, published bool) types.ConnectorAccessRequest {
 	return types.ConnectorAccessRequest{
-		Metadata: MetadataFrom(&request),
-		Manifest: request.Spec.Manifest,
+		Metadata:           MetadataFrom(&request),
+		ConnectorPublished: published,
+		Manifest:           request.Spec.Manifest,
 	}
 }
 

@@ -18,6 +18,8 @@ const (
 type ConnectorAccessRequest struct {
 	Metadata `json:",inline"`
 
+	ConnectorPublished bool `json:"connectorPublished"`
+
 	Manifest ConnectorAccessRequestManifest `json:"manifest,omitempty"`
 }
 

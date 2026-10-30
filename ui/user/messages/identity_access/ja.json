@@ -464,6 +464,7 @@
 	"identity_access_connector_approvals_pending": "承認待ち",
 	"identity_access_connector_approvals_approved": "承認済み",
 	"identity_access_connector_approvals_rejected": "却下",
+	"identity_access_connector_unpublished_warning": "マーケット未公開のため、承認してもユーザーには表示されません",
 	"identity_access_scim_ref_skill_access_rule": "スキルアクセスルール",
 	"identity_access_scim_count_referenced_group_other": "{count} 個の参照済みグループ",
 	"identity_access_scim_count_unprovisioned_user_other": "{count} 人の未プロビジョニングユーザー",

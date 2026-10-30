@@ -141,7 +141,16 @@
 									request.manifest.requesterEmail ||
 									request.manifest.requesterUserID}
 							</td>
-							<td>{request.manifest.connectorName || request.manifest.connectorID}</td>
+							<td>
+								<div class="flex flex-col items-start gap-1">
+									<span>{request.manifest.connectorName || request.manifest.connectorID}</span>
+									{#if request.connectorPublished === false}
+										<span class="badge badge-warning badge-xs">
+											{m.identity_access_connector_unpublished_warning()}
+										</span>
+									{/if}
+								</div>
+							</td>
 							<td class="max-w-48 truncate" title={request.manifest.reason}>
 								{request.manifest.reason || '—'}
 							</td>
@@ -164,7 +173,10 @@
 										<button
 											type="button"
 											class="btn btn-primary btn-xs rounded-lg"
-											disabled={actingID === request.id}
+											disabled={actingID === request.id || request.connectorPublished === false}
+											title={request.connectorPublished === false
+												? m.identity_access_connector_unpublished_warning()
+												: undefined}
 											onclick={() => approve(request)}
 										>
 											{#if actingID === request.id}

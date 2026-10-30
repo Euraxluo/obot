@@ -30,7 +30,8 @@ func connectorAccessRequestTestSetup(t *testing.T) (storage.Client, *ConnectorAc
 			Manifest: types.MCPServerCatalogEntryManifest{
 				Name: "Test Connector",
 				Metadata: map[string]string{
-					"displayNameZh": "测试连接器",
+					"displayNameZh":                  "测试连接器",
+					types.MarketPublishedMetadataKey: "true",
 				},
 			},
 		},
@@ -128,6 +129,10 @@ func TestConnectorAccessRequestCreateApproveFlow(t *testing.T) {
 		types.ConnectorAccessReview{Comment: "ok"}, connectorAccessRequestAdmin())
 	req.SetPathValue("connector_access_request_id", created.Name)
 	require.NoError(t, handler.Approve(req))
+
+	var approvedResp types.ConnectorAccessRequest
+	require.NoError(t, json.Unmarshal(req.ResponseWriter.(*httptest.ResponseRecorder).Body.Bytes(), &approvedResp))
+	require.True(t, approvedResp.ConnectorPublished)
 
 	var approved v1.ConnectorAccessRequest
 	require.NoError(t, storageClient.Get(t.Context(), kclient.ObjectKey{
@@ -238,4 +243,132 @@ func TestIsBasicOnlyUser(t *testing.T) {
 			require.Equal(t, tt.want, isBasicOnlyUser(u))
 		})
 	}
+}
+
+func TestConnectorAccessRequestApproveUnpublishedRejected(t *testing.T) {
+	entry := &v1.MCPServerCatalogEntry{
+		ObjectMeta: connectorAccessRequestEntryMeta("mce-unpub"),
+		Spec: v1.MCPServerCatalogEntrySpec{
+			MCPCatalogName: system.DefaultCatalog,
+			Manifest: types.MCPServerCatalogEntryManifest{
+				Name: "Unpublished Connector",
+				Metadata: map[string]string{
+					"displayNameZh": "未发布连接器",
+				},
+			},
+		},
+	}
+	storageClient := storage.Client(fake.NewClientBuilder().
+		WithScheme(storagescheme.Scheme).
+		WithObjects(entry).
+		Build())
+	handler := new(ConnectorAccessRequestHandler)
+	endUser := connectorAccessRequestEndUser()
+	admin := connectorAccessRequestAdmin()
+
+	req := connectorAccessRequestContext(t, storageClient, http.MethodPost, "/api/connector-access-requests",
+		types.ConnectorAccessRequestManifest{
+			ConnectorID: "mce-unpub",
+			Reason:      "试用",
+		}, endUser)
+	require.NoError(t, handler.Create(req))
+
+	var list v1.ConnectorAccessRequestList
+	require.NoError(t, storageClient.List(t.Context(), &list, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+	require.Len(t, list.Items, 1)
+	requestID := list.Items[0].Name
+
+	req = connectorAccessRequestContext(t, storageClient, http.MethodPost,
+		"/api/connector-access-requests/"+requestID+"/approve",
+		types.ConnectorAccessReview{Comment: "ok"}, admin)
+	req.SetPathValue("connector_access_request_id", requestID)
+	err := handler.Approve(req)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "connector is not published in the marketplace; publish it before approving")
+
+	var acrs v1.AccessControlRuleList
+	require.NoError(t, storageClient.List(t.Context(), &acrs, &kclient.ListOptions{Namespace: system.DefaultNamespace}))
+	require.Empty(t, acrs.Items)
+
+	var stored v1.ConnectorAccessRequest
+	require.NoError(t, storageClient.Get(t.Context(), kclient.ObjectKey{
+		Namespace: system.DefaultNamespace,
+		Name:      requestID,
+	}, &stored))
+	require.Equal(t, types.ConnectorAccessRequestPending, stored.Spec.Manifest.Status)
+}
+
+func TestConnectorAccessRequestListConnectorPublished(t *testing.T) {
+	pubEntry := &v1.MCPServerCatalogEntry{
+		ObjectMeta: connectorAccessRequestEntryMeta("mce-pub"),
+		Spec: v1.MCPServerCatalogEntrySpec{
+			MCPCatalogName: system.DefaultCatalog,
+			Manifest: types.MCPServerCatalogEntryManifest{
+				Name: "Published Connector",
+				Metadata: map[string]string{
+					types.MarketPublishedMetadataKey: "true",
+				},
+			},
+		},
+	}
+	unpubEntry := &v1.MCPServerCatalogEntry{
+		ObjectMeta: connectorAccessRequestEntryMeta("mce-unpub"),
+		Spec: v1.MCPServerCatalogEntrySpec{
+			MCPCatalogName: system.DefaultCatalog,
+			Manifest: types.MCPServerCatalogEntryManifest{
+				Name: "Unpublished Connector",
+				Metadata: map[string]string{
+					types.MarketPublishedMetadataKey: "false",
+				},
+			},
+		},
+	}
+	otherCatalogEntry := &v1.MCPServerCatalogEntry{
+		ObjectMeta: connectorAccessRequestEntryMeta("mce-other-pub"),
+		Spec: v1.MCPServerCatalogEntrySpec{
+			MCPCatalogName: "other-catalog",
+			Manifest: types.MCPServerCatalogEntryManifest{
+				Name: "Other Catalog Published Connector",
+				Metadata: map[string]string{
+					types.MarketPublishedMetadataKey: "true",
+				},
+			},
+		},
+	}
+
+	storageClient := storage.Client(fake.NewClientBuilder().
+		WithScheme(storagescheme.Scheme).
+		WithObjects(pubEntry, unpubEntry, otherCatalogEntry).
+		Build())
+	handler := new(ConnectorAccessRequestHandler)
+	endUser := connectorAccessRequestEndUser()
+	admin := connectorAccessRequestAdmin()
+
+	req := connectorAccessRequestContext(t, storageClient, http.MethodPost, "/api/connector-access-requests",
+		types.ConnectorAccessRequestManifest{ConnectorID: "mce-pub"}, endUser)
+	require.NoError(t, handler.Create(req))
+
+	req = connectorAccessRequestContext(t, storageClient, http.MethodPost, "/api/connector-access-requests",
+		types.ConnectorAccessRequestManifest{ConnectorID: "mce-unpub"}, endUser)
+	require.NoError(t, handler.Create(req))
+
+	req = connectorAccessRequestContext(t, storageClient, http.MethodPost, "/api/connector-access-requests",
+		types.ConnectorAccessRequestManifest{ConnectorID: "mce-other-pub"}, endUser)
+	require.NoError(t, handler.Create(req))
+
+	req = connectorAccessRequestContext(t, storageClient, http.MethodGet, "/api/connector-access-requests", nil, admin)
+	require.NoError(t, handler.List(req))
+
+	var list types.ConnectorAccessRequestList
+	require.NoError(t, json.Unmarshal(req.ResponseWriter.(*httptest.ResponseRecorder).Body.Bytes(), &list))
+	require.Len(t, list.Items, 3)
+
+	publishedByID := make(map[string]bool)
+	for _, item := range list.Items {
+		publishedByID[item.Manifest.ConnectorID] = item.ConnectorPublished
+	}
+
+	require.True(t, publishedByID["mce-pub"])
+	require.False(t, publishedByID["mce-unpub"])
+	require.True(t, publishedByID["mce-other-pub"])
 }

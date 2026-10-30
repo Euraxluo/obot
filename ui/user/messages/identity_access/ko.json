@@ -464,6 +464,7 @@
 	"identity_access_connector_approvals_pending": "승인 대기",
 	"identity_access_connector_approvals_approved": "승인됨",
 	"identity_access_connector_approvals_rejected": "거부됨",
+	"identity_access_connector_unpublished_warning": "마켓플레이스에 게시되지 않아 승인 후에도 사용자에게 표시되지 않습니다",
 	"identity_access_scim_ref_skill_access_rule": "스킬 액세스 규칙",
 	"identity_access_scim_count_referenced_group_other": "참조된 그룹 {count}개",
 	"identity_access_scim_count_unprovisioned_user_other": "프로비저닝되지 않은 사용자 {count}명",

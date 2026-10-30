@@ -25,6 +25,7 @@
 	"market_manage_connection": "Manage",
 	"market_request_no_reason": "No reason provided",
 	"market_request_approved": "Approved",
+	"market_request_approved_unpublished_hint": "Approved, but connector is not published in the marketplace and temporarily unavailable",
 	"market_search_skills": "Search skills",
 	"market_search_connectors": "Search connectors",
 	"market_empty_skills": "No skills yet",

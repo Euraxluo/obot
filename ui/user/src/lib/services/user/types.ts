@@ -1150,6 +1150,7 @@ export type ConnectorAccessRequestStatus = 'pending' | 'approved' | 'rejected';
 export interface ConnectorAccessRequest {
 	id: string;
 	created?: string;
+	connectorPublished?: boolean;
 	manifest: {
 		requesterUserID: string;
 		requesterUsername?: string;

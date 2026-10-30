@@ -464,6 +464,7 @@
 	"identity_access_connector_approvals_pending": "Pending",
 	"identity_access_connector_approvals_approved": "Approved",
 	"identity_access_connector_approvals_rejected": "Rejected",
+	"identity_access_connector_unpublished_warning": "Not published in marketplace; will remain invisible after approval",
 	"identity_access_scim_ref_skill_access_rule": "skill access rule",
 	"identity_access_scim_count_referenced_group_other": "{count} referenced groups",
 	"identity_access_scim_count_unprovisioned_user_other": "{count} unprovisioned users",
