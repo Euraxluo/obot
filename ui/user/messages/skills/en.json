@@ -104,5 +104,6 @@
 	"skills_view_config_and_source": "View skill configuration and source code",
 	"skills_install_step_command": "Copy a one-line install command",
 	"skills_install_url_pending": "Creating the install link...",
-	"skills_install_url_failed": "Failed to create the install link. Close the dialog and try again."
+	"skills_install_url_failed": "Failed to create the install link. Close the dialog and try again.",
+	"skills_install_step_download": "Download {name}"
 }

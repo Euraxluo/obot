@@ -385,17 +385,16 @@
 				<p class="text-muted-content text-xs my-2">{m.skills_install_url_pending()}</p>
 			{/if}
 		</div>
-		<div class="flex justify-end mt-1">
-			<button
-				type="button"
-				class="btn btn-ghost btn-xs gap-1 rounded-lg text-muted-content hover:text-primary px-2"
-				disabled={downloadingSkill}
-				onclick={() => handleDownloadSkill(selectedSkillToInstall)}
-			>
-				<Download class="size-3.5" />
-				{m.skills_download()}
-			</button>
-		</div>
+		<div class="divider">{m.skills_install_step_download({ name: selectedSkillToInstall ? skillTitle(selectedSkillToInstall) : '' })}</div>
+		<button
+			type="button"
+			class="btn btn-primary btn-sm w-full"
+			disabled={downloadingSkill}
+			onclick={() => handleDownloadSkill(selectedSkillToInstall)}
+		>
+			<Download class="size-4" />
+			{downloadingSkill ? m.market_downloading() : m.skills_download()}
+		</button>
 
 		<div class="divider">{m.skills_install_step_invoke()}</div>
 		<div class="rounded-xl border border-primary/20 bg-primary/5 p-3.5 mb-2">

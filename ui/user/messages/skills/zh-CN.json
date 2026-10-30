@@ -104,5 +104,6 @@
 	"skills_view_config_and_source": "查看技能配置与源代码",
 	"skills_install_step_command": "复制一键安装命令",
 	"skills_install_url_pending": "正在生成安装链接...",
-	"skills_install_url_failed": "获取安装链接失败，请关闭弹窗后重试"
+	"skills_install_url_failed": "获取安装链接失败，请关闭弹窗后重试",
+	"skills_install_step_download": "下载 {name}"
 }

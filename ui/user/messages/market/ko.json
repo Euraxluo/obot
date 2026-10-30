@@ -29,5 +29,7 @@
 	"market_skill_usage_title": "사용 방법",
 	"market_skill_step_call": "3. AI 클라이언트에서 실행",
 	"market_skill_call_hint": "압축을 푼 후 채팅에서 /{name}을 입력하거나 AI에 요청하여 스킬을 실행합니다.",
-	"market_connectors_subtitle": "사용 가능한 {count}개 커넥터를 탐색하여 액세스를 요청하거나 연결합니다."
+	"market_connectors_subtitle": "사용 가능한 {count}개 커넥터를 탐색하여 액세스를 요청하거나 연결합니다.",
+	"market_skill_download_hint": "스킬 아카이브({filename}) 다운로드",
+	"market_downloading": "다운로드 중..."
 }

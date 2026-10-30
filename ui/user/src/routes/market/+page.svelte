@@ -728,15 +728,29 @@
 						{:else}
 							<p class="text-muted-content text-xs">{m.skills_install_url_pending()}</p>
 						{/if}
-						<div class="flex justify-end">
+					</div>
+
+					<!-- Download the zip straight to local disk -->
+					<div class="bg-base-200/50 dark:bg-base-300/40 rounded-xl p-3.5">
+						<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+							<div>
+								<p class="text-xs font-semibold text-base-content">
+									{m.skills_install_step_download({ name: skillTitle(selectedSkill) })}
+								</p>
+								<p class="text-xs text-muted-content mt-0.5">
+									{m.market_skill_download_hint({
+										filename: `${sanitizeFilenameSegment(selectedSkill.name ?? selectedSkill.id)}.zip`
+									})}
+								</p>
+							</div>
 							<button
 								type="button"
-								class="btn btn-ghost btn-xs gap-1 rounded-lg text-muted-content hover:text-primary px-2"
+								class="btn btn-primary btn-sm shrink-0 gap-2 rounded-lg"
 								disabled={downloadingSkill}
 								onclick={() => handleDownloadSkill(selectedSkill)}
 							>
-								<Download class="size-3.5" />
-								{m.skills_download()}
+								<Download class="size-4" />
+								{downloadingSkill ? m.market_downloading() : m.skills_download()}
 							</button>
 						</div>
 					</div>

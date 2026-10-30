@@ -104,5 +104,6 @@
 	"skills_view_config_and_source": "스킬 구성 및 소스 코드 보기",
 	"skills_install_step_command": "원라인 설치 명령 복사",
 	"skills_install_url_pending": "설치 링크 생성 중...",
-	"skills_install_url_failed": "설치 링크 생성에 실패했습니다. 대화상자를 닫고 다시 시도하세요."
+	"skills_install_url_failed": "설치 링크 생성에 실패했습니다. 대화상자를 닫고 다시 시도하세요.",
+	"skills_install_step_download": "{name} 다운로드"
 }

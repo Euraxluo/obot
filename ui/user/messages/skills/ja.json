@@ -104,5 +104,6 @@
 	"skills_view_config_and_source": "スキルの設定とソースコードを表示",
 	"skills_install_step_command": "ワンライナー・インストールコマンドをコピー",
 	"skills_install_url_pending": "インストールリンクを生成中...",
-	"skills_install_url_failed": "インストールリンクの作成に失敗しました。ダイアログを閉じて再試行してください。"
+	"skills_install_url_failed": "インストールリンクの作成に失敗しました。ダイアログを閉じて再試行してください。",
+	"skills_install_step_download": "{name} をダウンロード"
 }
