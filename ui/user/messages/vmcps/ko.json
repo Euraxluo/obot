@@ -71,6 +71,8 @@
 	"vmcps_connect_all_vmcps_label": "모든 vMCP 연결:",
 	"vmcps_connect_all_vscode_prefix": "이 구성을 작업 공간의 ",
 	"vmcps_connect_all_vscode_suffix": "에 복사하세요.",
+	"vmcps_connect_all_workbuddy_prefix": "아래 구성을 ",
+	"vmcps_connect_all_workbuddy_suffix": "에 복사하세요.",
 	"vmcps_connect_dialog_description": "이 URL을 MCP 클라이언트에서 사용하세요. 각 사용자는 vMCP 엔드포인트에 직접 연결합니다.",
 	"vmcps_connect_requires_oauth_setup": "{name}에는 관리자 OAuth 설정이 필요합니다. vMCP를 시작하기 전에 이 MCP 서버의 OAuth를 구성하세요.",
 	"vmcps_connect_to_named": "{name}에 연결",

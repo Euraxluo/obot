@@ -71,6 +71,8 @@
 	"vmcps_connect_all_vmcps_label": "Connect all vMCPs:",
 	"vmcps_connect_all_vscode_prefix": "Copy this configuration into your workspace ",
 	"vmcps_connect_all_vscode_suffix": ".",
+	"vmcps_connect_all_workbuddy_prefix": "Copy the configuration below into ",
+	"vmcps_connect_all_workbuddy_suffix": ".",
 	"vmcps_connect_dialog_description": "Use this URL in an MCP client. Each user connects directly to the vMCP endpoint.",
 	"vmcps_connect_requires_oauth_setup": "{name} requires administrator OAuth setup. Configure OAuth for this MCP server before starting the vMCP.",
 	"vmcps_connect_to_named": "Connect to {name}",

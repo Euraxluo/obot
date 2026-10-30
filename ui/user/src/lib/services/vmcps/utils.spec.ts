@@ -47,6 +47,21 @@ describe('vmcpConnectURL', () => {
 		vmcp.status = undefined;
 		expect(vmcpConnectURL(vmcp)).toBeUndefined();
 	});
+
+	it('builds WorkBuddy connection configuration for ready vMCP', () => {
+		const vmcp = createVMCP({ id: 'vmcp-workbuddy', displayName: 'WorkBuddy vMCP' });
+		const snippets = buildConnectAllSnippets(AiClient.WorkBuddy, [vmcp], false);
+		expect(snippets).toHaveLength(1);
+		expect(snippets[0].id).toBe('workbuddy-mcp-json');
+		expect(JSON.parse(snippets[0].value)).toEqual({
+			mcpServers: {
+				'WorkBuddy vMCP': {
+					type: 'http',
+					url: '/mcp-connect/vmcp-workbuddy'
+				}
+			}
+		});
+	});
 });
 
 describe('vmcpNeedsAdminConfiguration', () => {

@@ -71,6 +71,8 @@
 	"vmcps_connect_all_vmcps_label": "すべての vMCP に接続：",
 	"vmcps_connect_all_vscode_prefix": "この設定をワークスペースの ",
 	"vmcps_connect_all_vscode_suffix": " にコピーしてください。",
+	"vmcps_connect_all_workbuddy_prefix": "以下の設定を ",
+	"vmcps_connect_all_workbuddy_suffix": " にコピーしてください。",
 	"vmcps_connect_dialog_description": "この URL を MCP クライアントで使用してください。各ユーザーは vMCP エンドポイントに直接接続します。",
 	"vmcps_connect_requires_oauth_setup": "{name} には管理者による OAuth の設定が必要です。vMCP を開始する前に、この MCP サーバーの OAuth を設定してください。",
 	"vmcps_connect_to_named": "{name} に接続",

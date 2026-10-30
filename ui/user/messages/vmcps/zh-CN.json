@@ -71,6 +71,8 @@
 	"vmcps_connect_all_vmcps_label": "连接所有 vMCP：",
 	"vmcps_connect_all_vscode_prefix": "将此配置复制到工作区的 ",
 	"vmcps_connect_all_vscode_suffix": " 中。",
+	"vmcps_connect_all_workbuddy_prefix": "将以下配置复制到 ",
+	"vmcps_connect_all_workbuddy_suffix": " 中。",
 	"vmcps_connect_dialog_description": "在 MCP 客户端中使用此 URL。每个用户都直接连接到 vMCP 端点。",
 	"vmcps_connect_requires_oauth_setup": "{name} 需要管理员设置 OAuth。请在启动 vMCP 之前为此 MCP 服务器配置 OAuth。",
 	"vmcps_connect_to_named": "连接到 {name}",

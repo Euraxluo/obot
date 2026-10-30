@@ -65,7 +65,7 @@
 				]
 	);
 
-	const options = COMMON_AI_CLIENTS.slice(0, 4);
+	const options = COMMON_AI_CLIENTS.slice(0, 5);
 
 	const sortByValues: VMcpSortBy[] = ['name', 'created', 'componentServers'];
 

@@ -130,6 +130,12 @@
 									>.vscode/mcp.json</code
 								>{m.vmcps_connect_all_vscode_suffix()}
 							</p>
+						{:else if selectedClient.id === AiClient.WorkBuddy}
+							<p>
+								{m.vmcps_connect_all_workbuddy_prefix()}<code class="text-base-content"
+									>~/.workbuddy/mcp.json</code
+								>{m.vmcps_connect_all_workbuddy_suffix()}
+							</p>
 						{/if}
 					</div>
 				</div>
