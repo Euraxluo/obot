@@ -80,6 +80,8 @@ import type {
 	SkillRepositoryManifest,
 	SkillAccessPolicy,
 	SkillAccessPolicyManifest,
+	SkillPublicationRule,
+	SkillPublicationRuleManifest,
 	SystemMCPCatalog,
 	SystemMCPCatalogManifest,
 	SystemMCPServer,
@@ -1745,6 +1747,44 @@ export async function deleteSkillAccessPolicy(
 	opts?: { signal?: AbortSignal }
 ): Promise<void> {
 	await doDelete(`/skill-access-rules/${id}`, opts);
+}
+
+// Skill publication rules
+
+export async function listSkillPublicationRules(opts?: {
+	fetch?: Fetcher;
+	dontLogErrors?: boolean;
+}): Promise<SkillPublicationRule[]> {
+	const response = (await doGet(
+		'/skill-publication-rules',
+		opts
+	)) as ItemsResponse<SkillPublicationRule>;
+	return response.items ?? [];
+}
+
+export async function createSkillPublicationRule(
+	request: SkillPublicationRuleManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<SkillPublicationRule> {
+	const response = (await doPost(
+		'/skill-publication-rules',
+		request,
+		opts
+	)) as SkillPublicationRule;
+	return response;
+}
+
+export async function updateSkillPublicationRule(
+	id: string,
+	request: SkillPublicationRuleManifest,
+	opts?: { fetch?: Fetcher }
+): Promise<SkillPublicationRule> {
+	const response = (await doPut(
+		`/skill-publication-rules/${id}`,
+		request,
+		opts
+	)) as SkillPublicationRule;
+	return response;
 }
 
 // Storage credentials

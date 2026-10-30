@@ -661,6 +661,21 @@ func (in SkillList) OpenAPIModelName() string {
 }
 
 // OpenAPIModelName returns the OpenAPI model name for this type.
+func (in SkillPublicationRule) OpenAPIModelName() string {
+	return "com.github.obot-platform.obot.pkg.storage.apis.obot.obot.ai.v1.SkillPublicationRule"
+}
+
+// OpenAPIModelName returns the OpenAPI model name for this type.
+func (in SkillPublicationRuleList) OpenAPIModelName() string {
+	return "com.github.obot-platform.obot.pkg.storage.apis.obot.obot.ai.v1.SkillPublicationRuleList"
+}
+
+// OpenAPIModelName returns the OpenAPI model name for this type.
+func (in SkillPublicationRuleSpec) OpenAPIModelName() string {
+	return "com.github.obot-platform.obot.pkg.storage.apis.obot.obot.ai.v1.SkillPublicationRuleSpec"
+}
+
+// OpenAPIModelName returns the OpenAPI model name for this type.
 func (in SkillRepository) OpenAPIModelName() string {
 	return "com.github.obot-platform.obot.pkg.storage.apis.obot.obot.ai.v1.SkillRepository"
 }

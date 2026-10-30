@@ -27,6 +27,7 @@ const (
 	SkillRepositoryPrefix         = "skr1"
 	SkillPrefix                   = "sk1"
 	SkillAccessRulePrefix         = "sar1"
+	SkillPublicationRulePrefix    = "spr1"
 	ConnectorAccessRequestPrefix  = "car1"
 	OAuthClientPrefix             = "oc1"
 	OAuthAuthRequestPrefix        = "oar1"

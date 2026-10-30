@@ -66,6 +66,7 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	skillRepositories := handlers.NewSkillRepositoryHandler()
 	gitCredentials := handlers.NewGitCredentialHandler()
 	skillAccessRules := handlers.NewSkillAccessRuleHandler()
+	skillPublicationRules := handlers.NewSkillPublicationRuleHandler()
 	connectorAccessRequests := handlers.NewConnectorAccessRequestHandler()
 	skills := handlers.NewSkillHandler(services.GitMaxRepoSizeMB, services.SkillAccessRuleHelper)
 	powerUserWorkspaces := handlers.NewPowerUserWorkspaceHandler(services.AccessControlRuleHelper, services.MCPSecretBindingAllowedLabel)
@@ -405,6 +406,13 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	mux.HandleFunc("GET /api/skill-access-rules/{skill_access_rule_id}", skillAccessRules.Get)
 	mux.HandleFunc("PUT /api/skill-access-rules/{skill_access_rule_id}", skillAccessRules.Update)
 	mux.HandleFunc("DELETE /api/skill-access-rules/{skill_access_rule_id}", skillAccessRules.Delete)
+
+	// Skill publication rules (admin only)
+	mux.HandleFunc("GET /api/skill-publication-rules", skillPublicationRules.List)
+	mux.HandleFunc("POST /api/skill-publication-rules", skillPublicationRules.Create)
+	mux.HandleFunc("GET /api/skill-publication-rules/{skill_publication_rule_id}", skillPublicationRules.Get)
+	mux.HandleFunc("PUT /api/skill-publication-rules/{skill_publication_rule_id}", skillPublicationRules.Update)
+	mux.HandleFunc("DELETE /api/skill-publication-rules/{skill_publication_rule_id}", skillPublicationRules.Delete)
 
 	mux.HandleFunc("GET /api/connector-access-requests", connectorAccessRequests.List)
 	mux.HandleFunc("POST /api/connector-access-requests", connectorAccessRequests.Create)

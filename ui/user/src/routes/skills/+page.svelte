@@ -17,6 +17,7 @@
 	import type {
 		GitCredential,
 		SkillAccessPolicy,
+		SkillPublicationRule,
 		SkillRepository
 	} from '$lib/services/admin/types';
 	import { errors, profile } from '$lib/stores';
@@ -78,6 +79,9 @@
 	let skills = $state<Skill[]>(untrack(() => data?.skills ?? []));
 	let skillRepositories = $state<SkillRepository[]>(untrack(() => data.skillRepositories));
 	let gitCredentials = $state<GitCredential[]>(untrack(() => data.gitCredentials ?? []));
+	let skillPublicationRules = $state<SkillPublicationRule[]>(
+		untrack(() => data.skillPublicationRules ?? [])
+	);
 	let showLicenseError = $state(untrack(() => data?.showLicenseError ?? false));
 
 	$effect(() => {
@@ -91,6 +95,7 @@
 	$effect(() => {
 		if (selectedView === 'skills') {
 			skills = data.skills ?? [];
+			skillPublicationRules = data.skillPublicationRules ?? [];
 		}
 	});
 
@@ -339,7 +344,13 @@
 			</div>
 		</div>
 	{/if}
-	<SkillsView {skills} {skillRepositories} {showLicenseError} />
+	<SkillsView
+		{skills}
+		{skillRepositories}
+		{showLicenseError}
+		publicationRules={skillPublicationRules}
+		canManagePublication={hasAdminAccess && !isAdminReadonly}
+	/>
 {/snippet}
 
 {#snippet sourcesView()}

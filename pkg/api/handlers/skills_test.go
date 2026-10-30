@@ -477,6 +477,91 @@ func TestSkillHandlerListAllTrueScopeBypass(t *testing.T) {
 	})
 }
 
+func TestSkillHandlerMarketOpenUsesPublicationRules(t *testing.T) {
+	storage := newFakeStorage(t,
+		&v1.Skill{
+			Name: "sk-published", Namespace: system.DefaultNamespace,
+			Spec: v1.SkillSpec{
+				SkillManifest: types.SkillManifest{Name: "published-skill"},
+				RepoID:        "repo-2",
+			},
+			Status: v1.SkillStatus{Valid: true},
+		},
+		&v1.Skill{
+			Name: "sk-unpublished", Namespace: system.DefaultNamespace,
+			Spec: v1.SkillSpec{
+				SkillManifest: types.SkillManifest{Name: "unpublished-skill"},
+				RepoID:        "repo-1",
+			},
+			Status: v1.SkillStatus{Valid: true},
+		},
+		&v1.SkillPublicationRule{
+			Name:      "spr-published",
+			Namespace: system.DefaultNamespace,
+			Spec: v1.SkillPublicationRuleSpec{
+				SkillID:   "sk-published",
+				Published: true,
+			},
+		},
+	)
+	handler := NewSkillHandler(100, newSkillAccessRuleHelper(t,
+		newSkillRule("rule-repo", []types.Subject{{Type: types.SubjectTypeUser, ID: "user1"}}, []types.SkillResource{{Type: types.SkillResourceTypeSkillRepository, ID: "repo-1"}}),
+	))
+
+	listSkills := func(t *testing.T) []string {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/api/skills", nil)
+		rec := httptest.NewRecorder()
+		err := handler.List(api.Context{
+			ResponseWriter: rec,
+			Request:        req,
+			Storage:        storage,
+			User:           testUser("user1"),
+		})
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, rec.Code)
+		var list types.SkillList
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &list))
+		ids := make([]string, len(list.Items))
+		for i := range list.Items {
+			ids[i] = list.Items[i].ID
+		}
+		return ids
+	}
+
+	t.Run("closed market keeps access-rule behavior", func(t *testing.T) {
+		assert.ElementsMatch(t, []string{"sk-unpublished"}, listSkills(t))
+	})
+
+	t.Run("open market requires publication and bypasses access scope", func(t *testing.T) {
+		t.Setenv("OBOT_MARKET_OPEN", "true")
+		assert.ElementsMatch(t, []string{"sk-published"}, listSkills(t))
+	})
+
+	t.Run("open market defaults to empty without rules", func(t *testing.T) {
+		t.Setenv("OBOT_MARKET_OPEN", "true")
+		emptyStorage := newFakeStorage(t,
+			&v1.Skill{
+				Name: "sk-published", Namespace: system.DefaultNamespace,
+				Spec:   v1.SkillSpec{SkillManifest: types.SkillManifest{Name: "published-skill"}},
+				Status: v1.SkillStatus{Valid: true},
+			},
+		)
+		req := httptest.NewRequest(http.MethodGet, "/api/skills", nil)
+		rec := httptest.NewRecorder()
+		err := handler.List(api.Context{
+			ResponseWriter: rec,
+			Request:        req,
+			Storage:        emptyStorage,
+			User:           testUser("user1"),
+		})
+		require.NoError(t, err)
+		var list types.SkillList
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &list))
+		assert.Empty(t, list.Items)
+	})
+}
+
 func TestSkillHandlerDownloadPackagesMaterializedSkill(t *testing.T) {
 	skill := &v1.Skill{
 		Name: "sk1", Namespace: system.DefaultNamespace,

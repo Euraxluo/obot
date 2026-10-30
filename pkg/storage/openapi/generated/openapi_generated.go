@@ -277,6 +277,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/obot-platform/obot/apiclient/types.SkillAccessRuleManifest":                   schema_obot_platform_obot_apiclient_types_SkillAccessRuleManifest(ref),
 		"github.com/obot-platform/obot/apiclient/types.SkillList":                                 schema_obot_platform_obot_apiclient_types_SkillList(ref),
 		"github.com/obot-platform/obot/apiclient/types.SkillManifest":                             schema_obot_platform_obot_apiclient_types_SkillManifest(ref),
+		"github.com/obot-platform/obot/apiclient/types.SkillPublicationRule":                      schema_obot_platform_obot_apiclient_types_SkillPublicationRule(ref),
+		"github.com/obot-platform/obot/apiclient/types.SkillPublicationRuleList":                  schema_obot_platform_obot_apiclient_types_SkillPublicationRuleList(ref),
+		"github.com/obot-platform/obot/apiclient/types.SkillPublicationRuleManifest":              schema_obot_platform_obot_apiclient_types_SkillPublicationRuleManifest(ref),
 		"github.com/obot-platform/obot/apiclient/types.SkillRepository":                           schema_obot_platform_obot_apiclient_types_SkillRepository(ref),
 		"github.com/obot-platform/obot/apiclient/types.SkillRepositoryList":                       schema_obot_platform_obot_apiclient_types_SkillRepositoryList(ref),
 		"github.com/obot-platform/obot/apiclient/types.SkillRepositoryManifest":                   schema_obot_platform_obot_apiclient_types_SkillRepositoryManifest(ref),
@@ -453,6 +456,9 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		v1.SkillAccessRuleList{}.OpenAPIModelName():                                               schema_storage_apis_obotobotai_v1_SkillAccessRuleList(ref),
 		v1.SkillAccessRuleSpec{}.OpenAPIModelName():                                               schema_storage_apis_obotobotai_v1_SkillAccessRuleSpec(ref),
 		v1.SkillList{}.OpenAPIModelName():                                                         schema_storage_apis_obotobotai_v1_SkillList(ref),
+		v1.SkillPublicationRule{}.OpenAPIModelName():                                              schema_storage_apis_obotobotai_v1_SkillPublicationRule(ref),
+		v1.SkillPublicationRuleList{}.OpenAPIModelName():                                          schema_storage_apis_obotobotai_v1_SkillPublicationRuleList(ref),
+		v1.SkillPublicationRuleSpec{}.OpenAPIModelName():                                          schema_storage_apis_obotobotai_v1_SkillPublicationRuleSpec(ref),
 		v1.SkillRepository{}.OpenAPIModelName():                                                   schema_storage_apis_obotobotai_v1_SkillRepository(ref),
 		v1.SkillRepositoryList{}.OpenAPIModelName():                                               schema_storage_apis_obotobotai_v1_SkillRepositoryList(ref),
 		v1.SkillRepositorySpec{}.OpenAPIModelName():                                               schema_storage_apis_obotobotai_v1_SkillRepositorySpec(ref),
@@ -13612,6 +13618,95 @@ func schema_obot_platform_obot_apiclient_types_SkillManifest(ref common.Referenc
 	}
 }
 
+func schema_obot_platform_obot_apiclient_types_SkillPublicationRule(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"Metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref("github.com/obot-platform/obot/apiclient/types.Metadata"),
+						},
+					},
+					"skillID": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"published": {
+						SchemaProps: spec.SchemaProps{
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"Metadata", "skillID", "published"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/obot-platform/obot/apiclient/types.Metadata"},
+	}
+}
+
+func schema_obot_platform_obot_apiclient_types_SkillPublicationRuleList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref("github.com/obot-platform/obot/apiclient/types.SkillPublicationRule"),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"items"},
+			},
+		},
+		Dependencies: []string{
+			"github.com/obot-platform/obot/apiclient/types.SkillPublicationRule"},
+	}
+}
+
+func schema_obot_platform_obot_apiclient_types_SkillPublicationRuleManifest(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"skillID": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"published": {
+						SchemaProps: spec.SchemaProps{
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"skillID", "published"},
+			},
+		},
+	}
+}
+
 func schema_obot_platform_obot_apiclient_types_SkillRepository(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -22211,6 +22306,127 @@ func schema_storage_apis_obotobotai_v1_SkillList(ref common.ReferenceCallback) c
 		},
 		Dependencies: []string{
 			v1.Skill{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_storage_apis_obotobotai_v1_SkillPublicationRule(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ObjectMeta{}.OpenAPIModelName()),
+						},
+					},
+					"spec": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(v1.SkillPublicationRuleSpec{}.OpenAPIModelName()),
+						},
+					},
+					"status": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(v1.EmptyStatus{}.OpenAPIModelName()),
+						},
+					},
+				},
+				Required: []string{"metadata", "spec", "status"},
+			},
+		},
+		Dependencies: []string{
+			v1.EmptyStatus{}.OpenAPIModelName(), v1.SkillPublicationRuleSpec{}.OpenAPIModelName(), metav1.ObjectMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_storage_apis_obotobotai_v1_SkillPublicationRuleList(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Kind is a string value representing the REST resource this object represents. Servers may infer this from the endpoint the client submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"apiVersion": {
+						SchemaProps: spec.SchemaProps{
+							Description: "APIVersion defines the versioned schema of this representation of an object. Servers should convert recognized schemas to the latest internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+					"metadata": {
+						SchemaProps: spec.SchemaProps{
+							Default: map[string]interface{}{},
+							Ref:     ref(metav1.ListMeta{}.OpenAPIModelName()),
+						},
+					},
+					"items": {
+						SchemaProps: spec.SchemaProps{
+							Type: []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Ref: ref(v1.SkillPublicationRule{}.OpenAPIModelName()),
+									},
+								},
+							},
+						},
+					},
+				},
+				Required: []string{"metadata", "items"},
+			},
+		},
+		Dependencies: []string{
+			v1.SkillPublicationRule{}.OpenAPIModelName(), metav1.ListMeta{}.OpenAPIModelName()},
+	}
+}
+
+func schema_storage_apis_obotobotai_v1_SkillPublicationRuleSpec(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Type: []string{"object"},
+				Properties: map[string]spec.Schema{
+					"skillID": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"published": {
+						SchemaProps: spec.SchemaProps{
+							Default: false,
+							Type:    []string{"boolean"},
+							Format:  "",
+						},
+					},
+				},
+				Required: []string{"skillID", "published"},
+			},
+		},
 	}
 }
 

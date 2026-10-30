@@ -89,7 +89,7 @@ func (h *SkillHandler) List(req api.Context) error {
 		return err
 	}
 
-	items, err := h.listAccessibleSkills(req, req.URL.Query().Get("repoID"))
+	items, err := h.listVisibleSkills(req, req.URL.Query().Get("repoID"))
 	if err != nil {
 		return err
 	}
@@ -249,6 +249,51 @@ func (h *SkillHandler) listAccessibleSkills(req api.Context, repoID string) ([]v
 	}
 
 	return mapValues(results), nil
+}
+
+func (h *SkillHandler) listVisibleSkills(req api.Context, repoID string) ([]v1.Skill, error) {
+	// Open-market basic users see published skills independently of private skill
+	// access rules. Admins and auditors retain the connector-market behavior of
+	// seeing all listings. With the market closed, the legacy access rules remain
+	// the only visibility mechanism.
+	if req.UserIsAuthenticated() && marketOpenEnabled() {
+		items, err := listSkills(req, repoID)
+		if err != nil {
+			return nil, err
+		}
+		if req.UserIsAdmin() || req.UserIsAuditor() {
+			return items, nil
+		}
+
+		published, err := publishedSkillIDs(req)
+		if err != nil {
+			return nil, err
+		}
+		visible := make([]v1.Skill, 0, len(items))
+		for _, item := range items {
+			if _, ok := published[item.Name]; ok {
+				visible = append(visible, item)
+			}
+		}
+		return visible, nil
+	}
+
+	return h.listAccessibleSkills(req, repoID)
+}
+
+func publishedSkillIDs(req api.Context) (map[string]struct{}, error) {
+	var rules v1.SkillPublicationRuleList
+	if err := req.List(&rules); err != nil {
+		return nil, fmt.Errorf("failed to list skill publication rules: %w", err)
+	}
+
+	published := make(map[string]struct{}, len(rules.Items))
+	for _, rule := range rules.Items {
+		if rule.Spec.Published {
+			published[rule.Spec.SkillID] = struct{}{}
+		}
+	}
+	return published, nil
 }
 
 func (h *SkillHandler) listScopedSkillsForRepo(req api.Context, repoID string, allowedRepoIDs, allowedSkillIDs map[string]struct{}) ([]v1.Skill, error) {

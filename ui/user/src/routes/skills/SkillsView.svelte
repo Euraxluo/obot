@@ -4,16 +4,19 @@
 	import CopyField from '$lib/components/CopyField.svelte';
 	import ResponsiveDialog from '$lib/components/ResponsiveDialog.svelte';
 	import Search from '$lib/components/Search.svelte';
+	import Toggle from '$lib/components/Toggle.svelte';
 	import MarketplaceCard from '$lib/components/marketplace/MarketplaceCard.svelte';
 	import MarketplaceGrid from '$lib/components/marketplace/MarketplaceGrid.svelte';
 	import { PAGE_TRANSITION_DURATION } from '$lib/constants';
 	import { sanitizeFilenameSegment, saveBlob } from '$lib/download';
 	import { m } from '$lib/i18n';
-	import { UserService, type Skill } from '$lib/services';
-	import type { SkillRepository } from '$lib/services/admin/types';
+	import { AdminService, UserService, type Skill } from '$lib/services';
+	import type { SkillPublicationRule, SkillRepository } from '$lib/services/admin/types';
 	import { AiClient, COMMON_AI_CLIENTS_MAP } from '$lib/services/user/constants';
+	import { errors } from '$lib/stores';
 	import { setUrlParamAndUpdateUrl } from '$lib/url';
 	import { Bot, Download, PencilRuler, TriangleAlert } from '@lucide/svelte';
+	import { SvelteSet } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 	import { twMerge } from 'tailwind-merge';
 
@@ -21,18 +24,34 @@
 		skills: Skill[];
 		skillRepositories: SkillRepository[];
 		showLicenseError: boolean;
+		publicationRules?: SkillPublicationRule[];
+		canManagePublication?: boolean;
 	}
 
-	let { skills, skillRepositories, showLicenseError }: Props = $props();
+	let {
+		skills,
+		skillRepositories,
+		showLicenseError,
+		publicationRules = [],
+		canManagePublication = false
+	}: Props = $props();
 
 	let query = $derived(page.url.searchParams.get('query') ?? '');
+	let rules = $state<SkillPublicationRule[]>([]);
+	let publishingSkillIDs = new SvelteSet<string>();
+	let bulkPublishing = $state(false);
 	let copyFields = $state<ReturnType<typeof CopyField>[]>([]);
 	let installSkillDialog = $state<ReturnType<typeof ResponsiveDialog> | undefined>(undefined);
 	let selectedSkillToInstall = $state<Skill | undefined>(undefined);
 	let selectedTab = $state<'macos/linux' | 'windows'>('macos/linux');
+
+	$effect(() => {
+		rules = publicationRules;
+	});
 	let skillRepositoriesMap = $derived(
 		new Map(skillRepositories.map((repository) => [repository.id, repository]))
 	);
+	let publicationRulesMap = $derived(new Map(rules.map((rule) => [rule.skillID, rule])));
 	let clientUnzipCommands = $derived.by(() => {
 		const skillName = sanitizeFilenameSegment(
 			selectedSkillToInstall?.name ?? selectedSkillToInstall?.id ?? 'skill'
@@ -95,6 +114,49 @@
 		return skill.name || skill.displayName;
 	}
 
+	function isPublished(skillID: string) {
+		return publicationRulesMap.get(skillID)?.published ?? false;
+	}
+
+	async function updatePublication(skill: Skill, published: boolean) {
+		if (!canManagePublication || publishingSkillIDs.has(skill.id)) return;
+
+		await savePublication(skill, published);
+	}
+
+	async function savePublication(skill: Skill, published: boolean) {
+		publishingSkillIDs.add(skill.id);
+		try {
+			const existing = publicationRulesMap.get(skill.id);
+			const manifest = { skillID: skill.id, published };
+			const updated = existing
+				? await AdminService.updateSkillPublicationRule(existing.id, manifest)
+				: await AdminService.createSkillPublicationRule(manifest);
+			rules = existing
+				? rules.map((rule) => (rule.id === updated.id ? updated : rule))
+				: [...rules, updated];
+		} catch (err) {
+			errors.append(err);
+		} finally {
+			publishingSkillIDs.delete(skill.id);
+		}
+	}
+
+	async function updateAllPublications(published: boolean) {
+		if (!canManagePublication || bulkPublishing) return;
+
+		bulkPublishing = true;
+		try {
+			const changes = skills.filter((skill) => isPublished(skill.id) !== published);
+			for (const skill of changes) {
+				// Rule creation is keyed by skill ID; concurrent creates can collide.
+				await savePublication(skill, published);
+			}
+		} finally {
+			bulkPublishing = false;
+		}
+	}
+
 	function updateSearchQuery(value: string) {
 		setUrlParamAndUpdateUrl(page.url, 'query', value);
 	}
@@ -119,13 +181,33 @@
 				{m.skills_marketplace_subtitle({ count: skills.length })}
 			</p>
 		</div>
-		<div class="w-full max-w-xl">
+		<div class="flex w-full max-w-xl gap-2">
 			<Search
 				class="h-11 rounded-lg border-base-300/70 bg-base-100 shadow-sm"
 				value={query}
 				onChange={updateSearchQuery}
 				placeholder={m.skills_search_skills()}
 			/>
+			{#if canManagePublication}
+				<button
+					type="button"
+					class="btn btn-outline btn-sm shrink-0"
+					disabled={bulkPublishing}
+					data-testid="publish-all-skills"
+					onclick={() => updateAllPublications(true)}
+				>
+					{m.skills_publish_all()}
+				</button>
+				<button
+					type="button"
+					class="btn btn-outline btn-sm shrink-0"
+					disabled={bulkPublishing}
+					data-testid="unpublish-all-skills"
+					onclick={() => updateAllPublications(false)}
+				>
+					{m.skills_unpublish_all()}
+				</button>
+			{/if}
 		</div>
 	</div>
 
@@ -136,44 +218,61 @@
 					{@const repository = skill.repoID
 						? (skillRepositoriesMap.get(skill.repoID)?.displayName ?? '')
 						: ''}
-					<MarketplaceCard
-						testId="skill-card-{skill.id}"
-						title={skillTitle(skill) ?? m.skills_no_name()}
-						description={skill.description}
-						actionLabel={m.skills_install()}
-						href={skill.valid ? `/skills/${skill.id}` : undefined}
-						disabled={!skill.valid}
-						onAction={() => {
-							selectedSkillToInstall = skill;
-							installSkillDialog?.open();
-						}}
-					>
-						{#snippet icon()}
-							<span
-								class="from-primary to-info flex size-10 shrink-0 items-center justify-center rounded-lg bg-linear-to-br text-primary-content shadow-sm"
+					<div class="relative">
+						<MarketplaceCard
+							testId="skill-card-{skill.id}"
+							title={skillTitle(skill) ?? m.skills_no_name()}
+							description={skill.description}
+							actionLabel={m.skills_install()}
+							href={skill.valid ? `/skills/${skill.id}` : undefined}
+							disabled={!skill.valid}
+							onAction={() => {
+								selectedSkillToInstall = skill;
+								installSkillDialog?.open();
+							}}
+						>
+							{#snippet icon()}
+								<span
+									class="from-primary to-info flex size-10 shrink-0 items-center justify-center rounded-lg bg-linear-to-br text-primary-content shadow-sm"
+								>
+									<Bot class="size-5" />
+								</span>
+							{/snippet}
+							{#snippet metadata()}
+								<span class="text-muted-content flex items-center gap-2 text-xs font-light">
+									{#if repository}
+										<span class="truncate">{repository}</span>
+										<span aria-hidden="true">·</span>
+									{/if}
+									<span>{skill.valid ? m.skills_ready_to_install() : m.skills_invalid()}</span>
+									{#if skill.validationError}
+										<span
+											class="text-warning inline-flex"
+											use:tooltip={{ text: skill.validationError }}
+											aria-label={m.skills_invalid()}
+										>
+											<TriangleAlert class="size-3.5" />
+										</span>
+									{/if}
+								</span>
+							{/snippet}
+						</MarketplaceCard>
+						{#if canManagePublication}
+							{@const publishing = publishingSkillIDs.has(skill.id)}
+							<div
+								class="bg-base-100/95 absolute top-3 right-3 z-10 rounded-md px-2 py-1 shadow-sm"
+								role="presentation"
 							>
-								<Bot class="size-5" />
-							</span>
-						{/snippet}
-						{#snippet metadata()}
-							<span class="text-muted-content flex items-center gap-2 text-xs font-light">
-								{#if repository}
-									<span class="truncate">{repository}</span>
-									<span aria-hidden="true">·</span>
-								{/if}
-								<span>{skill.valid ? m.skills_ready_to_install() : m.skills_invalid()}</span>
-								{#if skill.validationError}
-									<span
-										class="text-warning inline-flex"
-										use:tooltip={{ text: skill.validationError }}
-										aria-label={m.skills_invalid()}
-									>
-										<TriangleAlert class="size-3.5" />
-									</span>
-								{/if}
-							</span>
-						{/snippet}
-					</MarketplaceCard>
+								<Toggle
+									label={m.skills_market_publish()}
+									labelInline
+									checked={isPublished(skill.id)}
+									disabled={publishing || bulkPublishing}
+									onChange={(published) => updatePublication(skill, published)}
+								/>
+							</div>
+						{/if}
+					</div>
 				{/each}
 			</MarketplaceGrid>
 		</div>

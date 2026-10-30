@@ -1019,6 +1019,17 @@ export interface SkillAccessPolicyManifest {
 	subjects: AccessControlRuleSubject[];
 	resources: SkillAccessPolicyResource[];
 }
+export interface SkillPublicationRule {
+	id: string;
+	created: string;
+	deleted?: string;
+	skillID: string;
+	published: boolean;
+}
+export interface SkillPublicationRuleManifest {
+	skillID: string;
+	published: boolean;
+}
 
 // Storage credentials
 

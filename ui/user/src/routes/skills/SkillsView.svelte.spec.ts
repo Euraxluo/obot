@@ -1,7 +1,9 @@
-import type { Skill } from '$lib/services';
+import { m } from '$lib/i18n';
+import { AdminService, type Skill } from '$lib/services';
 import SkillsView from './SkillsView.svelte';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { page } from 'vitest/browser';
 
 const skills: Skill[] = [
 	{
@@ -35,5 +37,98 @@ describe('SkillsView', () => {
 		expect(document.querySelector('[data-testid="skill-card-skill-marketplace"]')).not.toBeNull();
 		expect(document.body.textContent).toContain('Marketplace Name');
 		expect(document.body.textContent).toContain('Reporting');
+	});
+
+	it('publishes one skill through its marketplace toggle', async () => {
+		const createRule = vi.spyOn(AdminService, 'createSkillPublicationRule').mockResolvedValue({
+			id: 'spr1-marketplace',
+			created: '2026-10-30T00:00:00Z',
+			skillID: 'skill-marketplace',
+			published: true
+		});
+
+		render(SkillsView, {
+			props: {
+				skills,
+				skillRepositories: [],
+				showLicenseError: false,
+				publicationRules: [],
+				canManagePublication: true
+			}
+		});
+
+		// The toggle is a sibling of the card's test-id element, not a descendant.
+		const toggle = page.getByRole('switch', { name: m.skills_market_publish() }).first();
+		await expect.element(toggle).toBeEnabled();
+		await toggle.click();
+
+		await expect.poll(() => createRule).toHaveBeenCalledOnce();
+		expect(createRule).toHaveBeenCalledWith({
+			skillID: 'skill-marketplace',
+			published: true
+		});
+	});
+
+	it('publishes all skills in bulk', async () => {
+		const createRule = vi
+			.spyOn(AdminService, 'createSkillPublicationRule')
+			.mockImplementation(async (request) => ({
+				id: `spr1-${request.skillID}`,
+				created: '2026-10-30T00:00:00Z',
+				skillID: request.skillID,
+				published: request.published
+			}));
+
+		render(SkillsView, {
+			props: {
+				skills,
+				skillRepositories: [],
+				showLicenseError: false,
+				publicationRules: [],
+				canManagePublication: true
+			}
+		});
+
+		await page.getByTestId('publish-all-skills').click();
+
+		await expect.poll(() => createRule).toHaveBeenCalledTimes(2);
+	});
+
+	it('unpublishes existing rules through bulk update', async () => {
+		const updateRule = vi
+			.spyOn(AdminService, 'updateSkillPublicationRule')
+			.mockImplementation(async (_id, request) => ({
+				id: `spr1-${request.skillID}`,
+				created: '2026-10-30T00:00:00Z',
+				skillID: request.skillID,
+				published: request.published
+			}));
+
+		render(SkillsView, {
+			props: {
+				skills,
+				skillRepositories: [],
+				showLicenseError: false,
+				publicationRules: skills.map((skill) => ({
+					id: `spr1-${skill.id}`,
+					created: '2026-10-30T00:00:00Z',
+					skillID: skill.id,
+					published: true
+				})),
+				canManagePublication: true
+			}
+		});
+
+		await page.getByTestId('unpublish-all-skills').click();
+
+		await expect.poll(() => updateRule).toHaveBeenCalledTimes(2);
+		expect(updateRule).toHaveBeenCalledWith('spr1-skill-marketplace', {
+			skillID: 'skill-marketplace',
+			published: false
+		});
+		expect(updateRule).toHaveBeenCalledWith('spr1-skill-reporting', {
+			skillID: 'skill-reporting',
+			published: false
+		});
 	});
 });

@@ -1,6 +1,11 @@
 import { handleRouteError, HttpError } from '$lib/errors';
 import { AdminService, UserService, type Skill } from '$lib/services';
-import type { GitCredential, SkillAccessPolicy, SkillRepository } from '$lib/services/admin/types';
+import type {
+	GitCredential,
+	SkillAccessPolicy,
+	SkillPublicationRule,
+	SkillRepository
+} from '$lib/services/admin/types';
 import type { PageLoad } from './$types';
 
 const views = new Set(['skills', 'sources', 'access-policies']);
@@ -18,14 +23,16 @@ export const load: PageLoad = async ({ fetch, parent, url }) => {
 	let skills: Skill[] = [];
 	let gitCredentials: GitCredential[] = [];
 	let skillAccessPolicies: SkillAccessPolicy[] = [];
+	let skillPublicationRules: SkillPublicationRule[] = [];
 	let showLicenseError = false;
 
 	if (view === 'skills') {
 		if (hasAdminAccess) {
 			try {
-				[skillRepositories, gitCredentials] = await Promise.all([
+				[skillRepositories, gitCredentials, skillPublicationRules] = await Promise.all([
 					AdminService.listSkillRepositories({ fetch, dontLogErrors: true }),
-					AdminService.listGitCredentials({ fetch, dontLogErrors: true }).catch(() => [])
+					AdminService.listGitCredentials({ fetch, dontLogErrors: true }).catch(() => []),
+					AdminService.listSkillPublicationRules({ fetch, dontLogErrors: true })
 				]);
 			} catch (err) {
 				handleRouteError(err, '/skills', profile);
@@ -71,6 +78,7 @@ export const load: PageLoad = async ({ fetch, parent, url }) => {
 		gitCredentials,
 		skills,
 		showLicenseError,
-		skillAccessPolicies
+		skillAccessPolicies,
+		skillPublicationRules
 	};
 };
