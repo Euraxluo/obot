@@ -16,21 +16,34 @@
 		initMcpServerAndEntries
 	} from '$lib/context/poweruserWorkspace.svelte';
 	import { m } from '$lib/i18n';
-	import { AdminService, UserService, type OrgUser, type AccessControlRule } from '$lib/services';
+	import {
+		AdminService,
+		UserService,
+		type OrgUser,
+		type AccessControlRule,
+		type MCPCatalogEntry
+	} from '$lib/services';
 	import { mcpServersAndEntries, profile } from '$lib/stores';
 	import { goto, clearUrlParams } from '$lib/url';
 	import { getUserDisplayName, openUrl } from '$lib/utils';
+	import GroupPoliciesView from './GroupPoliciesView.svelte';
 	import { BookOpenText, Plus, Trash2 } from '@lucide/svelte';
 	import { onMount, untrack } from 'svelte';
 	import { fade, fly } from 'svelte/transition';
 
 	interface Props {
 		accessControlRules: AccessControlRule[];
+		catalogEntries?: MCPCatalogEntry[];
 		creating?: boolean;
 		workspaceId?: string;
 	}
 
-	let { accessControlRules: initialRules, creating = false, workspaceId }: Props = $props();
+	let {
+		accessControlRules: initialRules,
+		catalogEntries,
+		creating = false,
+		workspaceId
+	}: Props = $props();
 
 	let accessControlRules = $state<AccessControlRule[]>(untrack(() => initialRules));
 	$effect(() => {
@@ -42,6 +55,7 @@
 	let usersMap = $derived(new Map(users.map((user) => [user.id, user])));
 	let isAdmin = $derived(profile.current.hasAdminAccess?.());
 	let isReadonly = $derived(profile.current.isAdminReadonly?.());
+	let viewMode = $state<'rules' | 'groups'>('rules');
 
 	if (!untrack(() => profile.current.hasAdminAccess?.())) {
 		initMcpServerAndEntries();
@@ -140,84 +154,121 @@
 {#if creating}
 	{@render createRuleScreen()}
 {:else}
-	<div class="flex flex-col gap-8" in:fade={{ duration }}>
-		{#if accessControlRules.length === 0}
-			<div class="mt-12 flex w-md flex-col items-center gap-4 self-center text-center">
-				<BookOpenText class="text-muted-content size-24 opacity-25" />
-				<h4 class="text-muted-content text-lg font-semibold">
-					{m.mcps_access_policies_no_access_policies()}
-				</h4>
-				<p class="text-muted-content text-sm font-light">
-					{m.mcps_access_policies_no_access_policies_line1()} <br />
-					{#if !isReadonly}
-						{m.mcps_access_policies_click_button_below()}
-					{/if}
-				</p>
-
-				{@render addRuleButton(MCP_ACCESS_POLICY_FIELD_IDS.addPolicyEmptyBtn)}
-			</div>
-		{:else if isAdmin}
-			<div class="flex flex-col gap-2">
-				<h4 class="text-base font-semibold">{m.mcps_access_policies_admin_managed_policies()}</h4>
-				{@render accessControlRuleTable('global')}
-			</div>
-
-			<details class="collapse bg-base-300 collapse-arrow mb-2 w-full border border-transparent">
-				<summary class="collapse-title text-base font-semibold"
-					>{m.mcps_access_policies_user_managed_policies()}</summary
-				>
-				<div class="collapse-content bg-base-200 p-2 text-sm">
-					{@render accessControlRuleTable('user')}
-				</div>
-			</details>
-		{:else}
-			<Table
-				data={accessControlRules}
-				fields={['displayName', 'servers']}
-				onClickRow={(d, isCtrlClick) => {
-					openUrl(policyDetailUrl(d), isCtrlClick);
-				}}
-				headers={[
-					{
-						title: m.core_name(),
-						property: 'displayName'
-					},
-					{
-						title: m.mcps_servers_tab(),
-						property: 'servers'
-					}
-				]}
+	<div class="flex flex-col gap-6" in:fade={{ duration }}>
+		<div class="flex items-center justify-between">
+			<div
+				role="tablist"
+				class="tabs tabs-box bg-base-100 shadow-sm dark:bg-base-300"
+				aria-label={m.mcps_access_policies_view_mode()}
 			>
-				{#snippet actions(d)}
-					{#if !isReadonly}
-						<IconButton
-							variant="danger"
-							onclick={(e) => {
-								e.stopPropagation();
-								ruleToDelete = d;
-							}}
-							tooltip={{ text: m.mcps_access_policies_delete_rule() }}
-						>
-							<Trash2 class="size-4" />
-						</IconButton>
-					{/if}
-				{/snippet}
-				{#snippet onRenderColumn(property, d)}
-					{#if property === 'servers'}
-						{@const hasEverything = d.resources?.find((r) => r.id === '*')}
-						{@const count = hasEverything
-							? totalWorkspaceServers
-							: ((d.resources &&
-									d.resources.filter(
-										(r) => r.type === 'mcpServerCatalogEntry' || r.type === 'mcpServer'
-									).length) ??
-								0)}
-						{count ? count : '-'}
-					{:else}
-						{d[property as keyof typeof d]}
-					{/if}
-				{/snippet}
-			</Table>
+				<button
+					type="button"
+					role="tab"
+					id="tab-policy-rules"
+					aria-selected={viewMode === 'rules'}
+					class="tab text-xs min-w-28 {viewMode === 'rules'
+						? 'tab-active bg-base-300 dark:bg-base-100'
+						: ''}"
+					onclick={() => (viewMode = 'rules')}
+				>
+					{m.mcps_access_policies_mode_rules()}
+				</button>
+				<button
+					type="button"
+					role="tab"
+					id="tab-group-policies"
+					aria-selected={viewMode === 'groups'}
+					class="tab text-xs min-w-28 {viewMode === 'groups'
+						? 'tab-active bg-base-300 dark:bg-base-100'
+						: ''}"
+					onclick={() => (viewMode = 'groups')}
+				>
+					{m.mcps_access_policies_mode_groups()}
+				</button>
+			</div>
+		</div>
+
+		{#if viewMode === 'rules'}
+			{#if accessControlRules.length === 0}
+				<div class="mt-12 flex w-md flex-col items-center gap-4 self-center text-center">
+					<BookOpenText class="text-muted-content size-24 opacity-25" />
+					<h4 class="text-muted-content text-lg font-semibold">
+						{m.mcps_access_policies_no_access_policies()}
+					</h4>
+					<p class="text-muted-content text-sm font-light">
+						{m.mcps_access_policies_no_access_policies_line1()} <br />
+						{#if !isReadonly}
+							{m.mcps_access_policies_click_button_below()}
+						{/if}
+					</p>
+
+					{@render addRuleButton(MCP_ACCESS_POLICY_FIELD_IDS.addPolicyEmptyBtn)}
+				</div>
+			{:else if isAdmin}
+				<div class="flex flex-col gap-2">
+					<h4 class="text-base font-semibold">{m.mcps_access_policies_admin_managed_policies()}</h4>
+					{@render accessControlRuleTable('global')}
+				</div>
+
+				<details class="collapse bg-base-300 collapse-arrow mb-2 w-full border border-transparent">
+					<summary class="collapse-title text-base font-semibold"
+						>{m.mcps_access_policies_user_managed_policies()}</summary
+					>
+					<div class="collapse-content bg-base-200 p-2 text-sm">
+						{@render accessControlRuleTable('user')}
+					</div>
+				</details>
+			{:else}
+				<Table
+					data={accessControlRules}
+					fields={['displayName', 'servers']}
+					onClickRow={(d, isCtrlClick) => {
+						openUrl(policyDetailUrl(d), isCtrlClick);
+					}}
+					headers={[
+						{
+							title: m.core_name(),
+							property: 'displayName'
+						},
+						{
+							title: m.mcps_servers_tab(),
+							property: 'servers'
+						}
+					]}
+				>
+					{#snippet actions(d)}
+						{#if !isReadonly}
+							<IconButton
+								variant="danger"
+								onclick={(e) => {
+									e.stopPropagation();
+									ruleToDelete = d;
+								}}
+								tooltip={{ text: m.mcps_access_policies_delete_rule() }}
+							>
+								<Trash2 class="size-4" />
+							</IconButton>
+						{/if}
+					{/snippet}
+					{#snippet onRenderColumn(property, d)}
+						{#if property === 'servers'}
+							{@const hasEverything = d.resources?.find((r) => r.id === '*')}
+							{@const count = hasEverything
+								? totalWorkspaceServers
+								: ((d.resources &&
+										d.resources.filter(
+											(r) => r.type === 'mcpServerCatalogEntry' || r.type === 'mcpServer'
+										).length) ??
+									0)}
+							{count ? count : '-'}
+						{:else}
+							{d[property as keyof typeof d]}
+						{/if}
+					{/snippet}
+				</Table>
+			{/if}
+		{:else}
+			<GroupPoliciesView {accessControlRules} {catalogEntries} {workspaceId} />
 		{/if}
 	</div>
 {/if}

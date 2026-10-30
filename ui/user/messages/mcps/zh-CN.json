@@ -1112,5 +1112,21 @@
 	"mcps_tunnels_tunnel_updated": "MCP 隧道已成功更新。",
 	"mcps_tunnels_wildcard_position": "通配符必须位于开头或结尾",
 	"mcps_unknown_error": "发生未知错误",
-	"mcps_value_prefix": "值前缀"
+	"mcps_value_prefix": "值前缀",
+	"mcps_access_policies_group_clear_all": "清空",
+	"mcps_access_policies_group_connector_count": "{count} 个已授权连接器",
+	"mcps_access_policies_group_connectors_count": "已选 {selected} / 共 {total} 个连接器",
+	"mcps_access_policies_group_currently_authorized": "当前已授权",
+	"mcps_access_policies_group_dedicated_policy": "专用策略：{name}",
+	"mcps_access_policies_group_empty_connectors": "未找到匹配的连接器",
+	"mcps_access_policies_group_no_dedicated_policy": "未创建专用策略（保存时将自动创建）",
+	"mcps_access_policies_group_prompt_select": "请选择一个用户组",
+	"mcps_access_policies_group_prompt_select_desc": "选择左侧用户组后，即可在此批量配置其可用的连接器。",
+	"mcps_access_policies_group_saved": "用户组连接器授权已保存",
+	"mcps_access_policies_group_search_connectors": "搜索连接器...",
+	"mcps_access_policies_group_select_all": "全选",
+	"mcps_access_policies_mode_groups": "按用户组授权",
+	"mcps_access_policies_mode_rules": "按策略规则",
+	"mcps_access_policies_select_group": "选择用户组",
+	"mcps_access_policies_view_mode": "访问策略视图模式"
 }
