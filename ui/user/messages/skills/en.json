@@ -100,5 +100,9 @@
 	"skills_marketplace_subtitle": "Browse {count} available skills and install them into your AI clients.",
 	"skills_no_name": "Untitled skill",
 	"skills_ready_to_install": "Ready to install",
-	"skills_invalid": "Invalid"
+	"skills_invalid": "Invalid",
+	"skills_launch_workbuddy": "Launch WorkBuddy",
+	"skills_install_step_invoke": "3. Run in AI Client",
+	"skills_install_step_invoke_desc": "After unzipping, type /{name} in your chat or prompt the AI to run this skill.",
+	"skills_view_config_and_source": "View skill configuration and source code"
 }

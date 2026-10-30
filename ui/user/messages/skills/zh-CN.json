@@ -100,5 +100,9 @@
 	"skills_marketplace_subtitle": "浏览 {count} 个可用技能，并安装到你的 AI 客户端。",
 	"skills_no_name": "未命名技能",
 	"skills_ready_to_install": "可安装",
-	"skills_invalid": "无效"
+	"skills_invalid": "无效",
+	"skills_launch_workbuddy": "一键拉起 WorkBuddy",
+	"skills_install_step_invoke": "3. 在 AI 客户端中调用",
+	"skills_install_step_invoke_desc": "解压完成后，在客户端对话中输入 /{name} 或向 AI 描述任务需求，即可自动调用该技能。",
+	"skills_view_config_and_source": "查看技能配置与源代码"
 }

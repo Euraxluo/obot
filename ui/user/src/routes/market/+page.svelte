@@ -411,7 +411,7 @@
 			<div>
 				<h2 class="text-xl font-semibold tracking-tight">{m.market_tab_skills()}</h2>
 				<p class="text-muted-content mt-1 text-sm font-light">
-					{m.market_skills_subtitle ? m.market_skills_subtitle() : '选择要使用的技能并直接运行。'}
+					{m.market_skills_subtitle()}
 				</p>
 			</div>
 			<div class="flex w-full max-w-xl items-center gap-2">
@@ -468,7 +468,7 @@
 			<div>
 				<h2 class="text-xl font-semibold tracking-tight">{m.market_tab_connectors()}</h2>
 				<p class="text-muted-content mt-1 text-sm font-light">
-					浏览 {allEntries.length} 个可用连接器，并申请访问或连接。
+					{m.market_connectors_subtitle({ count: allEntries.length })}
 				</p>
 			</div>
 			<div class="flex w-full max-w-xl items-center gap-2">
@@ -700,7 +700,9 @@
 									})}
 								</p>
 								<p class="text-xs text-muted-content mt-0.5">
-									下载技能包压缩文件（{sanitizeFilenameSegment(selectedSkill.name ?? selectedSkill.id)}.zip）
+									{m.market_skill_download_hint({
+										filename: `${sanitizeFilenameSegment(selectedSkill.name ?? selectedSkill.id)}.zip`
+									})}
 								</p>
 							</div>
 							<div class="flex items-center gap-2 shrink-0">
@@ -713,7 +715,7 @@
 										alt="WorkBuddy"
 										class="size-4"
 									/>
-									一键拉起 WorkBuddy
+									{m.market_launch_workbuddy()}
 								</a>
 								<button
 									type="button"
@@ -722,7 +724,7 @@
 									onclick={() => handleDownloadSkill(selectedSkill)}
 								>
 									<Download class="size-4" />
-									{downloadingSkill ? '下载中...' : m.skills_download()}
+									{downloadingSkill ? m.market_downloading() : m.skills_download()}
 								</button>
 							</div>
 						</div>

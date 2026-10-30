@@ -358,7 +358,7 @@
 						alt="WorkBuddy"
 						class="size-4"
 					/>
-					一键拉起 WorkBuddy
+					{m.skills_launch_workbuddy()}
 				</a>
 			</div>
 		</div>
@@ -426,10 +426,14 @@
 			{/each}
 		</div>
 
-		<div class="divider">3. 在 AI 客户端中调用</div>
+		<div class="divider">{m.skills_install_step_invoke()}</div>
 		<div class="rounded-xl border border-primary/20 bg-primary/5 p-3.5 mb-2">
 			<p class="text-xs text-muted-content leading-relaxed">
-				解压完成后，在客户端对话中输入 <code class="text-primary font-mono font-semibold">/{sanitizeFilenameSegment(selectedSkillToInstall?.name ?? selectedSkillToInstall?.id ?? 'skill')}</code> 或向 AI 描述任务需求，即可自动调用该技能。
+				{m.skills_install_step_invoke_desc({
+					name: sanitizeFilenameSegment(
+						selectedSkillToInstall?.name ?? selectedSkillToInstall?.id ?? 'skill'
+					)
+				})}
 			</p>
 		</div>
 
@@ -439,7 +443,7 @@
 					href={`/skills/${selectedSkillToInstall.id}`}
 					class="text-xs text-muted-content hover:text-primary underline underline-offset-2"
 				>
-					查看技能配置与源代码
+					{m.skills_view_config_and_source()}
 				</a>
 			</div>
 		{/if}

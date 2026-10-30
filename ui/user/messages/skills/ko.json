@@ -100,5 +100,9 @@
 	"skills_marketplace_subtitle": "사용 가능한 {count}개 스킬을 탐색하여 AI 클라이언트에 설치합니다.",
 	"skills_no_name": "제목 없는 스킬",
 	"skills_ready_to_install": "설치 가능",
-	"skills_invalid": "유효하지 않음"
+	"skills_invalid": "유효하지 않음",
+	"skills_launch_workbuddy": "WorkBuddy 실행",
+	"skills_install_step_invoke": "3. AI 클라이언트에서 실행",
+	"skills_install_step_invoke_desc": "압축을 푼 후 채팅에서 /{name}을 입력하거나 AI에 요청하여 스킬을 실행합니다.",
+	"skills_view_config_and_source": "스킬 구성 및 소스 코드 보기"
 }

@@ -28,5 +28,9 @@
 	"market_untitled_skill": "未命名技能",
 	"market_skill_usage_title": "使用指南",
 	"market_skill_step_call": "3. 在 AI 客户端中调用",
-	"market_skill_call_hint": "解压后，在客户端对话中输入 /{name} 或向 AI 描述任务需求，即可自动调用该技能。"
+	"market_skill_call_hint": "解压后，在客户端对话中输入 /{name} 或向 AI 描述任务需求，即可自动调用该技能。",
+	"market_connectors_subtitle": "浏览 {count} 个可用连接器，并申请访问或连接。",
+	"market_skill_download_hint": "下载技能包压缩文件（{filename}）",
+	"market_launch_workbuddy": "一键拉起 WorkBuddy",
+	"market_downloading": "下载中..."
 }
