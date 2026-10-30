@@ -88,7 +88,15 @@ func (c *Client) Users(ctx context.Context, query types.UserQuery) ([]types.User
 }
 
 func (c *Client) UserCount(ctx context.Context) (int64, error) {
-	return countUsersTowardLimit(c.db.WithContext(ctx))
+	var count int64
+	db := c.db.WithContext(ctx)
+	err := db.Model(new(types.User)).
+		Where("deleted_at IS NULL").
+		Where("hashed_username != ?", hash.String(system.BootstrapName)).
+		Where("CAST(users.id AS TEXT) NOT IN (?)", db.Model(&types.ClaudeEnvironment{}).
+			Select("claude_tag_user_id").Where("claude_tag_user_id <> ''")).
+		Count(&count).Error
+	return count, err
 }
 
 func (c *Client) User(ctx context.Context, username string) (*types.User, error) {

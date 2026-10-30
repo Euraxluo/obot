@@ -29,7 +29,7 @@ func createAPIKeyLifecycleTestUser(t *testing.T, client *gatewayclient.Client, u
 		ProviderUsername:      username,
 		ProviderUserID:        "00u-" + username,
 		Email:                 username + "@example.com",
-	}, "", types2.RoleBasic, gatewayclient.UserLimit{Unlimited: true})
+	}, "", types2.RoleBasic)
 	if err != nil {
 		t.Fatalf("failed to create user: %v", err)
 	}
@@ -77,9 +77,7 @@ func provisionThroughSCIM(t *testing.T, client *gatewayclient.Client, nativeID, 
 			},
 		},
 	}, gatewayclient.SCIMUserCreateOptions{
-		UserLimit: gatewayclient.UserLimit{
-			Unlimited: true,
-		},
+
 		DefaultRole: types2.RoleBasic,
 	})
 	if err != nil {

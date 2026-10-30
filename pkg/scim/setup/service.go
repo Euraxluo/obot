@@ -52,9 +52,7 @@ const (
 var (
 	referenceKindLabels = map[groupref.Kind]string{
 		groupref.KindAccessControlRule:   "scim_ref_access_control_rule",
-		groupref.KindModelAccessPolicy:   "scim_ref_model_access_policy",
 		groupref.KindSkillAccessRule:     "scim_ref_skill_access_rule",
-		groupref.KindMessagePolicy:       "scim_ref_message_policy",
 		groupref.KindGroupRoleAssignment: "scim_ref_group_role_assignment",
 		groupref.KindVMCPProfile:         "scim_ref_vmcp_profile",
 	}

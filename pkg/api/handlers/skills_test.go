@@ -4,10 +4,14 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -54,7 +58,7 @@ func newHandlerTestGatewayWithDB(t *testing.T) (*gclient.Client, *gorm.DB) {
 	database, err := gatewaydb.New(services.DB.DB, services.DB.SQLDB, true)
 	require.NoError(t, err)
 	require.NoError(t, database.AutoMigrate())
-	gateway := gclient.New(t.Context(), database, nil, nil, nil, nil, nil, time.Hour, 10, 0, 0, 0, false)
+	gateway := gclient.New(t.Context(), database, nil, nil, nil, nil, nil, time.Hour, 10, 0, 0)
 	t.Cleanup(func() { _ = gateway.Close() })
 	return gateway, services.DB.DB
 }
@@ -477,6 +481,91 @@ func TestSkillHandlerListAllTrueScopeBypass(t *testing.T) {
 	})
 }
 
+func TestSkillHandlerMarketOpenUsesPublicationRules(t *testing.T) {
+	storage := newFakeStorage(t,
+		&v1.Skill{
+			Name: "sk-published", Namespace: system.DefaultNamespace,
+			Spec: v1.SkillSpec{
+				SkillManifest: types.SkillManifest{Name: "published-skill"},
+				RepoID:        "repo-2",
+			},
+			Status: v1.SkillStatus{Valid: true},
+		},
+		&v1.Skill{
+			Name: "sk-unpublished", Namespace: system.DefaultNamespace,
+			Spec: v1.SkillSpec{
+				SkillManifest: types.SkillManifest{Name: "unpublished-skill"},
+				RepoID:        "repo-1",
+			},
+			Status: v1.SkillStatus{Valid: true},
+		},
+		&v1.SkillPublicationRule{
+			Name:      "spr-published",
+			Namespace: system.DefaultNamespace,
+			Spec: v1.SkillPublicationRuleSpec{
+				SkillID:   "sk-published",
+				Published: true,
+			},
+		},
+	)
+	handler := NewSkillHandler(100, newSkillAccessRuleHelper(t,
+		newSkillRule("rule-repo", []types.Subject{{Type: types.SubjectTypeUser, ID: "user1"}}, []types.SkillResource{{Type: types.SkillResourceTypeSkillRepository, ID: "repo-1"}}),
+	))
+
+	listSkills := func(t *testing.T) []string {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/api/skills", nil)
+		rec := httptest.NewRecorder()
+		err := handler.List(api.Context{
+			ResponseWriter: rec,
+			Request:        req,
+			Storage:        storage,
+			User:           testUser("user1"),
+		})
+		require.NoError(t, err)
+		require.Equal(t, http.StatusOK, rec.Code)
+		var list types.SkillList
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &list))
+		ids := make([]string, len(list.Items))
+		for i := range list.Items {
+			ids[i] = list.Items[i].ID
+		}
+		return ids
+	}
+
+	t.Run("closed market keeps access-rule behavior", func(t *testing.T) {
+		assert.ElementsMatch(t, []string{"sk-unpublished"}, listSkills(t))
+	})
+
+	t.Run("open market requires publication and bypasses access scope", func(t *testing.T) {
+		t.Setenv("OBOT_MARKET_OPEN", "true")
+		assert.ElementsMatch(t, []string{"sk-published"}, listSkills(t))
+	})
+
+	t.Run("open market defaults to empty without rules", func(t *testing.T) {
+		t.Setenv("OBOT_MARKET_OPEN", "true")
+		emptyStorage := newFakeStorage(t,
+			&v1.Skill{
+				Name: "sk-published", Namespace: system.DefaultNamespace,
+				Spec:   v1.SkillSpec{SkillManifest: types.SkillManifest{Name: "published-skill"}},
+				Status: v1.SkillStatus{Valid: true},
+			},
+		)
+		req := httptest.NewRequest(http.MethodGet, "/api/skills", nil)
+		rec := httptest.NewRecorder()
+		err := handler.List(api.Context{
+			ResponseWriter: rec,
+			Request:        req,
+			Storage:        emptyStorage,
+			User:           testUser("user1"),
+		})
+		require.NoError(t, err)
+		var list types.SkillList
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &list))
+		assert.Empty(t, list.Items)
+	})
+}
+
 func TestSkillHandlerDownloadPackagesMaterializedSkill(t *testing.T) {
 	skill := &v1.Skill{
 		Name: "sk1", Namespace: system.DefaultNamespace,
@@ -538,6 +627,112 @@ func TestSkillHandlerDownloadPackagesMaterializedSkill(t *testing.T) {
 	}
 	assert.Contains(t, names, "SKILL.md")
 	assert.Contains(t, names, "scripts/run.sh")
+}
+
+func TestSkillHandlerDownloadURLMintsSignedToken(t *testing.T) {
+	skill := &v1.Skill{
+		Name: "sk1", Namespace: system.DefaultNamespace,
+		Spec: v1.SkillSpec{
+			SkillManifest: types.SkillManifest{Name: "postgres-helper"},
+			RepoID:        "repo-1",
+			RepoURL:       "https://git.example.com/org/repo.git",
+			CommitSHA:     "abc123",
+			RelativePath:  "skills/postgres-helper",
+		},
+		Status: v1.SkillStatus{Valid: true},
+	}
+
+	_, signingKey, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+	gatewayClient := newHandlerTestGateway(t)
+	require.NoError(t, gatewayClient.UpsertCredential(t.Context(), gatewaytypes.Credential{
+		Context: system.JWKCredentialContext,
+		Name:    system.JWKCredentialContext,
+		Secrets: map[string]string{"JWK_KEY": base64.StdEncoding.EncodeToString(signingKey)},
+	}))
+
+	storage := newFakeStorage(t, skill)
+	tempDir := t.TempDir()
+	require.NoError(t, os.WriteFile(tempDir+"/SKILL.md", []byte("---\nname: postgres-helper\ndescription: Test\n---\n"), 0o644))
+	newHandler := func() *SkillHandler {
+		handler := NewSkillHandler(100, newSkillAccessRuleHelper(t))
+		handler.materializeSkillSource = func(_ context.Context, _ *v1.Skill, _ string, _ int) (func(), string, error) {
+			return func() {}, tempDir, nil
+		}
+		return handler
+	}
+	mint := func(t *testing.T, skillID string) string {
+		t.Helper()
+		req := httptest.NewRequest(http.MethodGet, "/api/skills/"+skillID+"/download-url", nil)
+		req.SetPathValue("id", skillID)
+		rec := httptest.NewRecorder()
+		require.NoError(t, newHandler().DownloadURL(api.Context{
+			ResponseWriter: rec,
+			Request:        req,
+			Storage:        storage,
+			GatewayClient:  gatewayClient,
+			User:           testUser("user1"),
+		}))
+		var payload types.SkillDownloadURL
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+		require.NotEmpty(t, payload.Path)
+		return payload.Path
+	}
+	anonymousDownload := func(t *testing.T, rawPath string) (*httptest.ResponseRecorder, error) {
+		t.Helper()
+		parsed, err := url.Parse(rawPath)
+		require.NoError(t, err)
+		req := httptest.NewRequest(http.MethodGet, parsed.Path, nil)
+		req.URL.RawQuery = parsed.RawQuery
+		req.SetPathValue("id", skill.Name)
+		rec := httptest.NewRecorder()
+		err = newHandler().Download(api.Context{
+			ResponseWriter: rec,
+			Request:        req,
+			Storage:        storage,
+			GatewayClient:  gatewayClient,
+			User: &kuser.DefaultInfo{
+				Name:   "anonymous",
+				UID:    "anonymous",
+				Groups: []string{"unauthenticated"},
+			},
+		})
+		return rec, err
+	}
+
+	t.Run("minted URL downloads without a session", func(t *testing.T) {
+		rec, err := anonymousDownload(t, mint(t, skill.Name))
+		require.NoError(t, err)
+		assert.Equal(t, http.StatusOK, rec.Code)
+		_, zipErr := zip.NewReader(bytes.NewReader(rec.Body.Bytes()), int64(rec.Body.Len()))
+		require.NoError(t, zipErr)
+	})
+
+	t.Run("anonymous download without a token is rejected", func(t *testing.T) {
+		_, err := anonymousDownload(t, "/api/skills/"+skill.Name+"/download")
+		require.Error(t, err)
+	})
+
+	t.Run("tampered token is rejected", func(t *testing.T) {
+		path := mint(t, skill.Name)
+		tampered := regexp.MustCompile(`token=.*$`).ReplaceAllString(path, "token=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+		_, err := anonymousDownload(t, tampered)
+		require.Error(t, err)
+	})
+
+	t.Run("expired token is rejected", func(t *testing.T) {
+		expires := time.Now().Add(-time.Minute).Unix()
+		expiredSignature := base64.RawURLEncoding.EncodeToString(ed25519.Sign(signingKey, downloadTokenMessage(skill.Name, expires)))
+		_, err := anonymousDownload(t, "/api/skills/"+skill.Name+"/download?expires="+strconv.FormatInt(expires, 10)+"&token="+expiredSignature)
+		require.Error(t, err)
+	})
+
+	t.Run("token bound to another skill is rejected", func(t *testing.T) {
+		expires := time.Now().Add(time.Hour).Unix()
+		otherSignature := base64.RawURLEncoding.EncodeToString(ed25519.Sign(signingKey, downloadTokenMessage("sk2", expires)))
+		_, err := anonymousDownload(t, "/api/skills/"+skill.Name+"/download?expires="+strconv.FormatInt(expires, 10)+"&token="+otherSignature)
+		require.Error(t, err)
+	})
 }
 
 func TestSkillHandlerPreviewReturnsSkillMD(t *testing.T) {

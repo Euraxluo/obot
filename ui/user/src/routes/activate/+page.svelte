@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { productTitle } from '$lib/branding.svelte';
 	import Logo from '$lib/components/Logo.svelte';
 	import { parseErrorContent } from '$lib/errors';
 	import { m } from '$lib/i18n';
@@ -65,7 +66,7 @@
 </script>
 
 <svelte:head>
-	<title>Obot | {m.auth_activate_page_title()}</title>
+	<title>{productTitle(m.auth_activate_page_title())}</title>
 </svelte:head>
 
 <div
@@ -74,7 +75,7 @@
 	<div
 		class="dark:border-base-400 dark:bg-base-200 bg-base-100 flex w-sm flex-col items-center gap-4 rounded-xl border border-transparent p-6 shadow-sm"
 	>
-		<Logo class="h-12" />
+		<Logo class="h-10" />
 		<h1 class="text-center text-xl font-semibold">{m.auth_activate_heading()}</h1>
 		{#if error}
 			<div class="notification-error flex w-full items-center gap-2" role="alert">

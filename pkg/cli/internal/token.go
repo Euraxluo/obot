@@ -270,7 +270,6 @@ func create(ctx context.Context, baseURL, providerName, providerNamespace, token
 		CanAccessAPI:         slices.Contains(scopes, types2.APIKeyScopeAPI),
 		CanAccessSkills:      slices.Contains(scopes, types2.APIKeyScopeSkills),
 		CanAccessDeviceScans: slices.Contains(scopes, types2.APIKeyScopeDeviceScans),
-		CanAccessLLMProxy:    slices.Contains(scopes, types2.APIKeyScopeLLM),
 	}
 	if slices.Contains(scopes, types2.APIKeyScopeAllMCP) {
 		apiScopes.MCPServerIDs = []string{"*"}

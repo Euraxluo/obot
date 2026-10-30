@@ -1,4 +1,3 @@
-import { m } from '$lib/i18n';
 import {
 	type MCPServerTool,
 	type MCPSecretBinding,
@@ -11,7 +10,6 @@ import {
 	type ContainerizedRuntimeConfig,
 	type OpenAPIRuntimeConfig,
 	type Schedule,
-	ModelAlias,
 	type AccessControlRuleSubject,
 	type MCPResourceRequirements,
 	type BannerType
@@ -53,6 +51,7 @@ export interface AppNotificationManifest {
 // App preferences
 
 export interface AppPreferencesManifest {
+	displayName?: string;
 	logos?: {
 		logoIcon?: string;
 		logoIconError?: string;
@@ -101,7 +100,7 @@ export interface AppPreferencesManifest {
 
 // Audit log exports
 
-export type AuditLogType = 'mcp' | 'llm';
+export type AuditLogType = 'mcp';
 
 export interface AuditLogExportInput {
 	name: string;
@@ -111,7 +110,6 @@ export interface AuditLogExportInput {
 	startTime: string;
 	endTime: string;
 	filters?: AuditLogExportFilters;
-	llmFilters?: LLMAuditLogExportFilters;
 }
 export interface AuditLogExport {
 	id: string;
@@ -129,7 +127,6 @@ export interface AuditLogExport {
 	createdAt: string;
 	completedAt?: string;
 	filters?: AuditLogExportFilterResponse;
-	llmFilters?: LLMAuditLogExportFilters;
 }
 export interface AuditLogExportFilterResponse {
 	apiKeyIDs?: number[];
@@ -198,7 +195,6 @@ export interface ScheduledAuditLogExportInput {
 	keyPrefix?: string;
 	retentionPeriodInDays: number;
 	filters?: AuditLogExportFilters;
-	llmFilters?: LLMAuditLogExportFilters;
 }
 export interface ScheduledAuditLogExport {
 	id: string;
@@ -215,21 +211,7 @@ export interface ScheduledAuditLogExport {
 	keyPrefix: string;
 	retentionPeriodInDays: number;
 	filters?: AuditLogExportFilterResponse;
-	llmFilters?: LLMAuditLogExportFilters;
 }
-
-export type LLMAuditLogExportFilters = {
-	apiKeyIDs?: number[];
-	userIDs?: string[];
-	modelProviders?: string[];
-	targetModels?: string[];
-	requestPaths?: string[];
-	responseStatuses?: number[];
-	outcomes?: string[];
-	userAgents?: string[];
-	clientSessionIDs?: string[];
-	query?: string;
-};
 
 // Auth and file scanner providers
 
@@ -245,7 +227,6 @@ export interface BaseProvider {
 	name: string;
 	configured: boolean;
 	created: string;
-	missingEntitlements?: string[];
 	missingConfigurationParameters?: string[];
 	optionalConfigurationParameters?: ProviderParameter[];
 	requiredConfigurationParameters?: ProviderParameter[];
@@ -636,109 +617,6 @@ export interface ServerK8sSettings {
 	deployedSettingsHash: string;
 }
 
-// Licensing
-export interface License {
-	licenseKey: string;
-	source: string;
-	locked: boolean;
-	enterprise: boolean;
-	entitlements: string[] | null;
-	manualCheckAvailableAt?: string;
-}
-
-export interface LicenseManifest {
-	licenseKey: string;
-}
-
-export interface CommunityLicenseEnrollment {
-	name: string;
-	email: string;
-	company?: string;
-}
-
-// LLM audit logs
-
-// LLMAuditGuardrailFinding is what one guardrail policy did to an LLM request. It never
-// includes the content that was found.
-export interface LLMAuditGuardrailFinding {
-	stage: 'input' | 'output';
-	policyID: string;
-	policyName: string;
-	guardrailName?: string;
-	guardrailType?: string;
-	outcome: 'blocked' | 'redacted' | 'logged' | 'error';
-	categories?: string[];
-	error?: string;
-}
-
-export interface LLMAuditLog {
-	apiKeyID?: number;
-	apiKeyName?: string;
-	apiKeyRevoked?: boolean;
-	clientIP: string;
-	clientSessionID: string;
-	userAgent: string;
-	createdAt: string;
-	duration: number;
-	error?: string;
-	guardrailFindings?: LLMAuditGuardrailFinding[];
-	id: string;
-	inputTokens: number;
-	modelID: string;
-	modelProvider: string;
-	outcome: string;
-	outputTokens: number;
-	// cacheReadTokens and cacheWriteTokens are part of inputTokens, reasoningTokens part of
-	// outputTokens. spend is what the request cost in USD; absent when the model has no price.
-	cacheReadTokens?: number;
-	cacheWriteTokens?: number;
-	reasoningTokens?: number;
-	spend?: number;
-	reasoningEffort: string;
-	requestBody?: unknown;
-	requestHeaders?: Record<string, string | string[]>;
-	requestID: string;
-	requestMethod: string;
-	requestPath: string;
-	responseBody?: unknown;
-	responseHeaders?: Record<string, string | string[]>;
-	responseID: string;
-	responseStatus: number;
-	// targetModel is the requested model; servedProvider and servedModel are the provider and
-	// model that served the request, which routing rules and fallbacks can make differ.
-	targetModel: string;
-	servedProvider?: string;
-	servedModel?: string;
-	// providerKey names the gateway key the request was served with.
-	providerKey?: string;
-	fallback?: boolean;
-	// claudeSubscription is true when the user's Claude subscription paid for the request, which
-	// was then served with no provider key.
-	claudeSubscription?: boolean;
-	userID: string;
-}
-
-export type LLMAuditLogURLFilters = {
-	api_key_id?: string | null;
-	client_session_id?: string | null;
-	end_time?: string | null;
-	hide_models_requests?: string | null;
-	limit?: number | null;
-	model_provider?: string | null;
-	offset?: number | null;
-	outcome?: string | null;
-	query?: string | null;
-	request_path?: string | null;
-	response_status?: string | null;
-	served_provider?: string | null;
-	sort_by?: string | null;
-	sort_order?: string | null;
-	start_time?: string | null;
-	target_model?: string | null;
-	user_agent?: string | null;
-	user_id?: string | null;
-};
-
 // MCP capacity
 
 export type CapacitySource = 'resourceQuota' | 'deployments';
@@ -825,6 +703,11 @@ export interface MCPCatalogEntryServerManifest {
 		categories?: string;
 		deprecated?: string;
 		'allow-multiple'?: string;
+		displayNameZh?: string;
+		/** "true" lists this catalog entry in the terminal user marketplace when market mode is open. */
+		marketPublished?: string;
+		/** Pipe- or newline-separated example prompts, shown as 试试这样用. */
+		usageExamples?: string;
 	};
 
 	runtime: Runtime;
@@ -853,6 +736,8 @@ export interface MCPCatalogEntry {
 	needsUpdate?: boolean;
 	canConnect?: boolean;
 	needsK8sUpdate?: boolean;
+	/** The current user has direct access through an access-control rule. */
+	authorized?: boolean;
 	oauthCredentialConfigured?: boolean;
 	userID?: string;
 }
@@ -1081,91 +966,6 @@ export interface TunnelConnection {
 	name: string;
 }
 
-// Model access policies
-
-export interface ModelResource {
-	id: string;
-}
-export interface ModelAccessPolicyManifest {
-	id?: string;
-	displayName: string;
-	subjects?: AccessControlRuleSubject[];
-	models?: ModelResource[];
-}
-export interface ModelAccessPolicy extends Omit<ModelAccessPolicyManifest, 'id'> {
-	id: string;
-	created: string;
-	deleted?: string;
-	links?: Record<string, string>;
-	metadata?: Record<string, string>;
-}
-
-// Model proxy
-
-export interface ModelProxySettings {
-	enabled: boolean;
-	url: string;
-}
-
-export interface ModelProxySettingsUpdateManifest {
-	enabled: boolean;
-}
-
-export interface ModelProxyTokenUsage {
-	max: number;
-	used: number;
-}
-
-export interface ModelProxyUsage {
-	input: ModelProxyTokenUsage;
-	output: ModelProxyTokenUsage;
-	resetAt: string;
-}
-
-// Models
-
-export const ModelUsage = {
-	LLM: 'llm',
-	TextEmbedding: 'text-embedding',
-	ImageGeneration: 'image-generation',
-	Vision: 'vision',
-	Other: 'other',
-	Unknown: ''
-} as const;
-export type ModelUsage = (typeof ModelUsage)[keyof typeof ModelUsage];
-export const ModelUsageLabels = {
-	[ModelUsage.LLM]: m.core_model_usage_llm(),
-	[ModelUsage.TextEmbedding]: m.core_model_usage_text_embedding(),
-	[ModelUsage.ImageGeneration]: m.core_model_usage_image_generation(),
-	[ModelUsage.Vision]: m.core_model_usage_vision(),
-	[ModelUsage.Other]: m.core_model_usage_other(),
-	[ModelUsage.Unknown]: m.core_unknown()
-} as const;
-export const ConfigurableModelAlias = {
-	Llm: 'llm',
-	LlmMini: 'llm-mini'
-} as const;
-export const ModelAliasLabels = {
-	[ModelAlias.Llm]: m.core_model_usage_llm(),
-	[ModelAlias.LlmMini]: m.core_model_usage_llm_fast(),
-	[ModelAlias.TextEmbedding]: m.core_model_usage_text_embedding(),
-	[ModelAlias.ImageGeneration]: m.core_model_usage_image_generation(),
-	[ModelAlias.Vision]: m.core_model_usage_vision()
-} as const;
-export const ModelAliasToUsageMap = {
-	[ModelAlias.Llm]: ModelUsage.LLM,
-	[ModelAlias.LlmMini]: ModelUsage.LLM,
-	[ModelAlias.TextEmbedding]: ModelUsage.TextEmbedding,
-	[ModelAlias.ImageGeneration]: ModelUsage.ImageGeneration,
-	[ModelAlias.Vision]: ModelUsage.Vision
-} as const;
-
-// Product analytics
-
-export interface ProductTelemetryConsent {
-	consent?: boolean;
-}
-
 // Setup
 
 export interface TempUser {
@@ -1220,6 +1020,17 @@ export interface SkillAccessPolicyManifest {
 	displayName: string;
 	subjects: AccessControlRuleSubject[];
 	resources: SkillAccessPolicyResource[];
+}
+export interface SkillPublicationRule {
+	id: string;
+	created: string;
+	deleted?: string;
+	skillID: string;
+	published: boolean;
+}
+export interface SkillPublicationRuleManifest {
+	skillID: string;
+	published: boolean;
 }
 
 // Storage credentials
@@ -1343,98 +1154,6 @@ export interface SystemMCPServer {
 	deploymentReadyReplicas?: number;
 	deploymentReplicas?: number;
 	k8sSettingsHash?: string;
-}
-
-// Token usage
-
-export interface TokenUsage {
-	date: string;
-	userID?: string;
-	model?: string;
-	apiKeyID?: number;
-	apiKeyName?: string;
-	// provider is the provider that served the request.
-	provider?: string;
-	// outcome is success, error or canceled; empty on older records, which were all successes.
-	outcome?: string;
-	durationMs?: number;
-	fallback?: boolean;
-	inputTokens: number;
-	cacheReadTokens: number;
-	cacheWriteTokens: number;
-	outputTokens: number;
-	thinkingTokens: number;
-	totalTokens: number;
-	inputSpend: number;
-	cacheReadSpend: number;
-	cacheWriteSpend: number;
-	outputSpend: number;
-	totalSpend: number;
-}
-export type TokenUsageWithCategory = TokenUsage & { category: string };
-export interface TokenUsageTimeRange {
-	start: Date | string;
-	end: Date | string;
-}
-export interface TotalTokenUsage {
-	totalTokens: number;
-	inputTokens?: number;
-	cacheReadTokens?: number;
-	cacheWriteTokens?: number;
-	outputTokens?: number;
-	thinkingTokens?: number;
-	inputSpend?: number;
-	cacheReadSpend?: number;
-	cacheWriteSpend?: number;
-	outputSpend?: number;
-	totalSpend?: number;
-}
-// Usage statistics over LLM gateway requests, from Obot's token usage records.
-export interface TokenUsageStatsTotals {
-	requests: number;
-	// successes are the requests that succeeded; the others failed or were canceled.
-	successes: number;
-	// fallbacks are the requests a fallback served.
-	fallbacks: number;
-	avgDurationMs: number;
-	inputTokens: number;
-	outputTokens: number;
-	totalTokens: number;
-	totalSpend: number;
-}
-
-export interface TokenUsageStatsBucket extends TokenUsageStatsTotals {
-	time: string;
-}
-
-export interface TokenUsageStatsProvider extends TokenUsageStatsTotals {
-	provider: string;
-}
-
-export interface TokenUsageStatsModel extends TokenUsageStatsTotals {
-	model: string;
-	provider: string;
-}
-
-export interface TokenUsageStats {
-	start: string;
-	end: string;
-	bucketSeconds: number;
-	totals: TokenUsageStatsTotals;
-	buckets: TokenUsageStatsBucket[] | null;
-	providers: TokenUsageStatsProvider[] | null;
-	topModelsByRequests: TokenUsageStatsModel[] | null;
-	topModelsBySpend: TokenUsageStatsModel[] | null;
-}
-
-export interface TokenUsageStatsFilters {
-	userIDs?: string[];
-	models?: string[];
-	apiKeyIDs?: string[];
-}
-
-export interface TotalTokenUsageByUser extends TotalTokenUsage {
-	userID: string;
 }
 
 // MDM configurations — fleets that unattended devices enroll into. Saving
@@ -1682,9 +1401,7 @@ export interface SCIMConnection {
 export interface GroupReference {
 	kind:
 		| 'accessControlRule'
-		| 'modelAccessPolicy'
 		| 'skillAccessRule'
-		| 'messagePolicy'
 		| 'hostedAgentAccessRule'
 		| 'groupRoleAssignment'
 		| 'vmcpProfile'

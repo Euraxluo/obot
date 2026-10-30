@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	types2 "github.com/obot-platform/obot/apiclient/types"
-	gclient "github.com/obot-platform/obot/pkg/gateway/client"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	"github.com/obot-platform/obot/pkg/system"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
@@ -18,15 +17,13 @@ type ConfiguredAuthProviderGetter interface {
 
 type environment struct {
 	authProviders ConfiguredAuthProviderGetter
-	userLimits    gclient.UserLimitProvider
 	storage       kclient.Client
 }
 
 // NewEnvironment returns the Environment of a running Obot server.
-func NewEnvironment(authProviders ConfiguredAuthProviderGetter, userLimits gclient.UserLimitProvider, storage kclient.Client) Environment {
+func NewEnvironment(authProviders ConfiguredAuthProviderGetter, storage kclient.Client) Environment {
 	return &environment{
 		authProviders: authProviders,
-		userLimits:    userLimits,
 		storage:       storage,
 	}
 }
@@ -38,10 +35,6 @@ func (e *environment) ConfiguredAuthProvider(ctx context.Context) (string, strin
 	}
 	// Auth providers always live in the default namespace.
 	return system.DefaultNamespace, name, nil
-}
-
-func (e *environment) UserLimit(ctx context.Context) (gclient.UserLimit, error) {
-	return e.userLimits.UserLimit(ctx)
 }
 
 func (e *environment) DefaultRole(ctx context.Context) (types2.Role, error) {

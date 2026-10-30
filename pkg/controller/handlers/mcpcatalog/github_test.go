@@ -38,6 +38,30 @@ npxConfig:
 	assert.Equal(t, "## Important\n\nSet the optional MODE value after updating.\n", entry.Spec.Manifest.UpgradeNote)
 }
 
+func TestReadMCPCatalogStripsSourceMarketPublication(t *testing.T) {
+	dir := t.TempDir()
+	assert.NoError(t, os.WriteFile(filepath.Join(dir, "entry.yaml"), []byte(`entryKey: test-entry
+name: Test
+shortDescription: Test
+description: Test
+icon: icon
+metadata:
+  marketPublished: "true"
+runtime: npx
+npxConfig:
+  package: test
+`), 0o600))
+
+	h := &Handler{}
+	objs, _, err := h.readMCPCatalog(t.Context(), "default", dir, "")
+	assert.NoError(t, err)
+	assert.Len(t, objs, 1)
+
+	entry, ok := objs[0].(*v1.MCPServerCatalogEntry)
+	assert.True(t, ok)
+	assert.NotContains(t, entry.Spec.Manifest.Metadata, types.MarketPublishedMetadataKey)
+}
+
 func TestReadGitCatalog(t *testing.T) {
 	// This fixture repository uses the legacy schema and has one malformed
 	// JSON file. Valid Git URLs must still read the usable entries.

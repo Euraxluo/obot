@@ -58,7 +58,7 @@ func TestCleanUpGroupSubjects(t *testing.T) {
 
 	subjects := func(name string) []string {
 		t.Helper()
-		var p v1.ModelAccessPolicy
+		var p v1.SkillAccessRule
 		if err := storage.Get(ctx, kclient.ObjectKey{Namespace: system.DefaultNamespace, Name: name}, &p); err != nil {
 			t.Fatal(err)
 		}
@@ -132,7 +132,7 @@ func TestRunGroupSubjectCleanupsRunsAtOnceAndStopsWithItsContext(t *testing.T) {
 
 	deadline := time.Now().Add(5 * time.Second)
 	for {
-		var p v1.ModelAccessPolicy
+		var p v1.SkillAccessRule
 		if err := storage.Get(t.Context(), kclient.ObjectKey{Namespace: system.DefaultNamespace, Name: "deleted"}, &p); err != nil {
 			t.Fatal(err)
 		}

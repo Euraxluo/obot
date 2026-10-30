@@ -127,6 +127,8 @@ var (
 			"GET /api/skills/{skill_id}",
 			"GET /api/skills/{skill_id}/download",
 			"GET /api/skills/{skill_id}/preview",
+			// Minting a signed download URL requires access to the skill.
+			"GET /api/skills/{skill_id}/download-url",
 		},
 		types.GroupDeviceScans: {
 			"GET    /api/devices/scans/{scan_id}",
@@ -135,6 +137,12 @@ var (
 			// Allow unauthenticated access to MCP connect endpoints.
 			// This allows the authorization to pass, but the handler will issue the 401 with the WWW-Authenticate header.
 			"/mcp-connect/",
+			// Skill downloads may arrive with a short-lived signed token instead
+			// of a session (CLI one-line install commands). The {id} wildcard
+			// deliberately does not bind the skill_id resource variable, so no
+			// per-user skill access check runs here; the handler rejects the
+			// request unless the token is valid and unexpired.
+			"GET /api/skills/{id}/download",
 		},
 	}
 )

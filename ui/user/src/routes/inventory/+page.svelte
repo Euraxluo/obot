@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import TabLayout from '$lib/components/TabLayout.svelte';
 	import Devices from '$lib/components/admin/devices/Devices.svelte';
 	import EnforcementDecisionsContent from '$lib/components/admin/enforcement/EnforcementDecisionsContent.svelte';
@@ -81,7 +82,7 @@
 </script>
 
 <svelte:head>
-	<title>{m.inventory_enforcement_page_title()}</title>
+	<title>{productTitle(m.inventory_enforcement_title())}</title>
 </svelte:head>
 
 <TabLayout

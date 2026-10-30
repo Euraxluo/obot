@@ -44,37 +44,6 @@ func retireHostedAgentAPIKeys(tx *gorm.DB) error {
 	return tx.Migrator().DropColumn(&types.APIKey{}, "hosted_agent_instance_id")
 }
 
-// migrateRunTokenActivityInputOutput renames legacy token usage columns.
-func migrateRunTokenActivityInputOutput(tx *gorm.DB) error {
-	migrator := tx.Migrator()
-	if !migrator.HasTable(&types.RunTokenActivity{}) {
-		return nil
-	}
-	if migrator.HasColumn(&types.RunTokenActivity{}, "prompt_tokens") && !migrator.HasColumn(&types.RunTokenActivity{}, "input_tokens") {
-		if err := migrator.RenameColumn(&types.RunTokenActivity{}, "prompt_tokens", "input_tokens"); err != nil {
-			return err
-		}
-	}
-	if migrator.HasColumn(&types.RunTokenActivity{}, "completion_tokens") && !migrator.HasColumn(&types.RunTokenActivity{}, "output_tokens") {
-		if err := migrator.RenameColumn(&types.RunTokenActivity{}, "completion_tokens", "output_tokens"); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-// dropRunTokenActivityPersonalToken removes the obsolete personal_token column.
-// The BYO-key flow that populated it was removed, so the column is always false/null.
-func dropRunTokenActivityPersonalToken(tx *gorm.DB) error {
-	migrator := tx.Migrator()
-	if migrator.HasTable(&types.RunTokenActivity{}) && migrator.HasColumn(&types.RunTokenActivity{}, "personal_token") {
-		if err := migrator.DropColumn(&types.RunTokenActivity{}, "personal_token"); err != nil {
-			return fmt.Errorf("failed to drop personal_token column from run_token_activities: %w", err)
-		}
-	}
-	return nil
-}
-
 // migrateUserDailyTokenLimits renames legacy per-user token limit columns.
 func migrateUserDailyTokenLimits(tx *gorm.DB) error {
 	migrator := tx.Migrator()

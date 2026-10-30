@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import SkillAccessPolicyForm from '$lib/components/admin/SkillAccessPolicyForm.svelte';
 	import { PAGE_TRANSITION_DURATION } from '$lib/constants.js';
@@ -27,5 +28,5 @@
 </Layout>
 
 <svelte:head>
-	<title>Obot | {title}</title>
+	<title>{productTitle(title)}</title>
 </svelte:head>

@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { tooltip } from '$lib/actions/tooltip.svelte';
+	import { productTitle } from '$lib/branding.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import { PAGE_TRANSITION_DURATION } from '$lib/constants';
@@ -52,9 +53,11 @@
 
 <svelte:head>
 	<title
-		>{m.inventory_enforcement_devices_page_title_mcp_server_named({
-			name: server?.name ?? ''
-		})}</title
+		>{productTitle(
+			m.inventory_enforcement_devices_title_mcp_server_named({
+				name: server?.name ?? ''
+			})
+		)}</title
 	>
 </svelte:head>
 

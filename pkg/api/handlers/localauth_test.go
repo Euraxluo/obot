@@ -68,7 +68,7 @@ func newLocalSetupFixture(t *testing.T, owners, admins []string) *localSetupFixt
 			Role: apitypes.RoleBasic,
 		},
 	})
-	c := gateway.New(t.Context(), db, storageClient, nil, nil, owners, admins, time.Hour, 10, 0, 0, 0, false)
+	c := gateway.New(t.Context(), db, storageClient, nil, nil, owners, admins, time.Hour, 10, 0, 0)
 	t.Cleanup(func() { _ = c.Close() })
 
 	require.NoError(t, c.UpsertCredential(t.Context(), gwtypes.Credential{
@@ -122,7 +122,7 @@ func (f *localSetupFixture) identity(t *testing.T, email, provider string, role 
 		ProviderUserID:        email,
 		AuthProviderName:      provider,
 		AuthProviderNamespace: system.DefaultNamespace,
-	}, "", role, gateway.UserLimit{Unlimited: true})
+	}, "", role)
 	require.NoError(t, err)
 
 	return api.Context{

@@ -38,50 +38,6 @@ type failingAfterReadStorageProvider struct {
 
 type successWithoutReadStorageProvider struct{}
 
-func TestLLMAuditLogOptionsFromExport(t *testing.T) {
-	start := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
-	end := time.Date(2026, 7, 1, 0, 0, 0, 0, time.UTC)
-	export := &v1.AuditLogExport{Spec: v1.AuditLogExportSpec{
-		Type:                   types.AuditLogTypeLLM,
-		StartTime:              metav1.NewTime(start),
-		EndTime:                metav1.NewTime(end),
-		WithRequestAndResponse: true,
-		LLMFilters: &types.LLMAuditLogExportFilters{
-			APIKeyIDs:              []uint{12, 34},
-			UserIDs:                []string{"user-1"},
-			ModelProviders:         []string{"openai"},
-			TargetModels:           []string{"gpt-4o"},
-			RequestPaths:           []string{"/v1/chat/completions"},
-			ResponseStatuses:       []int{200, 429},
-			Outcomes:               []string{gatewaytypes.LLMAuditOutcomeSuccess},
-			UserAgents:             []string{"obot/1.0"},
-			ClientSessionIDs:       []string{"session-1"},
-			Query:                  "needle",
-			MessagePolicyTriggered: []bool{true},
-		},
-	}}
-
-	got := llmAuditLogOptionsFromExport(export, 100, 200)
-	if !got.StartTime.Equal(start) || !got.EndTime.Equal(end) || got.Limit != 100 || got.Offset != 200 || !got.WithSensitiveFields {
-		t.Fatalf("unexpected scalar options: %#v", got)
-	}
-	if got.SortBy != "created_at" || got.SortOrder != "asc" {
-		t.Fatalf("unexpected sort: %#v", got)
-	}
-	if !reflect.DeepEqual(got.UserID, export.Spec.LLMFilters.UserIDs) || !reflect.DeepEqual(got.ResponseStatus, export.Spec.LLMFilters.ResponseStatuses) || got.Query != "needle" {
-		t.Fatalf("filters were not mapped: %#v", got)
-	}
-	if !reflect.DeepEqual(got.APIKeyID, export.Spec.LLMFilters.APIKeyIDs) {
-		t.Fatalf("API key filter was not mapped: %#v", got)
-	}
-	if !reflect.DeepEqual(got.MessagePolicyTriggered, export.Spec.LLMFilters.MessagePolicyTriggered) {
-		t.Fatalf("message policy filter of an older export was not mapped: %#v", got)
-	}
-	if !reflect.DeepEqual(got.UserAgent, export.Spec.LLMFilters.UserAgents) {
-		t.Fatalf("user agent filter was not mapped: %#v", got)
-	}
-}
-
 func TestMCPAuditLogOptionsMapsAPIKeyIDs(t *testing.T) {
 	export := exportWithFilters(types.AuditLogExportFilters{
 		SourceTypes: []types.AuditLogSourceType{types.AuditLogSourceTypeMCP},
@@ -94,7 +50,7 @@ func TestMCPAuditLogOptionsMapsAPIKeyIDs(t *testing.T) {
 	}
 }
 
-func TestAuditLogOptionsFromExportWithoutFilters(t *testing.T) {
+func TestMCPAuditLogOptionsFromExportWithoutFilters(t *testing.T) {
 	export := &v1.AuditLogExport{}
 
 	mcpOptions := mcpAuditLogOptionsFromExport(export, 100, 200)
@@ -102,10 +58,6 @@ func TestAuditLogOptionsFromExportWithoutFilters(t *testing.T) {
 		t.Fatalf("unexpected MCP options: %#v", mcpOptions)
 	}
 
-	llmOptions := llmAuditLogOptionsFromExport(export, 100, 200)
-	if llmOptions.Limit != 100 || llmOptions.Offset != 200 {
-		t.Fatalf("unexpected LLM options: %#v", llmOptions)
-	}
 }
 
 func (t *testStorageProvider) Test(context.Context, types.StorageConfig) error {
@@ -350,7 +302,7 @@ func newExportTestGatewayClient(t *testing.T) *gatewayclient.Client {
 	}
 
 	// Use a short persistence interval so LogMCPAuditEntry rows flush to the DB quickly.
-	c := gatewayclient.New(t.Context(), db, nil, nil, nil, nil, nil, 10*time.Millisecond, 10, 90, 90, 90, true)
+	c := gatewayclient.New(t.Context(), db, nil, nil, nil, nil, nil, 10*time.Millisecond, 10, 90, 90)
 	t.Cleanup(func() { _ = c.Close() })
 	return c
 }

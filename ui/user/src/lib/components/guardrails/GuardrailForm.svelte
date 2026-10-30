@@ -12,7 +12,7 @@
 		guardrailFindingMessage,
 		guardrailTypeDescription,
 		guardrailTypeLabel
-	} from '$lib/services/llm-gateway/guardrail-text';
+	} from '$lib/services/guardrails/guardrail-text';
 	import {
 		createGuardrail,
 		getGuardrail,
@@ -23,10 +23,9 @@
 		type GuardrailField,
 		type GuardrailProvider,
 		type GuardrailStage,
-		type GuardrailTarget,
 		type Guardrail,
 		type GuardrailTestResult
-	} from '$lib/services/llm-gateway/guardrails';
+	} from '$lib/services/guardrails/guardrails';
 	import { profile } from '$lib/stores';
 	import { success } from '$lib/stores/success';
 	import { onMount } from 'svelte';
@@ -74,7 +73,6 @@
 	let optionsError = $state<Record<string, string>>({});
 	let guardrailError = $state('');
 
-	let testTarget = $state<GuardrailTarget>('llm');
 	let testStage = $state<GuardrailStage>('input');
 	let testText = $state('');
 	let testing = $state(false);
@@ -246,7 +244,7 @@
 		try {
 			testResult = await testGuardrail(
 				guardrailID,
-				{ target: testTarget, stage: testStage, text: testText },
+				{ target: 'mcp', stage: testStage, text: testText },
 				{ dontLogErrors: true }
 			);
 		} catch (e) {
@@ -271,10 +269,6 @@
 	$effect(() => onTitle?.(title));
 
 	const DEFAULT_OPTION = '__default';
-	const testTargets = [
-		{ id: 'llm', label: 'LLM' },
-		{ id: 'mcp', label: 'MCP' }
-	];
 	const testStages = [
 		{ id: 'input', label: m.core_col_input() },
 		{ id: 'output', label: m.core_col_output() }
@@ -449,20 +443,6 @@
 					</p>
 				</div>
 				<div class="flex flex-wrap gap-3">
-					<div class="flex w-40 flex-col gap-1">
-						<span id="test-target-label" class="text-sm font-light"
-							>{m.guardrails_test_target()}</span
-						>
-						<Select
-							id="test-target"
-							ariaLabelledby="test-target-label"
-							class="bg-base-200 dark:bg-base-200 dark:border-base-400 border border-transparent shadow-inner"
-							options={testTargets}
-							selected={testTarget}
-							onSelect={(option) => (testTarget = option.id as GuardrailTarget)}
-							disabled={testDisabled}
-						/>
-					</div>
 					<div class="flex w-40 flex-col gap-1">
 						<span id="test-stage-label" class="text-sm font-light">{m.guardrails_test_stage()}</span
 						>

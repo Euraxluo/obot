@@ -2,9 +2,8 @@
 	import { tooltip } from '$lib/actions/tooltip.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import { m } from '$lib/i18n';
-	import { MCP_CONNECTION_INVALID_LICENSE_MESSAGE } from '$lib/services/user/constants';
 	import type { VMcpConnectOptions } from '$lib/services/vmcps/types';
-	import { profile, version, vmcpInstances } from '$lib/stores';
+	import { profile, vmcpInstances } from '$lib/stores';
 	import { goto } from '$lib/url';
 	import { MessageCircle } from '@lucide/svelte';
 	import { twMerge } from 'tailwind-merge';
@@ -31,9 +30,6 @@
 		hideTest = false
 	}: Props = $props();
 
-	let hasLicenseEntitlementViolations = $derived(
-		(version.current.licenseEntitlementViolations || []).length > 0
-	);
 	let hasConfiguredInstance = $derived(
 		vmcpInstances.current.items.some(
 			(candidate) => candidate.vmcpID === id && candidate.userID === profile.current.id
@@ -56,13 +52,11 @@
 <div class="flex items-center gap-2">
 	<div
 		use:tooltip={{
-			text: hasLicenseEntitlementViolations
-				? MCP_CONNECTION_INVALID_LICENSE_MESSAGE
-				: disabled
-					? !isShared
-						? m.vmcps_cannot_connect_personal()
-						: m.vmcps_requires_access_to_connect()
-					: undefined
+			text: disabled
+				? !isShared
+					? m.vmcps_cannot_connect_personal()
+					: m.vmcps_requires_access_to_connect()
+				: undefined
 		}}
 		class="flex grow"
 		id={connectButtonId}
@@ -77,8 +71,8 @@
 					connectURL ? 'rounded-r-none' : 'rounded-md'
 				)}
 				onclick={() => onConnect?.()}
-				disabled={hasLicenseEntitlementViolations || disabled}
-				aria-disabled={hasLicenseEntitlementViolations || disabled}
+				{disabled}
+				aria-disabled={disabled}
 			>
 				{m.vmcps_connect()}
 			</button>
@@ -91,7 +85,7 @@
 						button:
 							'size-10 justify-center rounded-r-md border-l border-l-base-300 p-2 not-disabled:hover:bg-primary not-disabled:hover:text-primary-content dark:border-l-base-400 disabled:text-muted-content disabled:opacity-50'
 					}}
-					disabled={hasLicenseEntitlementViolations || disabled}
+					{disabled}
 				/>
 			{/if}
 		</div>
@@ -103,7 +97,7 @@
 			use:tooltip={{ text: m.vmcps_test_vmcp() }}
 			class="relative z-10 btn btn-square border-base-300 bg-transparent hover:bg-primary hover:text-primary-content dark:border-base-400"
 			onclick={handleTest}
-			disabled={hasLicenseEntitlementViolations || disabled}
+			{disabled}
 		>
 			<MessageCircle class="size-4" />
 		</button>

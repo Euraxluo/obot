@@ -30,6 +30,12 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 )
 
+type mcpTesterRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f mcpTesterRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
 func TestClaudeTagCredentials(t *testing.T) {
 	gateway := newHandlerTestGateway(t)
 	ctx := t.Context()

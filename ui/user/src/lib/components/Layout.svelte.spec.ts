@@ -1,21 +1,12 @@
 import { page as appPage } from '$app/state';
-import {
-	COMMUNITY_ENTITLEMENT,
-	COMMUNITY_SIGNUP_BANNER_COPY,
-	ENTERPRISE_ENTITLEMENT
-} from '$lib/constants';
+import { m } from '$lib/i18n';
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import { Group } from '$lib/services';
-import type { AuthProvider, License } from '$lib/services/admin/types';
+import type { AuthProvider } from '$lib/services/admin/types';
 import type { Profile, Version } from '$lib/services/user/types';
-import {
-	defaultModelAliases,
-	license as licenseStore,
-	profile,
-	userDeviceSettings,
-	version
-} from '$lib/stores';
+import { profile, userDeviceSettings, version } from '$lib/stores';
 import { adminConfigStore } from '$lib/stores/adminConfig.svelte';
-import { getLicenseResponse, getProfileResponse, getVersionResponse } from '../../tests/mocks/data';
+import { getProfileResponse, getVersionResponse } from '../../tests/mocks/data';
 import { worker } from '../../tests/mocks/worker';
 import Layout from './Layout.svelte';
 import { http, HttpResponse } from 'msw';
@@ -24,9 +15,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 
+overwriteGetLocale(() => 'en');
 const children = createRawSnippet(() => ({ render: () => '<div></div>' }));
 
-const sharedLinks = ['/vmcps', '/skills', '/models', '/audit-logs', '/usage', '/identity-access'];
+const sharedLinks = ['/vmcps', '/skills', '/audit-logs', '/usage', '/identity-access'];
 
 const adminOnlyLinks = ['/inventory', '/admin/platform'];
 
@@ -46,7 +38,6 @@ function createProfile(groups: string[]): Profile {
 async function renderLayout(
 	groups: string[] = [],
 	versionOverrides: Partial<Version> = {},
-	licenseOverrides: Partial<License> = {},
 	profileOverrides: Partial<Profile> = {}
 ) {
 	userDeviceSettings.setShowAllGuides(false);
@@ -59,12 +50,6 @@ async function renderLayout(
 		engine: 'docker',
 		...versionOverrides
 	});
-	licenseStore.initialize({
-		...getLicenseResponse,
-		...licenseOverrides
-	});
-	await defaultModelAliases.initialize([]);
-
 	return render(Layout, { children });
 }
 
@@ -119,29 +104,18 @@ async function expectNoAdminOnlyNavigation() {
 }
 
 describe('Layout.svelte', () => {
-	it('gives all users access to shared sidebar navigation', async () => {
-		await renderLayout();
-		await expectSharedNavigation();
-		await expectNoLink('/dashboard');
-		await expectNoLink('/hosted-agents');
-		await expectNoAdminOnlyNavigation();
-	});
-
-	describe('LLM gateway navigation', () => {
-		it('names the models page LLM Gateway, marked beta', async () => {
+	describe('removed model navigation', () => {
+		it('does not expose the LLM Gateway models page', async () => {
 			await renderLayout([Group.ADMIN]);
-			await expandSection('ai-resources', '/models');
-			await expect
-				.element(page.getByCSS('a.sidebar-link[href="/models"]'))
-				.toHaveTextContent('LLM Gateway Beta');
+			await expandSection('ai-resources', '/vmcps');
+			await expectNoLink('/models');
 		});
 	});
 
-	describe('message policy navigation', () => {
-		it('is replaced by guardrails', async () => {
+	describe('removed policy navigation', () => {
+		it('does not expose message-policy or policy-violation routes', async () => {
 			await renderLayout([Group.ADMIN]);
 
-			await expandSection('ai-resources', '/models');
 			await expandSection('operations', '/audit-logs');
 			await expectNoLink('/admin/message-policies');
 			await expectNoLink('/admin/policy-violations');
@@ -149,9 +123,9 @@ describe('Layout.svelte', () => {
 	});
 
 	describe('guardrails navigation', () => {
-		it('has no Guardrails entry; guardrails are on the LLM Gateway and MCP Servers tabs', async () => {
+		it('has no standalone Guardrails entry', async () => {
 			await renderLayout([Group.ADMIN]);
-			await expandSection('ai-resources', '/models');
+			await expandSection('ai-resources', '/vmcps');
 			await expectNoLink('/guardrails');
 		});
 
@@ -178,8 +152,8 @@ describe('Layout.svelte', () => {
 				await renderLayout([Group.ADMIN]);
 				await expectSharedNavigation();
 				await expectLink('/dashboard');
+				await expectLink('/market');
 				await expectAdminOnlyNavigation();
-				await expectNoLink('/admin/product-analytics');
 			});
 		});
 
@@ -188,6 +162,7 @@ describe('Layout.svelte', () => {
 				await renderLayout([Group.POWERUSER]);
 				await expectSharedNavigation();
 				await expectLink('/dashboard');
+				await expectLink('/market');
 				await expectLink('/mcp-servers');
 				await expectNoAdminOnlyNavigation();
 			});
@@ -198,17 +173,19 @@ describe('Layout.svelte', () => {
 				await renderLayout([Group.POWERUSER, Group.POWERUSER_PLUS]);
 				await expectSharedNavigation();
 				await expectLink('/dashboard');
+				await expectLink('/market');
 				await expectLink('/mcp-servers');
 				await expectNoAdminOnlyNavigation();
 			});
 		});
 
 		describe('when the user is a basic user', () => {
-			it('hides MCP Servers and does not show administrator-only navigation', async () => {
+			it('shows the standard navigation with the marketplace', async () => {
 				await renderLayout([Group.USER]);
 				await expectSharedNavigation();
-				await expectNoLink('/dashboard');
-				await expectNoLink('/mcp-servers');
+				await expectLink('/market');
+				await expectLink('/dashboard');
+				await expectLink('/mcp-servers');
 				await expectNoAdminOnlyNavigation();
 			});
 		});
@@ -218,18 +195,13 @@ describe('Layout.svelte', () => {
 				await renderLayout([Group.USER, Group.AUDITOR]);
 				await expectSharedNavigation();
 				await expectLink('/dashboard');
+				await expectLink('/market');
 				await expectAdminOnlyNavigation();
-				await expectNoLink('/admin/product-analytics');
 			});
 		});
 	});
 
 	describe('SCIM setup banner', () => {
-		const communityLicense: Partial<License> = {
-			licenseKey: 'community-license-key',
-			enterprise: true,
-			entitlements: [COMMUNITY_ENTITLEMENT]
-		};
 		const owner: Partial<Profile> = {
 			isOwner: () => true
 		};
@@ -257,10 +229,11 @@ describe('Layout.svelte', () => {
 				http.get('/api/auth-providers', () => HttpResponse.json({ items: authProviders }))
 			);
 			await adminConfigStore.refresh();
-			return renderLayout(groups, {}, communityLicense, profileOverrides);
+			return renderLayout(groups, {}, profileOverrides);
 		}
 
-		const continueLink = () => page.getByRole('link', { name: 'Continue SCIM setup', exact: true });
+		const continueLink = () =>
+			page.getByRole('link', { name: m.identity_access_scim_continue_setup(), exact: true });
 
 		it('sends Owners to the SCIM tab until SCIM is enforced', async () => {
 			await renderWithAuthProviders([okta()]);
@@ -270,7 +243,7 @@ describe('Layout.svelte', () => {
 				.element(continueLink())
 				.toHaveAttribute('href', '/identity-access?view=auth-providers&subview=scim');
 			await expect
-				.element(page.getByText(/Okta provisions users and groups through SCIM/))
+				.element(page.getByText(m.identity_access_scim_setup_banner({ provider: 'Okta' })))
 				.toBeVisible();
 		});
 
@@ -325,25 +298,17 @@ describe('Layout.svelte', () => {
 				.not.toBeInTheDocument();
 		});
 
-		it('shows instead of the community signup banner', async () => {
+		it('shows when no other banner has higher priority', async () => {
 			worker.use(http.get('/api/auth-providers', () => HttpResponse.json({ items: [okta()] })));
 			await adminConfigStore.refresh();
-			await renderLayout([Group.OWNER, Group.ADMIN], {}, {}, owner);
+			await renderLayout([Group.OWNER, Group.ADMIN], {}, owner);
 
 			await expect.element(continueLink()).toBeVisible();
-			await expect
-				.element(page.getByText(COMMUNITY_SIGNUP_BANNER_COPY, { exact: true }))
-				.not.toBeInTheDocument();
 		});
 	});
 
 	describe('SCIM token banner', () => {
 		const day = 24 * 60 * 60 * 1000;
-		const communityLicense: Partial<License> = {
-			licenseKey: 'community-license-key',
-			enterprise: true,
-			entitlements: [COMMUNITY_ENTITLEMENT]
-		};
 		const owner: Partial<Profile> = {
 			isOwner: () => true
 		};
@@ -375,17 +340,31 @@ describe('Layout.svelte', () => {
 				http.get('/api/auth-providers', () => HttpResponse.json({ items: authProviders }))
 			);
 			await adminConfigStore.refresh();
-			return renderLayout(groups, {}, communityLicense, profileOverrides);
+			return renderLayout(groups, {}, profileOverrides);
 		}
 
-		const rotateLink = () => page.getByRole('link', { name: 'Rotate SCIM token', exact: true });
+		const rotateLink = () =>
+			page.getByRole('link', { name: m.identity_access_scim_rotate_token_action(), exact: true });
 		const dismissButton = () =>
-			page.getByRole('button', { name: 'Dismiss SCIM token banner', exact: true });
+			page.getByRole('button', {
+				name: m.identity_access_scim_dismiss_token_banner(),
+				exact: true
+			});
 
 		it('warns Owners within 30 days of the token expiring, and links to the SCIM tab', async () => {
-			await renderWithAuthProviders([oktaWithTokenExpiringIn(10 * day)]);
+			const expiring = oktaWithTokenExpiringIn(10 * day);
+			await renderWithAuthProviders([expiring]);
 
-			await expect.element(page.getByText(/The SCIM token for Okta expires on/)).toBeVisible();
+			await expect
+				.element(
+					page.getByText(
+						m.identity_access_scim_token_expiring_banner({
+							provider: 'Okta',
+							date: new Date(expiring.scimTokenExpiresAt as string).toLocaleDateString()
+						})
+					)
+				)
+				.toBeVisible();
 			await expect
 				.element(rotateLink())
 				.toHaveAttribute('href', '/identity-access?view=auth-providers&subview=scim');
@@ -393,11 +372,17 @@ describe('Layout.svelte', () => {
 		});
 
 		it('says that provisioning fails once the token has expired, until it is rotated', async () => {
-			await renderWithAuthProviders([oktaWithTokenExpiringIn(-day)]);
+			const expired = oktaWithTokenExpiringIn(-day);
+			await renderWithAuthProviders([expired]);
 
 			await expect
 				.element(
-					page.getByRole('alert').filter({ hasText: /expired on .*provisioning from Okta fails/ })
+					page.getByRole('alert').filter({
+						hasText: m.identity_access_scim_token_expired_banner({
+							provider: 'Okta',
+							date: new Date(expired.scimTokenExpiresAt as string).toLocaleDateString()
+						})
+					})
 				)
 				.toBeVisible();
 			await expect.element(rotateLink()).toBeVisible();
@@ -463,131 +448,4 @@ describe('Layout.svelte', () => {
 			await expect.element(rotateLink().first()).toBeVisible();
 		});
 	});
-
-	describe('community signup banner', () => {
-		const copy = COMMUNITY_SIGNUP_BANNER_COPY;
-
-		it('shows for administrators without a community or enterprise license', async () => {
-			await renderLayout([Group.ADMIN]);
-
-			await expect.element(page.getByText(copy, { exact: true })).toBeVisible();
-			const register = page.getByRole('link', { name: 'Register', exact: true });
-			await expect.element(register).toBeVisible();
-			await expect.element(register).toHaveAttribute('href', '/admin/platform?view=license');
-		});
-
-		it('does not show for basic users', async () => {
-			await renderLayout([Group.USER]);
-
-			await expect.element(page.getByText(copy, { exact: true })).not.toBeInTheDocument();
-		});
-
-		it('does not show for auditors', async () => {
-			await renderLayout([Group.USER, Group.AUDITOR]);
-
-			await expect.element(page.getByText(copy, { exact: true })).not.toBeInTheDocument();
-		});
-
-		it('does not show license actions for auditors with violations', async () => {
-			await renderLayout([Group.USER, Group.AUDITOR], {
-				licenseEntitlementViolations: [
-					{
-						type: 'userLimit',
-						namespace: 'default',
-						name: 'users',
-						requiredEntitlements: [ENTERPRISE_ENTITLEMENT],
-						missingEntitlements: [ENTERPRISE_ENTITLEMENT]
-					}
-				]
-			});
-
-			await expect
-				.element(page.getByRole('button', { name: 'Resolve', exact: true }))
-				.not.toBeInTheDocument();
-			await expect.element(page.getByText(/Upgrade to Obot Enterprise/)).not.toBeInTheDocument();
-		});
-
-		it('does not show when a community license is present', async () => {
-			await renderLayout(
-				[Group.ADMIN],
-				{},
-				{
-					licenseKey: 'community-license-key',
-					enterprise: true,
-					entitlements: [COMMUNITY_ENTITLEMENT]
-				}
-			);
-
-			await expect.element(page.getByText(copy, { exact: true })).not.toBeInTheDocument();
-		});
-
-		it('does not show when an enterprise license is present', async () => {
-			await renderLayout(
-				[Group.ADMIN],
-				{ enterprise: true },
-				{
-					licenseKey: 'enterprise-license-key',
-					enterprise: true,
-					entitlements: [ENTERPRISE_ENTITLEMENT]
-				}
-			);
-
-			await expect.element(page.getByText(copy, { exact: true })).not.toBeInTheDocument();
-		});
-
-		it('can be dismissed for this device', async () => {
-			await renderLayout([Group.ADMIN]);
-
-			const dismiss = page.getByRole('button', {
-				name: 'Dismiss community signup banner',
-				exact: true
-			});
-			await expect.element(dismiss).toBeVisible();
-			// Native DOM click: Playwright actionability fails on driver.js overlays.
-			const el = await dismiss.element();
-			if (!(el instanceof HTMLElement)) {
-				throw new Error('Expected dismiss control to be an HTMLElement');
-			}
-			el.click();
-			await expect.element(page.getByText(copy, { exact: true })).not.toBeInTheDocument();
-
-			await renderLayout([Group.ADMIN]);
-			await expect.element(page.getByText(copy, { exact: true })).not.toBeInTheDocument();
-		});
-
-		it('stays dismissed when dismissed after the profile was created', async () => {
-			localStorage.setItem(
-				'@obot/dismiss-community-signup-banner',
-				JSON.stringify({ dismissedAt: '2026-08-10T00:00:00.000Z' })
-			);
-
-			await renderLayout([Group.ADMIN], {}, {}, { created: '2026-08-04T16:58:40.000Z' });
-
-			await expect.element(page.getByText(copy, { exact: true })).not.toBeInTheDocument();
-		});
-
-		it('shows again when the profile was created after the banner was dismissed', async () => {
-			localStorage.setItem(
-				'@obot/dismiss-community-signup-banner',
-				JSON.stringify({ dismissedAt: '2020-01-01T00:00:00.000Z' })
-			);
-
-			await renderLayout([Group.ADMIN], {}, {}, { created: '2026-08-04T16:58:40.000Z' });
-
-			await expect.element(page.getByText(copy, { exact: true })).toBeVisible();
-		});
-	});
 });
-
-it.each([
-	{ engine: 'docker' as const, enabled: false, visible: true },
-	{ engine: 'kubernetes' as const, enabled: false, visible: false },
-	{ engine: 'kubernetes' as const, enabled: true, visible: true }
-])(
-	'shows Claude environments for $engine with enabled=$enabled',
-	async ({ engine, enabled, visible }) => {
-		await renderLayout([], { engine, claudeEnvironmentsEnabled: enabled });
-		if (visible) await expectLink('/claude-environments');
-		else await expectNoLink('/claude-environments');
-	}
-);

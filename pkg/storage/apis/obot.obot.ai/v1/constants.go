@@ -1,7 +1,6 @@
 package v1
 
 const (
-	ModelProviderFinalizer         = "obot.obot.ai/model-provider"
 	MCPServerFinalizer             = "obot.obot.ai/mcp-server"
 	MCPServerCatalogEntryFinalizer = "obot.obot.ai/mcp-server-catalog-entry"
 	MCPServerInstanceFinalizer     = "obot.obot.ai/mcp-server-instance"
@@ -11,15 +10,12 @@ const (
 	SystemMCPServerFinalizer       = "obot.obot.ai/system-mcp-server"
 	ImagePullSecretFinalizer       = "obot.obot.ai/image-pull-secret"
 	GitCredentialFinalizer         = "obot.obot.ai/git-credential"
-	ModelAccessPolicyFinalizer     = "obot.obot.ai/model-access-policy"
 
-	ModelProviderSyncAnnotation         = "obot.ai/model-provider-sync"
 	MCPCatalogSyncAnnotation            = "obot.ai/mcp-catalog-sync"
 	SystemMCPCatalogSyncAnnotation      = "obot.ai/system-mcp-catalog-sync"
 	SkillRepositorySyncAnnotation       = "obot.ai/skill-repository-sync"
 	MDMAssetSourceSyncAnnotation        = "obot.ai/mdm-asset-source-sync"
 	MCPServerCatalogEntrySyncAnnotation = "obot.ai/mcp-server-catalog-entry-sync"
-	ModelInfoSourceSyncAnnotation       = "obot.ai/model-info-source-sync"
 
 	// AuditLogCredentialRemovedAnnotation records that a server's legacy token exchange and
 	// audit log credential has been removed, so the sweep runs once and not on every reconcile.

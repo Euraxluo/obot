@@ -25,9 +25,11 @@
 		getSource,
 		isMultiUserCatalogEntry,
 		isDeprecatedMCPServer,
+		isMarketPublished,
 		isMultiUserServer,
 		getMcpValueLabel,
-		isMcpLoginURL
+		isMcpLoginURL,
+		withMarketPublishedMetadata
 	} from '$lib/services/user/mcp';
 	import { profile } from '$lib/stores';
 	import { success } from '$lib/stores/success';
@@ -37,6 +39,7 @@
 	import OverflowContainer from '../OverflowContainer.svelte';
 	import ResponsiveDialog from '../ResponsiveDialog.svelte';
 	import Select from '../Select.svelte';
+	import Toggle from '../Toggle.svelte';
 	import CatalogConfigureForm, { type LaunchFormData } from '../mcp/CatalogConfigureForm.svelte';
 	import McpLogin from '../mcp/McpLogin.svelte';
 	import McpServerDetails from '../mcp/McpServerDetails.svelte';
@@ -172,6 +175,7 @@
 	let configDialog = $state<ReturnType<typeof CatalogConfigureForm>>();
 	let configureForm = $state<LaunchFormData>();
 	let saving = $state(false);
+	let savingMarketPublication = $state(false);
 	let error = $state<string>();
 	let showButtonInlineError = $state(false);
 	let showUpdateExistingDeploymentsConfirm = $state(false);
@@ -183,6 +187,15 @@
 		showUpdateExistingDeploymentsConfirm && showUpdateExistingVmcps
 	);
 	let selectedDeploymentsToView = $state<MCPCatalogServer[]>([]);
+
+	let canManageMarketPublication = $derived(
+		entity === 'catalog' &&
+			!server &&
+			!!entry &&
+			'isCatalogEntry' in entry &&
+			!entry.powerUserWorkspaceID &&
+			profile.current.isAdmin?.()
+	);
 
 	let serverInstancesLoading = $state(false);
 	let resolvedConfiguredInstances = $state<MCPServerInstance[]>();
@@ -587,6 +600,35 @@
 		}
 	}
 
+	async function saveMarketPublication(published: boolean) {
+		if (!entry || !id || !('isCatalogEntry' in entry) || savingMarketPublication) return;
+
+		savingMarketPublication = true;
+		try {
+			const manifest = {
+				...entry.manifest,
+				metadata: withMarketPublishedMetadata(entry.manifest.metadata, published)
+			};
+			const updated = entry.powerUserWorkspaceID
+				? await UserService.updateWorkspaceMCPCatalogEntry(
+						entry.powerUserWorkspaceID,
+						entry.id,
+						manifest
+					)
+				: await AdminService.updateMCPCatalogEntry(id, entry.id, manifest);
+			entry = { ...entry, ...updated };
+			success.add(
+				published
+					? m.mcps_servers_market_publish_success()
+					: m.mcps_servers_market_unpublish_success()
+			);
+		} catch (err) {
+			error = err instanceof Error ? err.message : String(err);
+		} finally {
+			savingMarketPublication = false;
+		}
+	}
+
 	function refreshToolsDisplay() {
 		// for multi-tenant catalog entries, showing tool preview is unnecessary, so
 		// display the first server instance by default
@@ -822,6 +864,24 @@
 
 		{#if selected === 'overview' && entry}
 			<div class="pb-8">
+				{#if canManageMarketPublication}
+					<div
+						class="dark:bg-base-200 dark:border-base-400 bg-base-100 mb-3 flex flex-col gap-3 rounded-lg border border-transparent p-4 shadow-sm md:flex-row md:items-center md:justify-between"
+					>
+						<div class="flex flex-col gap-1">
+							<h4 class="text-md font-semibold">{m.mcps_servers_market_section_title()}</h4>
+							<p class="text-muted-content text-xs font-light">
+								{m.mcps_servers_market_section_description()}
+							</p>
+						</div>
+						<Toggle
+							label={m.mcps_servers_market_publish()}
+							checked={isMarketPublished(entry)}
+							disabled={savingMarketPublication}
+							onChange={saveMarketPublication}
+						/>
+					</div>
+				{/if}
 				{#if hasExistingConfigured}
 					<div class="notification-info mb-3 p-3 text-sm font-light">
 						<div class="flex items-center gap-3">

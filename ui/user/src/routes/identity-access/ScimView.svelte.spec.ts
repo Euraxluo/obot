@@ -1,3 +1,4 @@
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import { AdminService, Group } from '$lib/services';
 import type {
 	SCIMConnection,
@@ -16,6 +17,8 @@ import { tick } from 'svelte';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
+
+overwriteGetLocale(() => 'en');
 
 const connectionID = '0b6bd0a4-7e44-4c3c-9d0b-8a3d1f1b8f6e';
 
@@ -468,7 +471,7 @@ describe('ScimView', () => {
 					items: [
 						group('okta/00g00000000000legacy', 'Legacy', {
 							consoleURL: 'https://example-admin.okta.com/admin/group/00g00000000000legacy',
-							references: [{ kind: 'modelAccessPolicy', id: 'map1', displayName: 'Models' }]
+							references: [{ kind: 'skillAccessRule', id: 'sap1', displayName: 'Skills' }]
 						})
 					],
 					total: 1
@@ -485,9 +488,7 @@ describe('ScimView', () => {
 			.toBeVisible();
 		await expect.element(page.getByText('1 referenced group not pushed yet.')).toBeVisible();
 		await expect.element(page.getByText('Legacy', { exact: true })).toBeVisible();
-		await expect
-			.element(page.getByText('Referenced by LLM gateway profile “Models”'))
-			.toBeVisible();
+		await expect.element(page.getByText('Referenced by skill access rule “Skills”')).toBeVisible();
 		await expect
 			.element(page.getByRole('link', { name: 'Open in Okta' }))
 			.toHaveAttribute('href', 'https://example-admin.okta.com/admin/group/00g00000000000legacy');
@@ -729,7 +730,7 @@ describe('ScimView', () => {
 				boundGroups: {
 					items: [
 						group('okta/00g000000000support', 'Support', {
-							references: [{ kind: 'modelAccessPolicy', id: 'map1', displayName: 'Models' }]
+							references: [{ kind: 'skillAccessRule', id: 'sap1', displayName: 'Skills' }]
 						})
 					],
 					total: 1
@@ -1096,7 +1097,7 @@ describe('ScimView', () => {
 						name: 'Engineering',
 						groups: [
 							group('okta/00g00000000000000eng', 'Engineering', {
-								references: [{ kind: 'modelAccessPolicy', id: 'map1', displayName: 'Models' }]
+								references: [{ kind: 'skillAccessRule', id: 'sap1', displayName: 'Skills' }]
 							}),
 							group('okta/00g00000engineering', 'engineering ', {
 								references: [{ kind: 'groupRoleAssignment', id: 'okta/00g00000engineering' }]

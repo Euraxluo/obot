@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { m } from '$lib/i18n';
 	import appPreferences from '$lib/stores/appPreferences.svelte';
 	import { twMerge } from 'tailwind-merge';
 
@@ -33,12 +32,11 @@
 		return { light: logos.light.default, dark: logos.dark.default };
 	});
 
-	const heightClass = $derived(variant === 'chat' ? 'h-[43px]' : 'h-10');
-	const paddingClass = $derived(variant === 'chat' ? 'pl-[1px]' : '');
-	const imgClass = $derived(twMerge(heightClass, paddingClass));
+	const heightClass = $derived(variant === 'chat' ? 'h-10' : 'h-9');
+	const imgClass = $derived(heightClass);
 </script>
 
 <div class={twMerge('flex shrink-0', klass)}>
-	<img src={logoPair.light} class={twMerge(imgClass, 'dark:hidden')} alt={m.obot_logo()} />
-	<img src={logoPair.dark} class={twMerge(imgClass, 'hidden dark:block')} alt={m.obot_logo()} />
+	<img src={logoPair.light} class={twMerge(imgClass, 'dark:hidden')} alt="ZTOCC logo" />
+	<img src={logoPair.dark} class={twMerge(imgClass, 'hidden dark:block')} alt="ZTOCC logo" />
 </div>

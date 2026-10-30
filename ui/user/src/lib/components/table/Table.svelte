@@ -913,11 +913,13 @@
 					<IconButton
 						onclick={(e) => {
 							e.stopPropagation();
-							if (selected[d.id]) {
-								delete selected[d.id];
+							const next = { ...selected };
+							if (next[d.id]) {
+								delete next[d.id];
 							} else {
-								selected[d.id] = d;
+								next[d.id] = d;
 							}
+							selected = next;
 						}}
 					>
 						{#if selected[d.id]}

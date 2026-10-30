@@ -1,13 +1,13 @@
 <script lang="ts">
+	import { productTitle } from '$lib/branding.svelte';
 	import TabLayout from '$lib/components/TabLayout.svelte';
 	import { m } from '$lib/i18n';
 	import type { GitCredential, ImagePullSecret, ImagePullSecretCapability } from '$lib/services';
-	import { profile, version } from '$lib/stores';
+	import { version } from '$lib/stores';
 	import { defaultAppNotification } from '$lib/stores/appNotification.svelte';
 	import { compileAppPreferences } from '$lib/stores/appPreferences.svelte';
 	import BrandingConfigurationSidebar from './BrandingConfigurationSidebar.svelte';
 	import BrandingView from './BrandingView.svelte';
-	import LicenseView from './LicenseView.svelte';
 	import McpConfigView from './McpConfigView.svelte';
 	import SettingsView from './SettingsView.svelte';
 	import { untrack } from 'svelte';
@@ -19,13 +19,9 @@
 	let imagePullSecrets = $state<ImagePullSecret[]>(untrack(() => data.imagePullSecrets ?? []));
 	let credentials = $state<GitCredential[]>(untrack(() => data.gitCredentials ?? []));
 	let brandingPreferences = $derived(data.appPreferences ?? compileAppPreferences());
-	let showProductAnalytics = $derived(
-		data.productTelemetryConsentAvailable === true && Boolean(profile.current.isAdmin?.())
-	);
 	let showRegistryConnections = $derived(version.current.engine === 'kubernetes');
 
 	let views = $derived([
-		{ label: m.platform_license_tab(), value: 'license', content: license },
 		{ label: m.platform_settings_tab(), value: 'settings', content: settings },
 		...(version.current.engine === 'kubernetes' && !version.current.hideK8sDetails
 			? [
@@ -50,12 +46,12 @@
 </script>
 
 <svelte:head>
-	<title>Obot | {m.platform_title()}</title>
+	<title>{productTitle(m.platform_title())}</title>
 </svelte:head>
 
 <TabLayout
 	title={m.platform_title()}
-	defaultView="license"
+	defaultView="settings"
 	classes={{ container: 'pb-0', childrenContainer: 'max-w-none' }}
 	rightSidebar={viewSidebar}
 	{views}
@@ -65,10 +61,6 @@
 	{#if view === 'branding'}
 		<BrandingConfigurationSidebar initialAppPreferences={brandingPreferences} />
 	{/if}
-{/snippet}
-
-{#snippet license()}
-	<LicenseView license={data.license} />
 {/snippet}
 
 {#snippet branding()}
@@ -82,10 +74,6 @@
 {#snippet settings()}
 	<SettingsView
 		appNotification={data.appNotification ?? defaultAppNotification}
-		{showProductAnalytics}
-		productTelemetryConsent={data.productTelemetryConsent}
-		modelProxySettings={data.modelProxySettings}
-		modelProxyUsage={data.modelProxyUsage}
 		{showRegistryConnections}
 		bind:capability
 		bind:imagePullSecrets

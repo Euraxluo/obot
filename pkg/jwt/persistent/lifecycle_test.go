@@ -49,7 +49,7 @@ func newLifecycleTestTokenService(t *testing.T) (*TokenService, *client.Client) 
 			Role: types.RoleBasic,
 		},
 	}).Build()
-	gatewayClient := client.New(t.Context(), db, storage, nil, nil, nil, nil, time.Hour, 10, 90, 90, 90, false)
+	gatewayClient := client.New(t.Context(), db, storage, nil, nil, nil, nil, time.Hour, 10, 90, 90)
 	t.Cleanup(func() { _ = gatewayClient.Close() })
 
 	_, privateKey, err := ed25519.GenerateKey(nil)
@@ -70,7 +70,7 @@ func createLifecycleTestUser(t *testing.T, gatewayClient *client.Client, usernam
 		ProviderUsername:      username,
 		ProviderUserID:        "00u-" + username,
 		Email:                 username + "@example.com",
-	}, "", role, client.UserLimit{Unlimited: true})
+	}, "", role)
 	require.NoError(t, err)
 	return user
 }
@@ -108,9 +108,7 @@ func deactivateThroughSCIM(t *testing.T, c *client.Client, provider client.AuthP
 			},
 		},
 	}, client.SCIMUserCreateOptions{
-		UserLimit: client.UserLimit{
-			Unlimited: true,
-		},
+
 		DefaultRole: types.RoleBasic,
 	})
 	return err

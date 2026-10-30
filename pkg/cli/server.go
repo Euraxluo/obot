@@ -19,13 +19,7 @@ func (s *Server) Customize(cmd *cobra.Command) {
 	cmd.Hidden = true
 }
 
-// Pre preserves an explicitly empty proxy environment variable. The command
-// library normally ignores empty environment values when applying defaults.
-func (s *Server) Pre(cmd *cobra.Command, _ []string) error {
-	if value, present := os.LookupEnv("OBOT_SERVER_MODEL_PROXY_URL"); present && value == "" && !cmd.Flags().Changed("model-proxy-url") {
-		s.ModelProxyURL = ""
-	}
-
+func (s *Server) Pre(*cobra.Command, []string) error {
 	return nil
 }
 

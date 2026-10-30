@@ -111,10 +111,6 @@ func (scimTestEnvironment) ConfiguredAuthProvider(context.Context) (string, stri
 	return system.DefaultNamespace, scimTestProviderName, nil
 }
 
-func (scimTestEnvironment) UserLimit(context.Context) (gclient.UserLimit, error) {
-	return gclient.UserLimit{Unlimited: true}, nil
-}
-
 func (scimTestEnvironment) DefaultRole(context.Context) (types2.Role, error) {
 	return types2.RoleBasic, nil
 }
@@ -148,7 +144,7 @@ func newSCIMServerTest(t *testing.T, authenticatedRateLimit int) *scimServerTest
 			},
 		}).
 		Build()
-	gateway := gclient.New(t.Context(), database, storage, nil, nil, nil, nil, time.Hour, 10, 0, 0, 0, false)
+	gateway := gclient.New(t.Context(), database, storage, nil, nil, nil, nil, time.Hour, 10, 0, 0)
 	t.Cleanup(func() {
 		_ = gateway.Close()
 	})

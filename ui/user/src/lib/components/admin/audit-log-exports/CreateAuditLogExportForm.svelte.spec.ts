@@ -1,4 +1,5 @@
 import { page as appPage } from '$app/state';
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import type { AuditLogExport } from '$lib/services';
 import { preparePageData } from '../../../../tests/helpers/pageData';
 import { worker } from '../../../../tests/mocks/worker';
@@ -7,6 +8,8 @@ import { http, HttpResponse } from 'msw';
 import { afterEach, expect, test, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
+
+overwriteGetLocale(() => 'en');
 
 afterEach(() => appPage.url.searchParams.delete('mcp_server'));
 

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import ResponsiveDialog from '$lib/components/ResponsiveDialog.svelte';
 	import IconButton from '$lib/components/primitives/IconButton.svelte';
@@ -129,6 +130,7 @@
 	let selectedVMcp = $state<VMCP | undefined>(untrack(() => vmcp));
 
 	let query = $derived(page.url.searchParams.get('query') ?? '');
+	let initialEntryID = $state(untrack(() => page.url.searchParams.get('entry') ?? ''));
 	let composites = $derived(selectedVMcp ? [selectedVMcp] : []);
 	let title = $derived(selectedVMcp?.displayName ?? m.vmcps_create_vmcp());
 	let canCreateCatalogEntry = $derived(
@@ -208,6 +210,16 @@
 				onDismissed: () => setUrlParamAndUpdateUrl(page.url, 'connect', undefined)
 			})
 		);
+	});
+
+	$effect(() => {
+		if (!initialEntryID || selectedVMcp || !canEdit) return;
+		const entry = mcpServersAndEntries.current.entries.find(
+			(candidate) => candidate.id === initialEntryID
+		);
+		if (!entry) return;
+		initialEntryID = '';
+		untrack(() => handleAddFromDetails(entry));
 	});
 
 	$effect(() => {
@@ -957,5 +969,5 @@
 </ResponsiveDialog>
 
 <svelte:head>
-	<title>Obot | {title}</title>
+	<title>{productTitle(title)}</title>
 </svelte:head>

@@ -1,9 +1,12 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
+	import { productTitle } from '$lib/branding.svelte';
 	import Logo from '$lib/components/Logo.svelte';
 	import SensitiveInput from '$lib/components/SensitiveInput.svelte';
 	import { LOCAL_AUTH_MIN_PASSWORD_LENGTH } from '$lib/constants';
 	import { getLocale, m } from '$lib/i18n';
+	import { appPreferences, version } from '$lib/stores';
+	import { DEV_ACCOUNTS, type DevAccountRoleId } from './devAccounts';
 	import { CircleAlert } from '@lucide/svelte';
 
 	// The form posts to the auth provider, which sets the session cookie and redirects to `rd`.
@@ -22,10 +25,53 @@
 		return error ? (saved ?? '') : '';
 	}
 	let email = $state(savedEmail());
+	let selectedDevAccountId = $state('');
+	let devBusy = $state(false);
+	let devError = $state('');
+
+	const devLoginEnabled = $derived(version.current.devLoginEnabled === true);
+	function devRoleLabel(roleId: DevAccountRoleId): string {
+		switch (roleId) {
+			case 'admin':
+				return m.login_dev_role_admin();
+			case 'power-user':
+				return m.login_dev_role_power_user();
+			case 'basic':
+				return m.login_dev_role_basic();
+		}
+	}
+
+	function fullPageNavigate(destination: string) {
+		window.location.assign(destination);
+	}
+
+	// eslint-disable-next-line svelte/valid-prop-names-in-kit-pages -- Test-only navigation seam; production uses full-page navigation.
+	let { navigate = fullPageNavigate }: { navigate?: (destination: string) => void } = $props();
+
+	async function setDevError(action: () => Promise<void>) {
+		let succeeded = false;
+		devBusy = true;
+		devError = '';
+		try {
+			await action();
+			succeeded = true;
+		} catch (err) {
+			devError = err instanceof Error ? err.message : String(err);
+		} finally {
+			devBusy = false;
+		}
+		return succeeded;
+	}
+
+	async function handleDevAccountChange(accountId: string) {
+		const devIdentity = await import('./devIdentity');
+		const result = await devIdentity.enterDevAccount(accountId);
+		navigate(result.destination);
+	}
 </script>
 
 <svelte:head>
-	<title>{m.login_local_page_title()}</title>
+	<title>{productTitle(m.login_local_page_title_suffix())}</title>
 </svelte:head>
 
 <div
@@ -38,7 +84,9 @@
 		class="dark:border-base-400 dark:bg-base-200 bg-base-100 flex w-full md:w-sm flex-col gap-4 rounded-xl border border-transparent p-6 shadow-sm"
 	>
 		<Logo class="h-12 self-center" />
-		<h1 class="text-center text-xl font-semibold">{m.login_local_heading()}</h1>
+		<h1 class="text-center text-xl font-semibold">
+			{m.login_local_heading({ name: appPreferences.current.displayName })}
+		</h1>
 
 		{#if error}
 			<div class="notification-error flex items-center gap-2">
@@ -83,4 +131,40 @@
 			{m.login_local_no_account()}
 		</p>
 	</form>
+
+	{#if devLoginEnabled}
+		<div class="mt-4 flex w-full md:w-sm flex-col gap-2">
+			{#if devError}
+				<div class="notification-error flex items-center gap-2">
+					<CircleAlert class="text-error size-5 shrink-0" />
+					<p class="text-sm font-light">{devError}</p>
+				</div>
+			{/if}
+
+			<select
+				id="dev-quick-enter"
+				class="btn btn-secondary w-full font-normal"
+				bind:value={selectedDevAccountId}
+				disabled={devBusy}
+				onchange={(event) => {
+					const accountId = (event.currentTarget as HTMLSelectElement).value;
+					if (!accountId || devBusy) return;
+					void setDevError(() => handleDevAccountChange(accountId)).then((succeeded) => {
+						// A native select cannot re-fire change for the same failed account.
+						if (!succeeded) selectedDevAccountId = '';
+					});
+				}}
+				aria-label={m.login_dev_quick_enter()}
+			>
+				<option value="">
+					{devBusy ? m.login_dev_quick_enter_loading() : m.login_dev_quick_enter()}
+				</option>
+				{#each DEV_ACCOUNTS as account (account.id)}
+					<option value={account.id}>
+						{account.email} — {devRoleLabel(account.roleId)}
+					</option>
+				{/each}
+			</select>
+		</div>
+	{/if}
 </div>

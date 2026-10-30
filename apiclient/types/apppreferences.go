@@ -2,9 +2,10 @@ package types
 
 // AppPreferences represents global application appearance preferences
 type AppPreferences struct {
-	Logos    LogoPreferences  `json:"logos,omitempty"`
-	Theme    ThemePreferences `json:"theme,omitempty"`
-	Metadata Metadata         `json:"metadata,omitempty"`
+	DisplayName string           `json:"displayName,omitempty"`
+	Logos       LogoPreferences  `json:"logos,omitempty"`
+	Theme       ThemePreferences `json:"theme,omitempty"`
+	Metadata    Metadata         `json:"metadata,omitempty"`
 }
 
 type LogoPreferences struct {

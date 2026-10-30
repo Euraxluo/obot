@@ -183,27 +183,27 @@ func TestVMCPConsentIgnoresDisabledComponents(t *testing.T) {
 
 func vmcpConsentConfigurationTarget() (*v1.VMCP, *v1.VMCPInstance) {
 	return &v1.VMCP{
-		Name:      "vmcp1shared",
-		Namespace: system.DefaultNamespace,
-		Spec: v1.VMCPSpec{Manifest: types.VMCPManifest{Profiles: []types.VMCPProfile{{
-			Subjects:    []types.Subject{{Type: types.SubjectTypeSelector, ID: "*"}},
-			Permissions: types.VMCPProfilePermissions{AllowAllComponents: true},
-		}}, Components: []types.VMCPComponent{{
-			ID: "component",
-			CatalogEntry: types.MCPServerCatalogEntrySnapshot{Manifest: types.MCPServerCatalogEntryManifest{Config: []types.MCPConfig{
-				{Key: "REQUIRED", Required: true},
-				{Key: "OPTIONAL"},
-			}}},
-			Configuration: []types.VMCPConfigurationPolicy{
-				{Key: "REQUIRED", Policy: types.VMCPConfigurationPolicyUserAllowed},
-				{Key: "OPTIONAL", Policy: types.VMCPConfigurationPolicyUserAllowed},
-			},
-		}}}},
-	}, &v1.VMCPInstance{
-		Name:      "vmcpi1selected",
-		Namespace: system.DefaultNamespace,
-		Spec:      v1.VMCPInstanceSpec{UserID: "user", Manifest: types.VMCPInstanceManifest{VMCPID: "vmcp1shared"}},
-	}
+			Name:      "vmcp1shared",
+			Namespace: system.DefaultNamespace,
+			Spec: v1.VMCPSpec{Manifest: types.VMCPManifest{Profiles: []types.VMCPProfile{{
+				Subjects:    []types.Subject{{Type: types.SubjectTypeSelector, ID: "*"}},
+				Permissions: types.VMCPProfilePermissions{AllowAllComponents: true},
+			}}, Components: []types.VMCPComponent{{
+				ID: "component",
+				CatalogEntry: types.MCPServerCatalogEntrySnapshot{Manifest: types.MCPServerCatalogEntryManifest{Config: []types.MCPConfig{
+					{Key: "REQUIRED", Required: true},
+					{Key: "OPTIONAL"},
+				}}},
+				Configuration: []types.VMCPConfigurationPolicy{
+					{Key: "REQUIRED", Policy: types.VMCPConfigurationPolicyUserAllowed},
+					{Key: "OPTIONAL", Policy: types.VMCPConfigurationPolicyUserAllowed},
+				},
+			}}}},
+		}, &v1.VMCPInstance{
+			Name:      "vmcpi1selected",
+			Namespace: system.DefaultNamespace,
+			Spec:      v1.VMCPInstanceSpec{UserID: "user", Manifest: types.VMCPInstanceManifest{VMCPID: "vmcp1shared"}},
+		}
 }
 
 func vmcpConsentStorage(objects ...kclient.Object) storage.Client {
@@ -236,7 +236,7 @@ func vmcpConsentGateway(t *testing.T) *gatewayclient.Client {
 	db, err := gatewaydb.New(services.DB.DB, services.DB.SQLDB, true)
 	require.NoError(t, err)
 	require.NoError(t, db.AutoMigrate())
-	client := gatewayclient.New(t.Context(), db, nil, nil, nil, nil, nil, time.Hour, 10, 90, 90, 90, true)
+	client := gatewayclient.New(t.Context(), db, nil, nil, nil, nil, nil, time.Hour, 10, 90, 90)
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
 	return client
 }

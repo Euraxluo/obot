@@ -207,6 +207,26 @@ func TestSkillRouteAuthorization(t *testing.T) {
 			allowed: false,
 		},
 		{
+			name:   "auditor can access skill publication rules",
+			method: http.MethodGet,
+			path:   "/api/skill-publication-rules",
+			user: &user.DefaultInfo{
+				Name:   "auditor",
+				Groups: []string{types.GroupAuditor, types.GroupAuthenticated},
+			},
+			allowed: true,
+		},
+		{
+			name:   "auditor cannot POST skill publication rules",
+			method: http.MethodPost,
+			path:   "/api/skill-publication-rules",
+			user: &user.DefaultInfo{
+				Name:   "auditor",
+				Groups: []string{types.GroupAuditor, types.GroupAuthenticated},
+			},
+			allowed: false,
+		},
+		{
 			name:   "auditor cannot POST skill access rules",
 			method: http.MethodPost,
 			path:   "/api/skill-access-rules",

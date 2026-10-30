@@ -1,3 +1,4 @@
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import { UserService } from '$lib/services';
 import { resolveVMcpComponents } from '$lib/services/vmcps/utils';
 import { vmcpInstances } from '$lib/stores';
@@ -11,6 +12,8 @@ import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
+
+overwriteGetLocale(() => 'en');
 
 vi.mock('$lib/url', async (importOriginal) => ({
 	...(await importOriginal<typeof import('$lib/url')>()),

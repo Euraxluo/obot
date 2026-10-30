@@ -36,7 +36,6 @@ const (
 type testEnvironment struct {
 	namespace   string
 	name        string
-	userLimit   gclient.UserLimit
 	defaultRole types2.Role
 }
 
@@ -60,10 +59,6 @@ type testResponse struct {
 
 func (e *testEnvironment) ConfiguredAuthProvider(context.Context) (string, string, error) {
 	return e.namespace, e.name, nil
-}
-
-func (e *testEnvironment) UserLimit(context.Context) (gclient.UserLimit, error) {
-	return e.userLimit, nil
 }
 
 func (e *testEnvironment) DefaultRole(context.Context) (types2.Role, error) {
@@ -158,17 +153,14 @@ func newSCIMTestWithDB(t *testing.T, database *gatewaydb.DB) *scimTest {
 		}).
 		Build()
 
-	gateway := gclient.New(t.Context(), database, storage, nil, nil, nil, nil, time.Hour, 10, 0, 0, 0, false)
+	gateway := gclient.New(t.Context(), database, storage, nil, nil, nil, nil, time.Hour, 10, 0, 0)
 	t.Cleanup(func() {
 		_ = gateway.Close()
 	})
 
 	env := &testEnvironment{
-		namespace: system.DefaultNamespace,
-		name:      testOktaProviderName,
-		userLimit: gclient.UserLimit{
-			Unlimited: true,
-		},
+		namespace:   system.DefaultNamespace,
+		name:        testOktaProviderName,
 		defaultRole: types2.RoleBasic,
 	}
 
@@ -330,9 +322,8 @@ func (s *scimTest) seedProviderUser(providerName, nativeID, email string, role t
 		ProviderUsername:      nativeID,
 		ProviderUserID:        nativeID,
 		Email:                 email,
-	}, "", role, gclient.UserLimit{
-		Unlimited: true,
-	})
+	}, "", role,
+	)
 	if err != nil {
 		s.t.Fatalf("failed to seed user %s: %v", nativeID, err)
 	}

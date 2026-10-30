@@ -5,7 +5,6 @@ import (
 	"slices"
 	"testing"
 	"time"
-	"uuid"
 
 	apitypes "github.com/obot-platform/obot/apiclient/types"
 	"github.com/obot-platform/obot/pkg/gateway/types"
@@ -22,15 +21,15 @@ func TestAuditLogAPIKeyFilterOptions(t *testing.T) {
 		t.Fatalf("create user: %v", err)
 	}
 
-	named, err := c.CreateAPIKey(ctx, user.ID, "CLI token", "", nil, types.APIKeyScopes{CanAccessLLMProxy: true})
+	named, err := c.CreateAPIKey(ctx, user.ID, "CLI token", "", nil, types.APIKeyScopes{CanAccessAPI: true})
 	if err != nil {
 		t.Fatalf("create named key: %v", err)
 	}
-	duplicateName, err := c.CreateAPIKey(ctx, user.ID, "CLI token", "", nil, types.APIKeyScopes{CanAccessLLMProxy: true})
+	duplicateName, err := c.CreateAPIKey(ctx, user.ID, "CLI token", "", nil, types.APIKeyScopes{CanAccessAPI: true})
 	if err != nil {
 		t.Fatalf("create duplicate-name key: %v", err)
 	}
-	unnamed, err := c.CreateAPIKey(ctx, user.ID, "", "", nil, types.APIKeyScopes{CanAccessLLMProxy: true})
+	unnamed, err := c.CreateAPIKey(ctx, user.ID, "", "", nil, types.APIKeyScopes{CanAccessAPI: true})
 	if err != nil {
 		t.Fatalf("create unnamed key: %v", err)
 	}
@@ -47,10 +46,8 @@ func TestAuditLogAPIKeyFilterOptions(t *testing.T) {
 			name = fmt.Sprintf("ok1-%d-%d-*****", user.ID, key.ID)
 		}
 		mcpID := "mcp-1"
-		modelProvider := "openai"
 		if key.ID == unnamed.ID {
 			mcpID = "mcp-2"
-			modelProvider = "anthropic"
 		}
 		mcpLog := types.MCPAuditLog{
 			CreatedAt: now.Add(time.Duration(i) * time.Minute), SourceType: apitypes.AuditLogSourceTypeMCP,
@@ -59,13 +56,6 @@ func TestAuditLogAPIKeyFilterOptions(t *testing.T) {
 		}
 		if err := c.insertMCPAuditLogs(ctx, []types.MCPAuditLog{mcpLog}); err != nil {
 			t.Fatalf("insert MCP audit log: %v", err)
-		}
-		llmLog := types.LLMAuditLog{
-			ID: uuid.New().String(), CreatedAt: now.Add(time.Duration(i) * time.Minute), UserID: fmt.Sprint(user.ID),
-			APIKeyID: &key.ID, APIKeyName: name, ModelProvider: modelProvider,
-		}
-		if err := c.InsertLLMAuditLog(ctx, &llmLog); err != nil {
-			t.Fatalf("insert LLM audit log: %v", err)
 		}
 	}
 	missingKeyID := uint(999999)
@@ -76,13 +66,6 @@ func TestAuditLogAPIKeyFilterOptions(t *testing.T) {
 	}
 	if err := c.insertMCPAuditLogs(ctx, []types.MCPAuditLog{missingKeyMCPLog}); err != nil {
 		t.Fatalf("insert missing-key MCP audit log: %v", err)
-	}
-	missingKeyLLMLog := types.LLMAuditLog{
-		ID: uuid.New().String(), CreatedAt: now.Add(3 * time.Minute), UserID: fmt.Sprint(user.ID),
-		APIKeyID: &missingKeyID, APIKeyName: "Deleted key snapshot", ModelProvider: "missing",
-	}
-	if err := c.InsertLLMAuditLog(ctx, &missingKeyLLMLog); err != nil {
-		t.Fatalf("insert missing-key LLM audit log: %v", err)
 	}
 	localLog := validLocalAgentAuditLog(now.Add(4*time.Minute), "local-api-key", apitypes.AuditLogOutcomeStatusSuccess)
 	localLog.APIKeyID = &named.ID
@@ -131,34 +114,6 @@ func TestAuditLogAPIKeyFilterOptions(t *testing.T) {
 	}
 	if !mcpDetail.APIKeyRevoked {
 		t.Fatal("revoked MCP audit log detail was not enriched")
-	}
-
-	llmLogs, _, err := c.GetLLMAuditLogs(ctx, LLMAuditLogOptions{})
-	if err != nil {
-		t.Fatalf("get enriched LLM audit logs: %v", err)
-	}
-	var revokedLLMLogID string
-	for _, log := range llmLogs {
-		if log.APIKeyID == nil {
-			continue
-		}
-		wantRevoked := *log.APIKeyID == duplicateName.ID
-		if log.APIKeyRevoked != wantRevoked {
-			t.Fatalf("LLM key %d revoked = %v, want %v", *log.APIKeyID, log.APIKeyRevoked, wantRevoked)
-		}
-		if wantRevoked {
-			revokedLLMLogID = log.ID
-		}
-	}
-	if revokedLLMLogID == "" {
-		t.Fatal("revoked LLM audit log not found")
-	}
-	llmDetail, err := c.GetLLMAuditLog(ctx, revokedLLMLogID, false)
-	if err != nil {
-		t.Fatalf("get enriched LLM audit log detail: %v", err)
-	}
-	if !llmDetail.APIKeyRevoked {
-		t.Fatal("revoked LLM audit log detail was not enriched")
 	}
 
 	assertOptions := func(t *testing.T, options []apitypes.AuditLogAPIKeyFilterOption) {
@@ -225,12 +180,6 @@ func TestAuditLogAPIKeyFilterOptions(t *testing.T) {
 	}
 	assertOptions(t, mixedOptions)
 
-	llmOptions, err := c.GetLLMAuditLogAPIKeyFilterOptions(ctx, LLMAuditLogOptions{})
-	if err != nil {
-		t.Fatalf("get LLM key options: %v", err)
-	}
-	assertOptions(t, llmOptions)
-
 	scopedMCP, err := c.GetMCPAuditLogAPIKeyFilterOptions(ctx, MCPAuditLogOptions{
 		SourceTypes:     []apitypes.AuditLogSourceType{apitypes.AuditLogSourceTypeMCP},
 		OwnServerMCPIDs: []string{"mcp-1"},
@@ -253,19 +202,4 @@ func TestAuditLogAPIKeyFilterOptions(t *testing.T) {
 		t.Fatalf("API key filter did not narrow unified options: %#v", unifiedOptions)
 	}
 
-	scopedLLM, err := c.GetLLMAuditLogAPIKeyFilterOptions(ctx, LLMAuditLogOptions{ModelProvider: []string{"openai"}})
-	if err != nil {
-		t.Fatalf("get scoped LLM key options: %v", err)
-	}
-	if len(scopedLLM) != 2 {
-		t.Fatalf("LLM filters were not applied: %#v", scopedLLM)
-	}
-
-	limited, err := c.GetLLMAuditLogAPIKeyFilterOptions(ctx, LLMAuditLogOptions{ModelProvider: []string{"openai"}, Limit: 1})
-	if err != nil {
-		t.Fatalf("get limited LLM key options: %v", err)
-	}
-	if len(limited) != 1 {
-		t.Fatalf("limit was not applied: %#v", limited)
-	}
 }

@@ -21,7 +21,6 @@ import (
 	"github.com/obot-platform/obot/pkg/gateway/server/dispatcher"
 	gatewaytypes "github.com/obot-platform/obot/pkg/gateway/types"
 	"github.com/obot-platform/obot/pkg/i18n"
-	"github.com/obot-platform/obot/pkg/license"
 	"github.com/obot-platform/obot/pkg/scim/adapter"
 	scimsetup "github.com/obot-platform/obot/pkg/scim/setup"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
@@ -36,14 +35,12 @@ const (
 type AuthProviderHandler struct {
 	dispatcher  *dispatcher.Dispatcher
 	postgresDSN string
-	license     *license.Provider
 }
 
-func NewAuthProviderHandler(dispatcher *dispatcher.Dispatcher, postgresDSN string, licenseProvider *license.Provider) *AuthProviderHandler {
+func NewAuthProviderHandler(dispatcher *dispatcher.Dispatcher, postgresDSN string) *AuthProviderHandler {
 	return &AuthProviderHandler{
 		dispatcher:  dispatcher,
 		postgresDSN: postgresDSN,
-		license:     licenseProvider,
 	}
 }
 
@@ -69,7 +66,7 @@ func (ap *AuthProviderHandler) ByID(req api.Context) error {
 		}
 	}
 
-	authProviderStatus, err := providers.AuthProviderStatus(req.Context(), authProvider, nil, conn, ap.license)
+	authProviderStatus, err := providers.AuthProviderStatus(req.Context(), authProvider, nil, conn)
 	if err != nil {
 		return err
 	}
@@ -212,7 +209,7 @@ func (ap *AuthProviderHandler) List(req api.Context) error {
 			conn = &conns[i]
 		}
 
-		authProviderStatus, err := providers.AuthProviderStatus(req.Context(), a, nil, conn, ap.license)
+		authProviderStatus, err := providers.AuthProviderStatus(req.Context(), a, nil, conn)
 		if err != nil {
 			return err
 		}
@@ -244,10 +241,6 @@ func (ap *AuthProviderHandler) List(req api.Context) error {
 func (ap *AuthProviderHandler) Configure(req api.Context) error {
 	var authProvider v1.AuthProvider
 	if err := req.Get(&authProvider, req.PathValue("id")); err != nil {
-		return err
-	}
-
-	if err := ap.license.RequireEntitlements(req.Context(), authProvider.Spec.RequiredEntitlements); err != nil {
 		return err
 	}
 
@@ -321,15 +314,6 @@ func (ap *AuthProviderHandler) validateAuthProviderConfiguration(req api.Context
 		return types.NewErrBadRequest("%s", refused.Message)
 	} else if err != nil {
 		return err
-	}
-
-	missingEntitlements, err := ap.license.MissingEntitlements(req.Context(), authProvider.Spec.RequiredEntitlements)
-	if err != nil {
-		return err
-	}
-	if len(missingEntitlements) > 0 {
-		return types.NewErrHTTP(http.StatusPaymentRequired,
-			apiMessage(req, "provider_missing_entitlements", "entitlements", fmt.Sprint(missingEntitlements)))
 	}
 
 	var missing []string

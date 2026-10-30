@@ -14,7 +14,6 @@ import (
 	"github.com/obot-platform/obot/logger"
 	"github.com/obot-platform/obot/pkg/auth"
 	"github.com/obot-platform/obot/pkg/gateway/client"
-	"github.com/obot-platform/obot/pkg/license"
 	"github.com/obot-platform/obot/pkg/mcp"
 	"github.com/obot-platform/obot/pkg/scim/adapter"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
@@ -34,23 +33,20 @@ type Dispatcher struct {
 	sessionManager       *mcp.SessionManager
 	client               kclient.Client
 	gatewayClient        *client.Client
-	licenseProvider      *license.Provider
 	serverURL            string
 	internalServerURL    string
 	authProviderExtraEnv map[string]string
 	ports                *ports
 
-	builtinLock          sync.RWMutex
-	builtinAuthProvider  map[string]url.URL
-	builtinModelProvider map[string]BuiltinModelProvider
+	builtinLock         sync.RWMutex
+	builtinAuthProvider map[string]url.URL
 }
 
-func New(sessionManager *mcp.SessionManager, c kclient.Client, gatewayClient *client.Client, licenseProvider *license.Provider, serverURL, internalServerURL, postgresDSN string) *Dispatcher {
+func New(sessionManager *mcp.SessionManager, c kclient.Client, gatewayClient *client.Client, serverURL, internalServerURL, postgresDSN string) *Dispatcher {
 	d := &Dispatcher{
 		sessionManager:      sessionManager,
 		client:              c,
 		gatewayClient:       gatewayClient,
-		licenseProvider:     licenseProvider,
 		serverURL:           serverURL,
 		internalServerURL:   internalServerURL,
 		ports:               newPorts(),
@@ -284,10 +280,6 @@ func (d *Dispatcher) isAuthProviderConfigured(ctx context.Context, authProvider 
 
 func providerKeyForAuthProvider(namespace, providerName string) string {
 	return providerKey("auth-provider", namespace, providerName)
-}
-
-func providerKeyForModelProvider(namespace, providerName string) string {
-	return providerKey("model-provider", namespace, providerName)
 }
 
 func providerKey(providerType, namespace, providerName string) string {

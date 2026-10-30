@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { productTitle } from '$lib/branding.svelte';
 	import Navbar from '$lib/components/Navbar.svelte';
 	import SensitiveInput from '$lib/components/SensitiveInput.svelte';
 	import BetaLogo from '$lib/components/navbar/BetaLogo.svelte';
@@ -14,7 +15,6 @@
 		type BootstrapStatus,
 		type TempUser
 	} from '$lib/services';
-	import { clearProductAnalyticsConsentDeferral } from '$lib/stores/productTelemetryConsent.svelte';
 	import { goto } from '$lib/url';
 	import { CircleAlert, Handshake, ShieldAlert } from '@lucide/svelte';
 	import { onMount } from 'svelte';
@@ -125,7 +125,6 @@
 							await AdminService.bootstrapLogout();
 							// make sure to clear seenSplashDialog so splash will show for logged in owner if needed
 							localStorage.removeItem(SEEN_SPLASH_DIALOG_KEY);
-							clearProductAnalyticsConsentDeferral();
 							navigateTo(`/oauth2/sign_out?rd=${encodeURIComponent(afterSignOut)}`);
 						}}
 					>
@@ -234,7 +233,6 @@
 
 			<a
 				href={resolve('/oauth2/sign_out?rd=/admin')}
-				onclick={clearProductAnalyticsConsentDeferral}
 				class="bg-base-200 hover:bg-base-300 dark:bg-base-200 dark:hover:bg-base-300 flex w-full items-center justify-center gap-1.5 rounded-full p-2 px-8 text-lg font-semibold"
 			>
 				<p class="text-center text-sm font-medium">{m.auth_bootstrap_sign_out()}</p>
@@ -311,5 +309,5 @@
 {/snippet}
 
 <svelte:head>
-	<title>Obot | {m.auth_bootstrap_page_title()}</title>
+	<title>{productTitle(m.auth_bootstrap_page_title())}</title>
 </svelte:head>

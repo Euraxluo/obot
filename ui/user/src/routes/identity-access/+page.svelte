@@ -1,12 +1,14 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import TabLayout from '$lib/components/TabLayout.svelte';
 	import { AUTH_PROVIDERS_VIEW_PATH, isSCIMView, SCIM_VIEW_PATH } from '$lib/constants';
 	import { m } from '$lib/i18n';
 	import { profile } from '$lib/stores';
 	import AgentsView from './AgentsView.svelte';
 	import AuthProvidersView from './AuthProvidersView.svelte';
+	import ConnectorApprovalsView from './ConnectorApprovalsView.svelte';
 	import GroupsView from './GroupsView.svelte';
 	import RolesView from './RolesView.svelte';
 	import ScimView from './ScimView.svelte';
@@ -25,11 +27,11 @@
 </script>
 
 <svelte:head>
-	<title
-		>Obot | {showCreateAgent
-			? m.identity_access_create_agent_identity()
-			: m.identity_access_title()}</title
-	>
+	<title>
+		{productTitle(
+			showCreateAgent ? m.identity_access_create_agent_identity() : m.identity_access_title()
+		)}
+	</title>
 </svelte:head>
 
 <TabLayout
@@ -45,6 +47,11 @@
 				{ label: m.identity_access_agents_tab(), value: 'agents', content: agents },
 				{ label: m.identity_access_groups_tab(), value: 'groups', content: groups },
 				{ label: m.identity_access_roles_tab(), value: 'roles', content: roles },
+				{
+					label: m.identity_access_connector_approvals(),
+					value: 'connector-approvals',
+					content: connectorApprovals
+				},
 				{
 					label: m.identity_access_auth_providers_tab(),
 					value: 'auth-providers',
@@ -88,6 +95,10 @@
 
 {#snippet roles()}
 	<RolesView defaultUsersRole={data.defaultUsersRole} />
+{/snippet}
+
+{#snippet connectorApprovals()}
+	<ConnectorApprovalsView />
 {/snippet}
 
 {#snippet authProviders()}

@@ -23,6 +23,8 @@ var (
 	ErrBootstrapLocalAuthUserLimit = errors.New("bootstrap can only create one local account; sign in with the existing account to continue setup")
 )
 
+const localAuthUserCreationAdvisoryLockID int64 = 0x6f626f7455736572 // "obotUser"
+
 // NormalizeEmail lowercases and trims an email address so that logins are case-insensitive.
 func NormalizeEmail(email string) string {
 	return strings.ToLower(strings.TrimSpace(email))
@@ -109,7 +111,7 @@ func (c *Client) createLocalAuthUser(ctx context.Context, email, passwordHash st
 			}
 		}
 
-		if err := lockUserCreation(tx); err != nil {
+		if err := lockLocalAuthUserCreation(tx); err != nil {
 			return err
 		}
 
@@ -136,6 +138,15 @@ func (c *Client) createLocalAuthUser(ctx context.Context, email, passwordHash st
 	user.Email = email
 	user.Encrypted = false
 	return &user, nil
+}
+
+func lockLocalAuthUserCreation(tx *gorm.DB) error {
+	if tx.Name() == "postgres" {
+		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", localAuthUserCreationAdvisoryLockID).Error; err != nil {
+			return fmt.Errorf("failed to lock local auth user creation: %w", err)
+		}
+	}
+	return nil
 }
 
 // ActivateLocalAuthUser validates a setup token and creates a restricted session. The token stays

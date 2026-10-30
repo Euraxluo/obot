@@ -2,6 +2,7 @@
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
 	import { tooltip } from '$lib/actions/tooltip.svelte';
+	import { productTitle } from '$lib/branding.svelte';
 	import Confirm from '$lib/components/Confirm.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Layout from '$lib/components/Layout.svelte';
@@ -203,7 +204,7 @@
 </script>
 
 <svelte:head>
-	<title>{m.inventory_enforcement_devices_page_title_scan()}</title>
+	<title>{productTitle(m.inventory_enforcement_devices_title_scan())}</title>
 </svelte:head>
 
 <Layout

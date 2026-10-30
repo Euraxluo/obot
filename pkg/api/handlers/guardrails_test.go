@@ -5,17 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/obot-platform/obot/pkg/api"
 	gatewaytypes "github.com/obot-platform/obot/pkg/gateway/types"
 )
-
-func TestGuardrailPoliciesAreLLMOnly(t *testing.T) {
-	policy := gatewaytypes.GuardrailPolicy{Name: "r", Target: gatewaytypes.GuardrailTargetMCP}
-	err := validateGuardrailPolicy(api.Context{}, &policy)
-	if err == nil || !strings.Contains(err.Error(), "guardrail filter") {
-		t.Fatalf("an MCP policy must be rejected, got %v", err)
-	}
-}
 
 func TestCheckDestinationChange(t *testing.T) {
 	existing := &gatewaytypes.Guardrail{Type: "presidio", Config: json.RawMessage(`{"analyzerURL":"https://presidio.internal"}`)}

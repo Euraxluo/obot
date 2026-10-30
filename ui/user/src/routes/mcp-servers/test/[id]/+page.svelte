@@ -1,14 +1,13 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import McpCompositeOauth from '$lib/components/mcp/McpCompositeOauth.svelte';
 	import McpOauth from '$lib/components/mcp/McpOauth.svelte';
 	import Tester from '$lib/components/mcp/tester/Tester.svelte';
 	import { VirtualPageViewport } from '$lib/components/ui/virtual-page';
 	import { m } from '$lib/i18n';
-	import { testerChatAvailability } from '$lib/services/mcp/tester.svelte';
-	import { version } from '$lib/stores';
 	import { Server, ArrowLeft } from '@lucide/svelte';
 	import type { Component } from 'svelte';
 
@@ -22,11 +21,6 @@
 	}
 
 	let serverName = $derived(data.server.alias || data.server.manifest.name || data.server.id);
-	let chatAvailability = $derived(
-		testerChatAvailability(version.current, data.defaultModelAliases, data.models)
-	);
-	let chatAvailable = $derived(chatAvailability.available);
-	let chatUnavailableMessage = $derived(chatAvailability.unavailableMessage);
 </script>
 
 <Layout
@@ -47,13 +41,7 @@
 >
 	<!-- Keep the tester mounted so authentication preserves its conversation and session. -->
 	<div class="h-full min-h-0" class:hidden={managingAuthentication}>
-		<Tester
-			bind:this={tester}
-			server={data.server}
-			{serverName}
-			{chatAvailable}
-			{chatUnavailableMessage}
-		>
+		<Tester bind:this={tester} server={data.server} {serverName}>
 			{#snippet icon()}
 				{#if data.server.manifest.icon}
 					<img class="size-7 rounded-md object-contain" src={data.server.manifest.icon} alt="" />
@@ -133,9 +121,11 @@
 
 <svelte:head>
 	<title
-		>Obot | {m.mcps_tester_page_title({
-			kind: data.server.id.startsWith('vmcp') ? 'vMCP' : 'MCP',
-			name: serverName
-		})}</title
+		>{productTitle(
+			m.mcps_tester_page_title({
+				kind: data.server.id.startsWith('vmcp') ? 'vMCP' : 'MCP',
+				name: serverName
+			})
+		)}</title
 	>
 </svelte:head>

@@ -35,7 +35,7 @@ func TestUserChangesThatSCIMManagesAreConflicts(t *testing.T) {
 	if err := db.AutoMigrate(); err != nil {
 		t.Fatal(err)
 	}
-	gatewayClient := client.New(t.Context(), db, nil, nil, nil, nil, nil, time.Hour, 10, 0, 0, 0, false)
+	gatewayClient := client.New(t.Context(), db, nil, nil, nil, nil, nil, time.Hour, 10, 0, 0)
 	t.Cleanup(func() { _ = gatewayClient.Close() })
 	conn, _, err := gatewayClient.CreateSCIMConnection(t.Context(), client.CreateSCIMConnectionOptions{
 		AuthProviderNamespace: system.DefaultNamespace,
@@ -50,9 +50,7 @@ func TestUserChangesThatSCIMManagesAreConflicts(t *testing.T) {
 		UserName:   "alice@example.com",
 		ExternalID: "00u-alice",
 	}, client.SCIMUserCreateOptions{
-		UserLimit: client.UserLimit{
-			Unlimited: true,
-		},
+
 		DefaultRole: types2.RoleBasic,
 	})
 	if err != nil {
@@ -123,7 +121,7 @@ func TestEnableUser(t *testing.T) {
 	if err := db.AutoMigrate(); err != nil {
 		t.Fatal(err)
 	}
-	gatewayClient := client.New(t.Context(), db, nil, nil, nil, []string{"00u-explicit@example.com"}, nil, time.Hour, 10, 0, 0, 0, false)
+	gatewayClient := client.New(t.Context(), db, nil, nil, nil, []string{"00u-explicit@example.com"}, nil, time.Hour, 10, 0, 0)
 	t.Cleanup(func() { _ = gatewayClient.Close() })
 	okta := client.AuthProviderRef{
 		Namespace: system.DefaultNamespace,
@@ -155,9 +153,7 @@ func TestEnableUser(t *testing.T) {
 				},
 			},
 		}, client.SCIMUserCreateOptions{
-			UserLimit: client.UserLimit{
-				Unlimited: true,
-			},
+
 			DefaultRole: role,
 		})
 		if err != nil {

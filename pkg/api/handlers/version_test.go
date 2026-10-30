@@ -1,29 +1,14 @@
 package handlers
 
-import (
-	"testing"
+import "testing"
 
-	"github.com/obot-platform/obot/pkg/upgrade"
-)
-
-type fakeUpgradeStatusReader struct {
-	status upgrade.Status
-}
-
-func (f fakeUpgradeStatusReader) Status() upgrade.Status {
-	return f.status
-}
-
-func TestVersionHandlerReadsUpgradeStatus(t *testing.T) {
-	want := upgrade.Status{UpgradeAvailable: true, LatestVersion: "v1.2.3"}
-	handler := &VersionHandler{}
-	handler.UpgradeStatusReader = fakeUpgradeStatusReader{status: want}
-	if got := handler.upgradeStatus(); got != want {
-		t.Fatalf("upgradeStatus() = %#v, want %#v", got, want)
+func TestMarketOpenDefaultsFalse(t *testing.T) {
+	if marketOpenEnabled() {
+		t.Fatal("marketOpenEnabled() = true, want false by default")
 	}
 
-	handler.UpgradeStatusReader = nil
-	if got := handler.upgradeStatus(); got != (upgrade.Status{}) {
-		t.Fatalf("upgradeStatus() without reader = %#v, want zero status", got)
+	t.Setenv("OBOT_MARKET_OPEN", "true")
+	if !marketOpenEnabled() {
+		t.Fatal("marketOpenEnabled() = false, want true when enabled")
 	}
 }

@@ -1,4 +1,5 @@
 import { CommonAuthProviderIds, LOCAL_AUTH_MIN_PASSWORD_LENGTH } from '$lib/constants';
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import { Group } from '$lib/services';
 import type { AuthProvider, LocalAuthUser } from '$lib/services/admin/types';
 import { createMockProfile, preparePageData } from '../../../tests/helpers/pageData';
@@ -11,6 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 
+overwriteGetLocale(() => 'en');
 const localProvider: AuthProvider = {
 	id: CommonAuthProviderIds.LOCAL,
 	created: '2026-08-04T16:58:40-04:00',
@@ -21,7 +23,6 @@ const localProvider: AuthProvider = {
 	port: 0,
 	configured: false,
 	missingConfigurationParameters: [],
-	missingEntitlements: [],
 	namespace: 'default'
 };
 

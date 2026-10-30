@@ -18,10 +18,9 @@
 	interface Props {
 		query?: string;
 		readonly?: boolean;
-		logType?: 'mcp' | 'llm';
 	}
 
-	let { query, readonly, logType = 'mcp' }: Props = $props();
+	let { query, readonly }: Props = $props();
 
 	let loading = $state(false);
 	let scheduledExports = $state<ScheduledAuditLogExport[]>([]);
@@ -71,7 +70,7 @@
 
 	async function loadScheduledExports() {
 		try {
-			const response = await AdminService.getScheduledAuditLogExports(logType);
+			const response = await AdminService.getScheduledAuditLogExports();
 			return response.items ?? [];
 		} catch (error) {
 			console.error('Failed to load scheduled exports:', error);
@@ -181,11 +180,7 @@
 	}
 
 	function handleRowClick(scheduledExport: ScheduledAuditLogExport) {
-		goto(
-			logType === 'llm'
-				? `/audit-logs/llm/exports/scheduled/${scheduledExport.id}/edit`
-				: `/audit-logs/mcp/exports/scheduled/${scheduledExport.id}/edit`
-		);
+		goto(`/audit-logs/mcp/exports/scheduled/${scheduledExport.id}/edit`);
 	}
 </script>
 

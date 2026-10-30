@@ -7,11 +7,7 @@
 	import { m } from '$lib/i18n';
 	import Loading from '$lib/icons/Loading.svelte';
 	import type { VMCP, VMCPInstance } from '$lib/services';
-	import {
-		isUnavailableTesterFailure,
-		testerChatAvailability,
-		type TesterStatus
-	} from '$lib/services/mcp/tester.svelte';
+	import { isUnavailableTesterFailure, type TesterStatus } from '$lib/services/mcp/tester.svelte';
 	import { vmcpTesterServer } from '$lib/services/vmcps/tester';
 	import { vmcpLocalhostCallbackPaths } from '$lib/services/vmcps/utils';
 	import {
@@ -22,13 +18,7 @@
 		vmcpHasUserAllowedConfiguration,
 		type OAuthReturnParam
 	} from '$lib/services/vmcps/utils';
-	import {
-		accessibleModels,
-		defaultModelAliases,
-		profile,
-		version,
-		vmcpInstances
-	} from '$lib/stores';
+	import { profile, vmcpInstances } from '$lib/stores';
 	import { Layers, Settings } from '@lucide/svelte';
 
 	interface Props {
@@ -50,11 +40,6 @@
 	let launched = $derived(Boolean(instance));
 	let serverName = $derived(vmcp.displayName || vmcp.id);
 	let server = $derived(vmcpTesterServer(vmcp, instance?.id ?? vmcp.id, instance));
-	let chatAvailability = $derived(
-		testerChatAvailability(version.current, defaultModelAliases.current, accessibleModels.current)
-	);
-	let chatAvailable = $derived(chatAvailability.available);
-	let chatUnavailableMessage = $derived(chatAvailability.unavailableMessage);
 	let hasUserProvidedConfiguration = $derived(vmcpHasUserAllowedConfiguration(vmcp));
 	let missingOAuthComponent = $derived(vmcpMissingStaticOAuthComponent(vmcp));
 	let sessionStartFailed = $state(false);
@@ -103,8 +88,6 @@
 			bind:this={tester}
 			{server}
 			{serverName}
-			{chatAvailable}
-			{chatUnavailableMessage}
 			active={launched}
 			loading={launching}
 			onStatus={handleTesterStatus}

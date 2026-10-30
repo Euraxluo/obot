@@ -1,11 +1,11 @@
 import { page as appPage } from '$app/state';
-import { COMMUNITY_ENTITLEMENT } from '$lib/constants';
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import { type VMCP, type VMCPInstance } from '$lib/services';
 import { vmcpInstances } from '$lib/stores';
 import { goto, replaceState } from '$lib/url';
 import { createVMCP } from '../../../tests/helpers/mcp';
 import { preparePageData } from '../../../tests/helpers/pageData';
-import { getProfileResponse, getLicenseResponse } from '../../../tests/mocks/data';
+import { getProfileResponse } from '../../../tests/mocks/data';
 import { worker } from '../../../tests/mocks/worker';
 import VMcpTester from './VMcpTester.svelte';
 import { EditorView } from '@codemirror/view';
@@ -14,6 +14,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 
+overwriteGetLocale(() => 'en');
 vi.mock('$lib/url', async (importOriginal) => ({
 	...(await importOriginal<typeof import('$lib/url')>()),
 	goto: vi.fn().mockResolvedValue(undefined),
@@ -211,71 +212,6 @@ describe('VMcpTester', () => {
 			.not.toBeInTheDocument();
 	});
 
-	it('offers Chat through the model service when no model provider is configured', async () => {
-		await renderVMcpTester(
-			{
-				models: [],
-				defaultModelAliases: [],
-				version: {
-					hasModelProvider: false,
-					hasValidLicense: true,
-					mcpTesterModelProxyAvailable: true
-				}
-			},
-			{ tab: 'chat' }
-		);
-
-		await expect.element(page.getByRole('region', { name: 'Chat composer' })).toBeVisible();
-	});
-
-	it('requires a valid license when no model provider is configured', async () => {
-		await renderVMcpTester(
-			{
-				models: [],
-				defaultModelAliases: [],
-				version: { hasModelProvider: false, hasValidLicense: false }
-			},
-			{ tab: 'chat' }
-		);
-
-		await expect
-			.element(page.getByRole('heading', { name: 'Unlock MCP Inspector Chat', exact: true }))
-			.toBeVisible();
-		await expect
-			.element(
-				page.getByText(
-					/Register to get free access to the MCP Inspector Chat, powered by Obot’s model service/
-				)
-			)
-			.toBeVisible();
-		await expect
-			.element(page.getByRole('link', { name: 'configuring your own model provider' }))
-			.toHaveAttribute('href', '/models?view=providers');
-		await expect.element(page.getByRole('button', { name: 'Register' })).toBeVisible();
-	});
-
-	it('keeps the default model alias message when a model provider is configured', async () => {
-		await renderVMcpTester(
-			{
-				models: [],
-				defaultModelAliases: [],
-				license: {
-					...getLicenseResponse,
-					licenseKey: 'community-license-key',
-					enterprise: true,
-					entitlements: [COMMUNITY_ENTITLEMENT]
-				},
-				version: { hasModelProvider: true, hasValidLicense: true }
-			},
-			{ tab: 'chat' }
-		);
-
-		await expect.element(page.getByText('Chat unavailable', { exact: true })).toBeVisible();
-		await expect
-			.element(page.getByText('No default llm model is configured. Configure one to use Chat.'))
-			.toBeVisible();
-	});
-
 	it('keeps starting session while an unconfigured instance is still loading', async () => {
 		const instance = createInstance({
 			configured: false,
@@ -327,7 +263,7 @@ describe('VMcpTester', () => {
 		await renderVMcpTester({}, { instance: null, onLaunch });
 
 		await expect
-			.element(page.getByText('Start your vMCP to use chat and inspect tools.'))
+			.element(page.getByText('Start your vMCP to inspect tools, prompts, and resources.'))
 			.toBeVisible();
 		await page.getByRole('button', { name: 'Start Session' }).click();
 		expect(onLaunch).toHaveBeenCalledOnce();

@@ -23,14 +23,6 @@ const (
 
 	defaultDeviceScanCleanupInterval = 24 * time.Hour
 	defaultDeviceScanDeleteBatchSize = 100
-
-	// DefaultUserLimit is the maximum number of users allowed when no
-	// license-derived user-limit provider is configured.
-	DefaultUserLimit = 100
-
-	// DefaultDeviceLimit is the maximum number of devices allowed when no
-	// license-derived device-limit provider is configured.
-	DefaultDeviceLimit = 100
 )
 
 type Client struct {
@@ -54,9 +46,6 @@ type Client struct {
 	enforcementLock           sync.Mutex
 	enforcementBuffer         []types.EnforcementDecisionLog
 	kickEnforcementPersist    chan struct{}
-	llmAuditEntries           chan llmAuditEntry
-	llmAuditBatchSize         int
-	llmAuditEnabled           bool
 	storageClient             kclient.Client
 	apiKeyCacheLock           sync.RWMutex
 	apiKeyCache               map[[32]byte]apiKeyValidationCacheEntry
@@ -78,7 +67,7 @@ type Client struct {
 	claudeProvisionGateSlot chan struct{}
 }
 
-func New(ctx context.Context, db *db.DB, storageClient kclient.Client, encryptionConfig *encryptionconfig.EncryptionConfiguration, mcpOAuthTokenTrigger func(context.Context, string) error, ownerEmails, adminEmails []string, auditLogPersistenceInterval time.Duration, auditLogBatchSize, auditLogRetentionDays, llmAuditLogRetentionDays, deviceScanRetentionDays int, llmAuditEnabled bool) *Client {
+func New(ctx context.Context, db *db.DB, storageClient kclient.Client, encryptionConfig *encryptionconfig.EncryptionConfiguration, mcpOAuthTokenTrigger func(context.Context, string) error, ownerEmails, adminEmails []string, auditLogPersistenceInterval time.Duration, auditLogBatchSize, auditLogRetentionDays, deviceScanRetentionDays int) *Client {
 	explicitRoleEmailsSet := make(map[string]types2.Role, len(ownerEmails)+len(adminEmails))
 	for _, email := range adminEmails {
 		explicitRoleEmailsSet[strings.ToLower(email)] = types2.RoleAdmin
@@ -106,9 +95,6 @@ func New(ctx context.Context, db *db.DB, storageClient kclient.Client, encryptio
 		apiKeyCacheTTL:            apiKeyValidationCacheTTL,
 		serviceAccountCache:       make(map[[32]byte]serviceAccountValidationCacheEntry),
 		serviceAccountCacheTTL:    serviceAccountValidationCacheTTL,
-		llmAuditEntries:           make(chan llmAuditEntry, defaultLLMAuditLogBufferSize),
-		llmAuditBatchSize:         defaultLLMAuditLogBatchSize,
-		llmAuditEnabled:           llmAuditEnabled,
 		auditLogCleanupInterval:   defaultAuditLogCleanupInterval,
 		auditLogDeleteBatchSize:   defaultAuditLogDeleteBatchSize,
 		deviceScanCleanupInterval: defaultDeviceScanCleanupInterval,
@@ -119,11 +105,10 @@ func New(ctx context.Context, db *db.DB, storageClient kclient.Client, encryptio
 	go c.runEgressAuditPersistenceLoop(egressCtx, auditLogPersistenceInterval)
 	go c.runMCPAuditLogPersistenceLoop(ctx, auditLogPersistenceInterval)
 	go c.runEnforcementDecisionPersistenceLoop(ctx, auditLogPersistenceInterval)
-	go c.runLLMAuditPersistenceLoop(ctx, c.llmAuditBatchSize, auditLogPersistenceInterval)
 	go c.runPendingStateCleanup(ctx)
 	go c.runTokenCleanup(ctx)
 	go c.runAPIKeyCacheCleanup(ctx)
-	go c.runRetentionCleanup(ctx, auditLogRetentionDays, llmAuditLogRetentionDays)
+	go c.runRetentionCleanup(ctx, auditLogRetentionDays)
 	go c.runDeviceScanCleanup(ctx, deviceScanRetentionDays)
 	go c.runUserLifecycleEventDelivery(ctx)
 	go c.runSCIMGroupDeletionMarkExpiry(ctx)
@@ -144,9 +129,6 @@ func (c *Client) Close() error {
 	}
 	if err := c.persistEnforcementDecisions(); err != nil {
 		errs = append(errs, fmt.Errorf("failed to persist enforcement decisions: %w", err))
-	}
-	if err := c.persistQueuedLLMAuditLogs(); err != nil {
-		errs = append(errs, fmt.Errorf("failed to persist LLM audit logs: %w", err))
 	}
 
 	return errors.Join(append(errs, c.db.Close())...)

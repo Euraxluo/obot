@@ -135,7 +135,7 @@ func TestConvertMCPAuditLogLeavesNonAPIKeyEventUnattributed(t *testing.T) {
 
 func TestAttributeMCPAuditLogAPIKeyUsesMaskedUnnamedFallback(t *testing.T) {
 	gatewayClient := newLocalAgentAuditLogTestGatewayClient(t)
-	created, err := gatewayClient.CreateAPIKey(t.Context(), 7, "", "", nil, gatewaytypes.APIKeyScopes{CanAccessLLMProxy: true})
+	created, err := gatewayClient.CreateAPIKey(t.Context(), 7, "", "", nil, gatewaytypes.APIKeyScopes{CanAccessAPI: true})
 	if err != nil {
 		t.Fatalf("create API key: %v", err)
 	}
@@ -172,7 +172,7 @@ func TestAttributeMCPAuditLogAPIKeyPreservesPrincipalSnapshot(t *testing.T) {
 
 func TestListAuditLogAPIKeyFilterOptionsReturnsStructuredOptions(t *testing.T) {
 	gatewayClient := newLocalAgentAuditLogTestGatewayClient(t)
-	created, err := gatewayClient.CreateAPIKey(t.Context(), 7, "CLI token", "", nil, gatewaytypes.APIKeyScopes{CanAccessLLMProxy: true})
+	created, err := gatewayClient.CreateAPIKey(t.Context(), 7, "CLI token", "", nil, gatewaytypes.APIKeyScopes{CanAccessAPI: true})
 	if err != nil {
 		t.Fatalf("create API key: %v", err)
 	}
@@ -970,7 +970,7 @@ func newLocalAgentAuditLogTestGatewayClient(t *testing.T) *gatewayclient.Client 
 		t.Fatalf("failed to migrate gateway db: %v", err)
 	}
 
-	c := gatewayclient.New(t.Context(), db, nil, nil, nil, nil, nil, 10*time.Millisecond, 10, 90, 90, 90, true)
+	c := gatewayclient.New(t.Context(), db, nil, nil, nil, nil, nil, 10*time.Millisecond, 10, 90, 90)
 	t.Cleanup(func() {
 		_ = c.Close()
 	})

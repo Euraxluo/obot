@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import Confirm from '$lib/components/Confirm.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import ResponsiveDialog from '$lib/components/ResponsiveDialog.svelte';
@@ -16,10 +17,11 @@
 	import type {
 		GitCredential,
 		SkillAccessPolicy,
+		SkillPublicationRule,
 		SkillRepository
 	} from '$lib/services/admin/types';
 	import { errors, profile } from '$lib/stores';
-	import { clearUrlParams, getTableUrlParamsFilters, goto, setFilterUrlParams } from '$lib/url';
+	import { clearUrlParams, goto } from '$lib/url';
 	import SkillsPoliciesView from './SkillsPoliciesView.svelte';
 	import SkillsView from './SkillsView.svelte';
 	import SourcesView from './SourcesView.svelte';
@@ -77,6 +79,9 @@
 	let skills = $state<Skill[]>(untrack(() => data?.skills ?? []));
 	let skillRepositories = $state<SkillRepository[]>(untrack(() => data.skillRepositories));
 	let gitCredentials = $state<GitCredential[]>(untrack(() => data.gitCredentials ?? []));
+	let skillPublicationRules = $state<SkillPublicationRule[]>(
+		untrack(() => data.skillPublicationRules ?? [])
+	);
 	let showLicenseError = $state(untrack(() => data?.showLicenseError ?? false));
 
 	$effect(() => {
@@ -90,6 +95,7 @@
 	$effect(() => {
 		if (selectedView === 'skills') {
 			skills = data.skills ?? [];
+			skillPublicationRules = data.skillPublicationRules ?? [];
 		}
 	});
 
@@ -114,7 +120,6 @@
 	>(undefined);
 	let sourceError = $state<string | undefined>(undefined);
 	let saving = $state(false);
-	let urlFilters = $state(getTableUrlParamsFilters());
 	let editingSourceHost = $derived(sourceHost(editingSource?.value ?? ''));
 	let gitCredentialOptions = $derived(
 		gitCredentials.map((credential) => ({
@@ -180,21 +185,6 @@
 		if (!repository) return false;
 		const token = repository.sourceURLCredentials?.[repository.repoURL];
 		return token !== undefined && token !== '';
-	}
-
-	function handleFilter(property: string, values: string[]) {
-		if (values.length === 0) {
-			delete urlFilters[property];
-			urlFilters = { ...urlFilters };
-		} else {
-			urlFilters[property] = values;
-		}
-		setFilterUrlParams(property, values);
-	}
-
-	function handleClearAllFilters() {
-		urlFilters = {};
-		clearUrlParams();
 	}
 
 	function clearSyncInterval(id: string) {
@@ -285,7 +275,6 @@
 	}
 
 	function openSkillsForRepository(displayName: string) {
-		urlFilters = { repository: [displayName] };
 		goto(`${page.url.pathname}?view=skills&repository=${encodeURIComponent(displayName)}`);
 	}
 
@@ -306,7 +295,7 @@
 </script>
 
 <svelte:head>
-	<title>Obot | {layoutTitle}</title>
+	<title>{productTitle(layoutTitle)}</title>
 </svelte:head>
 
 {#if creating}
@@ -359,9 +348,8 @@
 		{skills}
 		{skillRepositories}
 		{showLicenseError}
-		{urlFilters}
-		onFilter={handleFilter}
-		onClearAllFilters={handleClearAllFilters}
+		publicationRules={skillPublicationRules}
+		canManagePublication={hasAdminAccess && !isAdminReadonly}
 	/>
 {/snippet}
 

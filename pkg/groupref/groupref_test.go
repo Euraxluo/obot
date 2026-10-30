@@ -57,32 +57,12 @@ func referencingObjects(target string) []kclient.Object {
 				},
 			},
 		},
-		&v1.ModelAccessPolicy{
-			Name:      "map",
-			Namespace: namespace,
-			Spec: v1.ModelAccessPolicySpec{
-				Manifest: types.ModelAccessPolicyManifest{
-					DisplayName: "Models",
-					Subjects:    subjects,
-				},
-			},
-		},
 		&v1.SkillAccessRule{
 			Name:      "sar",
 			Namespace: namespace,
 			Spec: v1.SkillAccessRuleSpec{
 				Manifest: types.SkillAccessRuleManifest{
 					DisplayName: "Skills",
-					Subjects:    subjects,
-				},
-			},
-		},
-		&v1.MessagePolicy{
-			Name:      "mp",
-			Namespace: namespace,
-			Spec: v1.MessagePolicySpec{
-				Manifest: types.MessagePolicyManifest{
-					DisplayName: "Messages",
 					Subjects:    subjects,
 				},
 			},
@@ -160,16 +140,6 @@ func TestFindCoversEveryReferenceKind(t *testing.T) {
 				Detail: "role Admin, Auditor",
 			},
 			{
-				Kind:        KindMessagePolicy,
-				Name:        "mp",
-				DisplayName: "Messages",
-			},
-			{
-				Kind:        KindModelAccessPolicy,
-				Name:        "map",
-				DisplayName: "Models",
-			},
-			{
 				Kind:        KindSkillAccessRule,
 				Name:        "sar",
 				DisplayName: "Skills",
@@ -201,9 +171,7 @@ func TestRemoveGroupSubjectsChangesOnlyAccessPolicies(t *testing.T) {
 	}
 	wantCounts := map[Kind]int{
 		KindAccessControlRule: 1,
-		KindModelAccessPolicy: 1,
 		KindSkillAccessRule:   1,
-		KindMessagePolicy:     1,
 	}
 	if !reflect.DeepEqual(counts, wantCounts) {
 		t.Fatalf("counts = %v, want %v", counts, wantCounts)

@@ -65,16 +65,9 @@ func TestProviderConversionsLocalizeCopies(t *testing.T) {
 			CommonProviderMetadata: metadata,
 		}},
 	}
-	model := v1.ModelProvider{
-		Name: "example-model",
-		Spec: v1.ModelProviderSpec{ModelProviderManifest: types.ModelProviderManifest{
-			CommonProviderMetadata: metadata,
-		}},
-	}
 	params := adapter.Parameters{Required: auth.Spec.RequiredConfigurationParameters}
 	authResponse := (&AuthProviderHandler{}).convertAuthProvider(auth, types.AuthProviderStatus{}, params, "ja")
-	modelResponse := (&ModelProviderHandler{}).convertModelProvider(model, types.ModelProviderStatus{}, "ja")
-	for _, response := range []types.CommonProviderMetadata{authResponse.CommonProviderMetadata, modelResponse.CommonProviderMetadata} {
+	for _, response := range []types.CommonProviderMetadata{authResponse.CommonProviderMetadata} {
 		if response.Name != "Google" || response.Description != i18n.Text("ja", "google_auth_provider_description") {
 			t.Fatalf("provider text was not localized: %#v", response)
 		}
@@ -95,14 +88,7 @@ func TestProviderConversionsLocalizeCopies(t *testing.T) {
 		auth.Spec.RequiredConfigurationParameters[0].Description != "${google_auth_provider_client_id_description}" {
 		t.Fatal("auth provider resource changed while localizing")
 	}
-	if model.Spec.Name != "${google_auth_provider_name}" ||
-		model.Spec.RequiredConfigurationParameters[0].Description != "${google_auth_provider_client_id_description}" {
-		t.Fatal("model provider resource changed while localizing")
-	}
-	english := (&ModelProviderHandler{}).convertModelProvider(model, types.ModelProviderStatus{}, "en")
-	if english.Name != "Google" || english.RequiredConfigurationParameters[0].FriendlyName != "Client ID" {
-		t.Fatal("English fallback changed after a localized conversion")
-	}
+
 }
 
 func TestOktaDirectoryDescriptions(t *testing.T) {
@@ -214,38 +200,6 @@ func TestProviderOptionalParameterReferences(t *testing.T) {
 			parameter.FriendlyName != i18n.Text(locale, "google_auth_provider_postgres_connection_dsn_friendly_name") ||
 			parameter.Description != i18n.Text(locale, "google_auth_provider_postgres_connection_dsn_description") {
 			t.Fatalf("incorrect optional parameter for %s: %#v", locale, parameter)
-		}
-	}
-}
-
-func TestModelProviderCatalogReferences(t *testing.T) {
-	provider := v1.ModelProvider{
-		Name: "openai-model-provider",
-		Spec: v1.ModelProviderSpec{ModelProviderManifest: types.ModelProviderManifest{
-			CommonProviderMetadata: types.CommonProviderMetadata{
-				Name:        "${openai_model_provider_name}",
-				Description: "${openai_model_provider_description}",
-				Command:     "bin/provider",
-				RequiredConfigurationParameters: []types.ProviderConfigurationParameter{{
-					Name:         "OBOT_OPENAI_MODEL_PROVIDER_API_KEY",
-					FriendlyName: "${openai_model_provider_api_key_friendly_name}",
-					Description:  "${openai_model_provider_api_key_description}",
-					Sensitive:    true,
-				}},
-			},
-		}},
-	}
-	for _, locale := range []string{"ja", "en", "ko", "zh-CN"} {
-		response := (&ModelProviderHandler{}).convertModelProvider(provider, types.ModelProviderStatus{}, locale)
-		parameter := response.RequiredConfigurationParameters[0]
-		if response.Name != "OpenAI" || response.Description != i18n.Text(locale, "openai_model_provider_description") ||
-			parameter.FriendlyName != i18n.Text(locale, "openai_model_provider_api_key_friendly_name") ||
-			parameter.Description != i18n.Text(locale, "openai_model_provider_api_key_description") {
-			t.Fatalf("incorrect model provider text for %s: %#v", locale, response)
-		}
-		if response.ID != provider.Name || response.Command != "bin/provider" ||
-			parameter.Name != "OBOT_OPENAI_MODEL_PROVIDER_API_KEY" || !parameter.Sensitive {
-			t.Fatal("operational fields changed")
 		}
 	}
 }

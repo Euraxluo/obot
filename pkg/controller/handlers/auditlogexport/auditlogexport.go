@@ -64,8 +64,6 @@ func (h *Handler) ExportAuditLogs(req router.Request, _ router.Response) error {
 		err = performExport(req.Ctx, h.credProvider, export, "mcp-audit-logs", h.fetchMCPAuditLogs, func(log gatewaytypes.MCPAuditLog) types.AuditLogEvent {
 			return auditlog.Present(log, presentOptions)
 		})
-	case types.AuditLogTypeLLM:
-		err = performExport(req.Ctx, h.credProvider, export, "llm-audit-logs", h.fetchLLMAuditLogs, gatewaytypes.ConvertLLMAuditLog)
 	default:
 		err = fmt.Errorf("unsupported audit log export type %q", export.Spec.Type)
 	}
@@ -86,12 +84,6 @@ func (h *Handler) ExportAuditLogs(req router.Request, _ router.Response) error {
 func (h *Handler) fetchMCPAuditLogs(ctx context.Context, export *v1.AuditLogExport, limit, offset int) ([]gatewaytypes.MCPAuditLog, error) {
 	opts := mcpAuditLogOptionsFromExport(export, limit, offset)
 	logs, _, err := h.gatewayClient.GetMCPAuditLogs(ctx, opts)
-	return logs, err
-}
-
-func (h *Handler) fetchLLMAuditLogs(ctx context.Context, export *v1.AuditLogExport, limit, offset int) ([]gatewaytypes.LLMAuditLog, error) {
-	opts := llmAuditLogOptionsFromExport(export, limit, offset)
-	logs, _, err := h.gatewayClient.GetLLMAuditLogs(ctx, opts)
 	return logs, err
 }
 
@@ -131,34 +123,6 @@ func mcpAuditLogOptionsFromExport(export *v1.AuditLogExport, limit, offset int) 
 		Limit:                     limit,
 		Offset:                    offset,
 		WithRequestAndResponse:    export.Spec.WithRequestAndResponse,
-	}
-}
-
-func llmAuditLogOptionsFromExport(export *v1.AuditLogExport, limit, offset int) client.LLMAuditLogOptions {
-	filters := export.Spec.LLMFilters
-	if filters == nil {
-		filters = &types.LLMAuditLogExportFilters{}
-	}
-	return client.LLMAuditLogOptions{
-		StartTime:       export.Spec.StartTime.Time,
-		EndTime:         export.Spec.EndTime.Time,
-		APIKeyID:        filters.APIKeyIDs,
-		UserID:          filters.UserIDs,
-		ModelProvider:   filters.ModelProviders,
-		TargetModel:     filters.TargetModels,
-		RequestPath:     filters.RequestPaths,
-		ResponseStatus:  filters.ResponseStatuses,
-		Outcome:         filters.Outcomes,
-		UserAgent:       filters.UserAgents,
-		ClientSessionID: filters.ClientSessionIDs,
-		// Exports scheduled before message policies became guardrails keep their filter.
-		MessagePolicyTriggered: filters.MessagePolicyTriggered,
-		Query:                  filters.Query,
-		Limit:                  limit,
-		Offset:                 offset,
-		WithSensitiveFields:    export.Spec.WithRequestAndResponse,
-		SortBy:                 "created_at",
-		SortOrder:              "asc",
 	}
 }
 

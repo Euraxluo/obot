@@ -62,6 +62,7 @@ afterEach(() => {
 		'new',
 		'query',
 		'variant',
+		'view',
 		'status',
 		'components',
 		'creator',
@@ -81,6 +82,7 @@ describe('vMCPs Page', () => {
 			'preserves search relevance with %s sorting',
 			async (sortBy) => {
 				appPage.url.searchParams.set('variant', 'table');
+				appPage.url.searchParams.set('view', 'vmcps');
 				appPage.url.searchParams.set('query', 'GitHub');
 				appPage.url.searchParams.set('sort', sortBy);
 				await renderPageWithEntries([componentEntry, slack], false, [
@@ -112,6 +114,7 @@ describe('vMCPs Page', () => {
 			'keeps all %s options available for OR selection',
 			async (header, first, second, param, selected) => {
 				appPage.url.searchParams.set('variant', 'table');
+				appPage.url.searchParams.set('view', 'vmcps');
 				worker.use(
 					http.get('/api/users', () =>
 						HttpResponse.json({
@@ -152,6 +155,7 @@ describe('vMCPs Page', () => {
 
 		it('keeps header options available when combined filters match no rows', async () => {
 			appPage.url.searchParams.set('variant', 'table');
+			appPage.url.searchParams.set('view', 'vmcps');
 			appPage.url.searchParams.set('components', 'entry-github');
 			appPage.url.searchParams.set('creator', 'bob');
 			await renderPageWithEntries([componentEntry, slack], false, [
@@ -169,6 +173,7 @@ describe('vMCPs Page', () => {
 
 		it('shares server header filters with settings, grid view, and reloads', async () => {
 			appPage.url.searchParams.set('variant', 'table');
+			appPage.url.searchParams.set('view', 'vmcps');
 			const vmcps = [
 				createIssueTrackerVMcp(),
 				createVMCP({ id: 'vmcp-slack', displayName: 'Alerts vMCP' }, [slack])
@@ -177,7 +182,9 @@ describe('vMCPs Page', () => {
 			await page.getByRole('button', { name: 'Servers', exact: true }).click();
 			await page.getByRole('combobox', { name: 'Filter by Servers...' }).click();
 			await page.getByRole('button', { name: 'GitHub', exact: true }).click();
-			await page.getByCSS('#click-catch').click({ position: { x: 1, y: 1 } });
+			while (document.querySelector('#click-catch')) {
+				(document.querySelector('#click-catch') as HTMLElement).click();
+			}
 
 			expect(appPage.url.searchParams.get('components')).toBe('entry-github');
 			await expect.element(page.getByRole('button', { name: 'Remove GitHub' })).toBeVisible();
@@ -204,6 +211,7 @@ describe('vMCPs Page', () => {
 
 		it('shares creator header filters with settings and grid view', async () => {
 			appPage.url.searchParams.set('variant', 'table');
+			appPage.url.searchParams.set('view', 'vmcps');
 			worker.use(
 				http.get('/api/users', () =>
 					HttpResponse.json({
@@ -225,7 +233,9 @@ describe('vMCPs Page', () => {
 			await page.getByRole('button', { name: 'Created By', exact: true }).click();
 			await page.getByRole('combobox', { name: 'Filter by Created By...' }).click();
 			await page.getByRole('button', { name: 'Alice', exact: true }).click();
-			await page.getByCSS('#click-catch').click({ position: { x: 1, y: 1 } });
+			while (document.querySelector('#click-catch')) {
+				(document.querySelector('#click-catch') as HTMLElement).click();
+			}
 			expect(appPage.url.searchParams.get('creator')).toBe('alice');
 			await expect.element(page.getByRole('button', { name: 'Remove Alice' })).toBeVisible();
 			await page.getByRole('button', { name: 'Grid View' }).click();
@@ -243,6 +253,7 @@ describe('vMCPs Page', () => {
 			['not-connected', 'Not Connected']
 		])('persists %s status and restores it after reload', async (id, label) => {
 			appPage.url.searchParams.set('variant', 'table');
+			appPage.url.searchParams.set('view', 'vmcps');
 			const screen = await renderPageWithEntries([componentEntry]);
 			vmcpInstances.current = {
 				items:
@@ -274,6 +285,7 @@ describe('vMCPs Page', () => {
 
 		it('keeps server count sorting consistent across settings, views, and reloads', async () => {
 			appPage.url.searchParams.set('variant', 'table');
+			appPage.url.searchParams.set('view', 'vmcps');
 			const vmcps = [
 				createVMCP({ id: 'many', displayName: 'Many Servers' }, [componentEntry, slack]),
 				createVMCP({ id: 'one', displayName: 'One Server' }, [slack])
@@ -309,6 +321,7 @@ describe('vMCPs Page', () => {
 		});
 
 		it('shows the vMCP list and create action', async () => {
+			appPage.url.searchParams.set('view', 'vmcps');
 			await renderPageWithEntries([componentEntry]);
 
 			await expect
@@ -321,6 +334,7 @@ describe('vMCPs Page', () => {
 		});
 
 		it('takes no drops, so it offers no servers to drag', async () => {
+			appPage.url.searchParams.set('view', 'vmcps');
 			await renderPageWithEntries([componentEntry, slack]);
 			await expect
 				.element(page.getByRole('button', { name: 'Open Issue Tracker vMCP' }))
@@ -332,6 +346,7 @@ describe('vMCPs Page', () => {
 		});
 
 		it('filters to creator-owned vMCPs when "Show Only My vMCPs" is checked', async () => {
+			appPage.url.searchParams.set('view', 'vmcps');
 			const myCreated = createVMCP(
 				{
 					id: 'vmcp-mine',

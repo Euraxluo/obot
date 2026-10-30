@@ -36,10 +36,6 @@ export function isSCIMView(searchParams: URLSearchParams): boolean {
 
 export const SEEN_SPLASH_DIALOG_KEY = 'seenSplashDialog';
 
-export const CommonModelProviderIds = {
-	LLM_GATEWAY: 'llm-gateway-model-provider'
-};
-
 export const PROJECT_MCP_SERVER_NAME = 'MCP Servers';
 export const DEFAULT_MCP_CATALOG_ID = 'default';
 export const MCP_NAV_SOURCE_PARAM = 'from';
@@ -441,10 +437,3 @@ export const MCP_FILTERS_FIELD_IDS = {
 	runtimeSelector: 'filter-runtime-selector',
 	saveBtn: 'filter-save-btn'
 };
-
-export const CLOUD_ENTITLEMENT = 'OBOT_CLOUD';
-export const COMMUNITY_ENTITLEMENT = 'OBOT_COMMUNITY';
-export const ENTERPRISE_ENTITLEMENT = 'OBOT_ENTERPRISE';
-export const MODEL_PROVIDERS_ENTITLEMENT = 'OBOT_ENTERPRISE_MODEL_PROVIDERS';
-
-export const COMMUNITY_SIGNUP_BANNER_COPY = m.core_community_signup_banner();

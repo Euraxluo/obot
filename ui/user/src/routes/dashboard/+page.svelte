@@ -1,13 +1,12 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { productTitle } from '$lib/branding.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import Skeleton from '$lib/components/Skeleton.svelte';
 	import TweenedMetric from '$lib/components/TweenedMetric.svelte';
 	import DeviceScanDonutCard from '$lib/components/admin/device-scan/DeviceScanDonutCard.svelte';
 	import DeviceScanTimelineCard from '$lib/components/admin/device-scan/DeviceScanTimelineCard.svelte';
 	import { buildDeviceScanTopBuckets } from '$lib/components/admin/device-scan/deviceScanTopBuckets';
-	import TokenUsageTimelineCard from '$lib/components/admin/token-usage/TokenUsageTimelineCard.svelte';
-	import { formatTokenUsageUSD } from '$lib/components/admin/token-usage/tokenUsageTimeline';
 	import DonutGraph from '$lib/components/graph/DonutGraph.svelte';
 	import GraphTitle from '$lib/components/graph/GraphTitle.svelte';
 	import HorizontalBarList from '$lib/components/graph/HorizontalBarList.svelte';
@@ -25,8 +24,7 @@
 		type DeviceSkillStat,
 		type MCPCatalogEntry,
 		type MCPCatalogServer,
-		type OrgUser,
-		type TotalTokenUsage
+		type OrgUser
 	} from '$lib/services';
 	import { entryTypeDonutLegend } from '$lib/services/dashboard/constants';
 	import type {
@@ -47,8 +45,6 @@
 	import {
 		Activity,
 		ChevronRight,
-		CircleDollarSign,
-		Coins,
 		Laptop,
 		MonitorCheck,
 		PencilRuler,
@@ -69,7 +65,6 @@
 	let loadingDeviceScanStats = $state(true);
 
 	let usersData = $state<OrgUser[]>([]);
-	let totalTokensData = $state<TotalTokenUsage>();
 
 	const doesSupportK8sUpdates = $derived(version.current.engine === 'kubernetes');
 
@@ -160,15 +155,13 @@
 		}
 
 		if (profile.current.hasAdminAccess?.()) {
-			const [users, tokens, catalogServers, workspaceServers] = await Promise.all([
+			const [users, catalogServers, workspaceServers] = await Promise.all([
 				UserService.listUsersIncludeDeleted(),
-				AdminService.listTotalTokenUsage({ start, end }),
 				AdminService.listAllCatalogDeployedSingleRemoteServers(DEFAULT_MCP_CATALOG_ID),
 				AdminService.listAllWorkspaceDeployedSingleRemoteServers()
 			]);
 
 			usersData = users;
-			totalTokensData = tokens;
 			deployedCatalogEntryServers = catalogServers;
 			deployedWorkspaceCatalogEntryServers = workspaceServers;
 		}
@@ -213,22 +206,6 @@
 			value: monthlyActiveUsers,
 			icon: Activity,
 			seeMore: '/identity-access?view=users'
-		},
-		{
-			id: 'total-tokens',
-			label: m.dashboard_total_tokens(),
-			loading,
-			value: totalTokensData?.totalTokens ?? 0,
-			icon: Coins,
-			seeMore: '/usage?view=llm'
-		},
-		{
-			id: 'total-spend',
-			label: m.dashboard_total_spend(),
-			loading,
-			value: totalTokensData?.totalSpend ?? 0,
-			icon: CircleDollarSign,
-			seeMore: '/usage?view=llm'
 		}
 	]);
 
@@ -421,18 +398,11 @@
 					{/if}
 				</div>
 
-				<div class="col-span-12">
-					<TokenUsageTimelineCard startDate={start} endDate={end} />
-				</div>
-
 				<div class="col-span-12 grid grid-cols-1 items-stretch gap-4 @3xl:grid-cols-2">
 					{@render popularTools()}
 					{@render toolAverageResponseTime()}
 				</div>
 			{:else}
-				<div class="col-span-12">
-					<TokenUsageTimelineCard startDate={start} endDate={end} />
-				</div>
 				<div class="col-span-12 grid grid-cols-1 items-stretch gap-4 @3xl:grid-cols-2">
 					{@render toolUsageGraph()}
 					{@render serverActivityGraph()}
@@ -701,11 +671,7 @@
 				<Loading class="size-5" />
 			{:else}
 				<div class="text-lg @md:text-xl font-semibold tabular-nums tracking-tight">
-					<TweenedMetric
-						holdAtZero={platformStat.loading}
-						target={platformStat.value}
-						format={platformStat.id === 'total-spend' ? formatTokenUsageUSD : undefined}
-					/>
+					<TweenedMetric holdAtZero={platformStat.loading} target={platformStat.value} />
 				</div>
 			{/if}
 			<div class="relative size-3.5 @md:size-4 shrink-0 self-center">
@@ -826,5 +792,5 @@
 {/snippet}
 
 <svelte:head>
-	<title>{m.dashboard_page_title()}</title>
+	<title>{productTitle(m.dashboard_title())}</title>
 </svelte:head>

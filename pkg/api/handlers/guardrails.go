@@ -18,7 +18,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// GuardrailsHandler manages guardrail policies and guardrails.
+// GuardrailsHandler manages guardrails used by MCP filters.
 type GuardrailsHandler struct {
 	engine *guardrails.Engine
 }
@@ -127,94 +127,14 @@ func (h *GuardrailsHandler) FieldOptions(req api.Context) error {
 	return req.Write(map[string]any{"items": options})
 }
 
-func (h *GuardrailsHandler) ListPolicies(req api.Context) error {
-	policies, err := req.GatewayClient.ListGuardrailPoliciesForProfile(req.Context(), req.URL.Query().Get("profileID"))
-	if err != nil {
-		return err
-	}
-	return req.Write(map[string]any{"items": policies})
-}
-
-func (h *GuardrailsHandler) GetPolicy(req api.Context) error {
-	policy, err := getGuardrailPolicy(req)
-	if err != nil {
-		return err
-	}
-	return req.Write(policy)
-}
-
-func (h *GuardrailsHandler) CreatePolicy(req api.Context) error {
-	var policy gatewaytypes.GuardrailPolicy
-	if err := req.Read(&policy); err != nil {
-		return types.NewErrBadRequest("invalid policy: %v", err)
-	}
-	policy.ID = ""
-	if err := validateGuardrailPolicy(req, &policy); err != nil {
-		return err
-	}
-	if err := req.GatewayClient.CreateGuardrailPolicy(req.Context(), &policy); err != nil {
-		return err
-	}
-	h.invalidate()
-	if err := confirmProfile(req, policy.ProfileID, func() error {
-		defer h.invalidate()
-		return req.GatewayClient.DeleteGuardrailPolicy(req.Context(), policy.ID)
-	}); err != nil {
-		return err
-	}
-	return req.WriteCreated(policy)
-}
-
-func (h *GuardrailsHandler) UpdatePolicy(req api.Context) error {
-	existing, err := getGuardrailPolicy(req)
-	if err != nil {
-		return err
-	}
-	var policy gatewaytypes.GuardrailPolicy
-	if err := req.Read(&policy); err != nil {
-		return types.NewErrBadRequest("invalid policy: %v", err)
-	}
-	policy.ID = existing.ID
-	if err := validateGuardrailPolicy(req, &policy); err != nil {
-		return err
-	}
-	if err := req.GatewayClient.UpdateGuardrailPolicy(req.Context(), &policy); err != nil {
-		return err
-	}
-	h.invalidate()
-	if err := confirmProfile(req, policy.ProfileID, func() error {
-		defer h.invalidate()
-		return req.GatewayClient.DeleteGuardrailPolicy(req.Context(), policy.ID)
-	}); err != nil {
-		return err
-	}
-	updated, err := getGuardrailPolicy(req)
-	if err != nil {
-		return err
-	}
-	return req.Write(updated)
-}
-
-func (h *GuardrailsHandler) DeletePolicy(req api.Context) error {
-	if _, err := getGuardrailPolicy(req); err != nil {
-		return err
-	}
-	if err := req.GatewayClient.DeleteGuardrailPolicy(req.Context(), req.PathValue("policy_id")); err != nil {
-		return err
-	}
-	h.invalidate()
-	req.WriteHeader(http.StatusNoContent)
-	return nil
-}
-
 // ValidateCondition compiles a policy condition, so the UI can report errors as it's typed.
 func (h *GuardrailsHandler) ValidateCondition(req api.Context) error {
 	var in guardrailConditionRequest
 	if err := req.Read(&in); err != nil {
 		return types.NewErrBadRequest("invalid request: %v", err)
 	}
-	if in.Target != gatewaytypes.GuardrailTargetLLM && in.Target != gatewaytypes.GuardrailTargetMCP {
-		return types.NewErrBadRequest("target must be llm or mcp")
+	if in.Target != gatewaytypes.GuardrailTargetMCP {
+		return types.NewErrBadRequest("target must be mcp")
 	}
 	result := map[string]any{"valid": true}
 	if strings.TrimSpace(in.Condition) != "" {
@@ -327,15 +247,6 @@ func (h *GuardrailsHandler) DeleteGuardrail(req api.Context) error {
 	if err != nil {
 		return err
 	}
-	policies, err := req.GatewayClient.ListGuardrailPolicies(req.Context())
-	if err != nil {
-		return err
-	}
-	for _, r := range policies {
-		if slices.Contains(r.GuardrailIDs, guardrail.ID) {
-			return types.NewErrHTTP(http.StatusConflict, fmt.Sprintf("guardrail is used by policy %q; remove it from the policy first", r.Name))
-		}
-	}
 	var filters v1.MCPWebhookValidationList
 	if err := req.List(&filters); err != nil {
 		return err
@@ -367,7 +278,7 @@ func (h *GuardrailsHandler) TestGuardrail(req api.Context) error {
 		return types.NewErrBadRequest("invalid request: %v", err)
 	}
 	if in.Target == "" {
-		in.Target = gatewaytypes.GuardrailTargetLLM
+		in.Target = gatewaytypes.GuardrailTargetMCP
 	}
 	if in.Stage == "" {
 		in.Stage = guardrails.StageInput
@@ -390,79 +301,12 @@ func (h *GuardrailsHandler) TestGuardrail(req api.Context) error {
 	return req.Write(resp)
 }
 
-func getGuardrailPolicy(req api.Context) (*gatewaytypes.GuardrailPolicy, error) {
-	policy, err := req.GatewayClient.GetGuardrailPolicy(req.Context(), req.PathValue("policy_id"))
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, types.NewErrNotFound("guardrail policy %s not found", req.PathValue("policy_id"))
-	}
-	return policy, err
-}
-
 func getGuardrail(req api.Context) (*gatewaytypes.Guardrail, error) {
 	guardrail, err := req.GatewayClient.GetGuardrail(req.Context(), req.PathValue("guardrail_id"))
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, types.NewErrNotFound("guardrail %s not found", req.PathValue("guardrail_id"))
 	}
 	return guardrail, err
-}
-
-func validateGuardrailPolicy(req api.Context, policy *gatewaytypes.GuardrailPolicy) error {
-	policy.Name = strings.TrimSpace(policy.Name)
-	if policy.Name == "" {
-		return types.NewErrBadRequest("name is required")
-	}
-	switch policy.Target {
-	case gatewaytypes.GuardrailTargetLLM:
-	case "":
-		policy.Target = gatewaytypes.GuardrailTargetLLM
-	case gatewaytypes.GuardrailTargetMCP:
-		// MCP traffic is checked by guardrail filters, which share the targeting, ordering
-		// and auditing of other MCP filters.
-		return types.NewErrBadRequest("guardrail policies apply to LLM traffic only; check MCP traffic with a guardrail filter (MCP Servers > Filters)")
-	default:
-		return types.NewErrBadRequest("target must be llm")
-	}
-	switch policy.ApplyTo {
-	case gatewaytypes.GuardrailApplyInput, gatewaytypes.GuardrailApplyOutput, gatewaytypes.GuardrailApplyBoth:
-	case "":
-		policy.ApplyTo = gatewaytypes.GuardrailApplyBoth
-	default:
-		return types.NewErrBadRequest("applyTo must be input, output or both")
-	}
-	switch policy.Action {
-	case gatewaytypes.GuardrailActionBlock, gatewaytypes.GuardrailActionRedact, gatewaytypes.GuardrailActionLog:
-	default:
-		return types.NewErrBadRequest("action must be block, redact or log")
-	}
-	switch policy.InputScope {
-	case gatewaytypes.GuardrailScopeAll, gatewaytypes.GuardrailScopeLatest:
-	case "":
-		policy.InputScope = gatewaytypes.GuardrailScopeLatest
-	default:
-		return types.NewErrBadRequest("inputScope must be all or latest")
-	}
-	if policy.SamplingRate == 0 {
-		policy.SamplingRate = 100
-	}
-	if policy.SamplingRate < 1 || policy.SamplingRate > 100 {
-		return types.NewErrBadRequest("samplingRate must be between 1 and 100")
-	}
-	if strings.TrimSpace(policy.Condition) != "" {
-		if _, err := guardrails.CompileCondition(policy.Target, policy.Condition); err != nil {
-			return types.NewErrBadRequest("invalid condition: %v", err)
-		}
-	}
-	if len(policy.GuardrailIDs) == 0 {
-		return types.NewErrBadRequest("at least one guardrail is required")
-	}
-	for _, id := range policy.GuardrailIDs {
-		if _, err := req.GatewayClient.GetGuardrail(req.Context(), id); errors.Is(err, gorm.ErrRecordNotFound) {
-			return types.NewErrBadRequest("guardrail %s does not exist", id)
-		} else if err != nil {
-			return err
-		}
-	}
-	return requireProfile(req, policy.ProfileID)
 }
 
 // checkDestinationChange refuses an update that changes where a guardrail's credentials are

@@ -1,7 +1,6 @@
 package client
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -44,7 +43,7 @@ func TestClaudeTagServiceUser(t *testing.T) {
 
 	// An active session can renew after retention cleanup removes its expired key.
 	require.NoError(t, c.db.WithContext(ctx).Model(key).Update("expires_at", time.Now().Add(-time.Minute)).Error)
-	require.NoError(t, c.cleanupRetainedData(ctx, time.Now(), 0, 0))
+	require.NoError(t, c.cleanupRetainedData(ctx, time.Now(), 0))
 	_, err = c.ValidateAPIKey(ctx, credential.Secrets["key"])
 	require.ErrorIs(t, err, ErrInvalidAPIKey)
 	credential, err = c.EnsureClaudeCredential(ctx, user.ID, "tag-session", []string{"vmcp_test"}, time.Now().Add(time.Hour))
@@ -66,14 +65,14 @@ func TestClaudeTagServiceUser(t *testing.T) {
 		ClaudeEnvironment: true,
 		ExpiresAt:         new(time.Now().Add(-time.Minute)),
 	}).Error)
-	require.NoError(t, c.cleanupRetainedData(ctx, time.Now(), 0, 0))
+	require.NoError(t, c.cleanupRetainedData(ctx, time.Now(), 0))
 	require.EqualValues(t, 1, countAPIKeys(t, c))
 	require.NoError(t, c.deleteOldRevokedAPIKeys(ctx, time.Now().AddDate(0, 0, 100), 90))
 	_, err = c.EnsureClaudeCredential(ctx, user.ID, "tag-session", []string{"vmcp_changed"}, time.Now().Add(time.Hour))
 	require.ErrorIs(t, err, ErrClaudeCredentialRevoked)
 	_, err = c.DeleteCredential(ctx, "substrate-agent", "tag-session")
 	require.NoError(t, err)
-	require.NoError(t, c.cleanupRetainedData(ctx, time.Now(), 0, 0))
+	require.NoError(t, c.cleanupRetainedData(ctx, time.Now(), 0))
 	require.EqualValues(t, 0, countAPIKeys(t, c))
 	info, err := c.UserInfoByID(ctx, user.ID)
 	require.NoError(t, err)
@@ -123,27 +122,6 @@ func TestClaudeTagUsersAreManagedByEnvironment(t *testing.T) {
 	require.Equal(t, api.RoleBasic, user.Role)
 	require.True(t, user.Internal)
 	require.NoError(t, c.EnsureClaudeTagUser(ctx, environment))
-}
-
-func TestClaudeTagUsersDoNotConsumeSeats(t *testing.T) {
-	c := newIdentityUserLimitTestClient(t)
-	ctx := t.Context()
-	environment := &types.ClaudeEnvironment{ID: "env", EnvironmentID: "ccpool_test"}
-	require.NoError(t, c.SaveClaudeEnvironment(ctx, environment, nil))
-	require.NoError(t, c.EnsureClaudeTagUser(ctx, environment))
-
-	user, err := ensureUserLimitTestIdentity(ctx, c, "human", "human@example.com", UserLimit{Maximum: 1})
-	require.NoError(t, err)
-	// Marking a human internal must not bypass seat limits.
-	require.NoError(t, c.UpdateUserInternalStatus(ctx, fmt.Sprint(user.ID), true))
-	count, err := c.UserCount(ctx)
-	require.NoError(t, err)
-	require.EqualValues(t, 1, count)
-	count, err = countUsersTowardLimit(c.db.WithContext(ctx))
-	require.NoError(t, err)
-	require.EqualValues(t, 1, count)
-	_, err = ensureUserLimitTestIdentity(ctx, c, "other", "other@example.com", UserLimit{Maximum: 1})
-	requireIdentityUserLimitForbiddenError(t, err)
 }
 
 func TestClaudeTagGuardRejectsMalformedUserID(t *testing.T) {

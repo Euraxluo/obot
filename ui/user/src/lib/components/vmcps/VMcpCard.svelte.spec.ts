@@ -1,3 +1,4 @@
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import { Group, type VMCPInstance, type VMCPManifest } from '$lib/services';
 import { mcpServersAndEntries, vmcpInstances } from '$lib/stores';
 import { createMCPCatalogEntry, createVMCP, createVMCPComponent } from '../../../tests/helpers/mcp';
@@ -10,6 +11,8 @@ import { createRawSnippet } from 'svelte';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
+
+overwriteGetLocale(() => 'en');
 
 const icon = createRawSnippet(() => ({ render: () => '<span>icon</span>' }));
 

@@ -21,6 +21,7 @@
 	import { twMerge } from 'tailwind-merge';
 
 	const VIEW_PARAM = 'view';
+	const LEGACY_VIEW_PARAM = 'tab';
 
 	interface Props {
 		title: string;
@@ -52,7 +53,8 @@
 	}: Props = $props();
 
 	let selectedView = $derived.by(() => {
-		const requested = page.url.searchParams.get(VIEW_PARAM);
+		const requested =
+			page.url.searchParams.get(VIEW_PARAM) || page.url.searchParams.get(LEGACY_VIEW_PARAM);
 		if (requested && views.some((candidate) => candidate.value === requested)) {
 			return requested;
 		}
@@ -119,7 +121,7 @@
 						{/if}
 
 						<div class="flex flex-1 flex-col">
-							<div class={twMerge('flex flex-1 relative z-10 pr-2', x && 'pl-2')}>
+							<div role="tablist" class={twMerge('flex flex-1 relative z-10 pr-2', x && 'pl-2')}>
 								{#each views as viewOption, index (viewOption.value)}
 									{@const isSelected = selectedView === viewOption.value}
 									{@const tooltip = viewOption.tooltip?.trim()}
@@ -151,6 +153,8 @@
 										<button
 											id={`tab-${viewOption.value}`}
 											type="button"
+											role="tab"
+											aria-selected={isSelected}
 											class="absolute inset-0 rounded-t-lg"
 											aria-label={viewOption.label}
 											onclick={() => selectView(viewOption.value)}

@@ -31,7 +31,6 @@
 	let expiresAt = $state<Date | null>(null);
 	let selectedServerIds = new SvelteSet<string>();
 	let capabilities = $state<Record<APIKeyCreatableCapabilityKey, boolean>>({
-		canAccessLLMProxy: false,
 		canAccessSkills: false,
 		canAccessDeviceScans: false
 	});
@@ -121,7 +120,6 @@
 				description: description.trim() || undefined,
 				expiresAt: expiresAt?.toISOString(),
 				mcpServerIds: Array.from(selectedServerIds),
-				canAccessLLMProxy: capabilities.canAccessLLMProxy,
 				canAccessSkills: capabilities.canAccessSkills,
 				canAccessDeviceScans: capabilities.canAccessDeviceScans
 			});

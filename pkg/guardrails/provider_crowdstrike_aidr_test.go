@@ -33,17 +33,17 @@ func TestCrowdStrikeChecker(t *testing.T) {
 	}{
 		{
 			name:          "nothing detected",
-			target:        gatewaytypes.GuardrailTargetLLM,
+			target:        gatewaytypes.GuardrailTargetMCP,
 			stage:         StageInput,
-			wantEventType: "input",
+			wantEventType: "tool_input",
 			responses: []string{`{"status":"Success","request_id":"prq_1","result":{"blocked":false,"transformed":false,
 				"detectors":{"malicious_prompt":{"detected":false},"confidential_and_pii_entity":{"detected":false}}}}`},
 		},
 		{
 			name:          "redacted PII replaces segments",
-			target:        gatewaytypes.GuardrailTargetLLM,
+			target:        gatewaytypes.GuardrailTargetMCP,
 			stage:         StageOutput,
-			wantEventType: "output",
+			wantEventType: "tool_output",
 			responses: []string{`{"status":"Success","request_id":"prq_2","result":{"blocked":false,"transformed":true,
 				"guard_output":{"messages":[{"role":"user","content":"My SSN is <US_SSN>"},{"role":"tool","content":[{"type":"text","text":"weather: sunny"}]}]},
 				"detectors":{"confidential_and_pii_entity":{"detected":true,"data":{"entities":[{"type":"US_SSN","value":"123-45-6789","action":"redacted:replaced"}]}},
@@ -75,9 +75,9 @@ func TestCrowdStrikeChecker(t *testing.T) {
 		},
 		{
 			name:          "error status",
-			target:        gatewaytypes.GuardrailTargetLLM,
+			target:        gatewaytypes.GuardrailTargetMCP,
 			stage:         StageInput,
-			wantEventType: "input",
+			wantEventType: "tool_input",
 			status:        http.StatusBadRequest,
 			responses:     []string{`{"status":"ValidationError","summary":"guard_input is invalid"}`},
 			wantErr:       "400",

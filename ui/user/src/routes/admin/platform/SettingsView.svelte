@@ -4,16 +4,11 @@
 		type AppNotification,
 		type GitCredential,
 		type ImagePullSecret,
-		type ImagePullSecretCapability,
-		type ModelProxySettings,
-		type ModelProxyUsage,
-		type ProductTelemetryConsent
+		type ImagePullSecretCapability
 	} from '$lib/services';
 	import { profile } from '$lib/stores';
 	import GitCredentialsView from './GitCredentialsView.svelte';
-	import ModelProxyView from './ModelProxyView.svelte';
 	import NotificationsView from './NotificationsView.svelte';
-	import ProductAnalyticsView from './ProductAnalyticsView.svelte';
 	import RegistryConnectionsView from './RegistryConnectionsView.svelte';
 	import { Plus } from '@lucide/svelte';
 	import type { Snippet } from 'svelte';
@@ -23,10 +18,6 @@
 		capability: ImagePullSecretCapability;
 		gitCredentials: GitCredential[];
 		imagePullSecrets: ImagePullSecret[];
-		modelProxySettings?: ModelProxySettings;
-		modelProxyUsage?: ModelProxyUsage;
-		productTelemetryConsent?: ProductTelemetryConsent;
-		showProductAnalytics?: boolean;
 		showRegistryConnections?: boolean;
 	}
 
@@ -35,40 +26,24 @@
 		capability = $bindable(),
 		gitCredentials = $bindable(),
 		imagePullSecrets = $bindable(),
-		modelProxySettings,
-		modelProxyUsage,
-		productTelemetryConsent,
-		showProductAnalytics = false,
 		showRegistryConnections = false
 	}: Props = $props();
 
 	let notificationsView = $state<ReturnType<typeof NotificationsView>>();
-	let productAnalyticsView = $state<ReturnType<typeof ProductAnalyticsView>>();
-	let modelProxyView = $state<ReturnType<typeof ModelProxyView>>();
 	let registryView = $state<ReturnType<typeof RegistryConnectionsView>>();
 	let gitCredentialsView = $state<ReturnType<typeof GitCredentialsView>>();
 
 	let notificationsDirty = $state(false);
-	let productAnalyticsDirty = $state(false);
-	let modelProxyDirty = $state(false);
 	let registryDirty = $state(false);
 	let gitCredentialsDirty = $state(false);
 	let saving = $state(false);
 
 	let isAdminReadonly = $derived(profile.current.isAdminReadonly?.());
-	let isDirty = $derived(
-		notificationsDirty ||
-			productAnalyticsDirty ||
-			modelProxyDirty ||
-			registryDirty ||
-			gitCredentialsDirty
-	);
+	let isDirty = $derived(notificationsDirty || registryDirty || gitCredentialsDirty);
 	let canCreateGitCredential = $derived(!isAdminReadonly);
 
 	const descriptions: Record<string, string | Snippet> = {
 		notifications: m.platform_settings_notifications_description(),
-		productAnalytics: productAnalyticsSnippet,
-		modelProxy: m.platform_settings_model_proxy_description(),
 		registryConnections: m.platform_settings_registry_description(),
 		gitCredentials: m.platform_settings_git_description()
 	};
@@ -90,13 +65,9 @@
 		try {
 			await Promise.all([
 				notificationsDirty ? notificationsView?.save() : undefined,
-				productAnalyticsDirty ? productAnalyticsView?.save() : undefined,
 				registryDirty ? registryView?.save() : undefined,
 				gitCredentialsDirty ? gitCredentialsView?.save() : undefined
 			]);
-			if (modelProxyDirty) {
-				await modelProxyView?.save();
-			}
 		} finally {
 			saving = false;
 		}
@@ -104,8 +75,6 @@
 
 	function handleCancel() {
 		notificationsView?.reset();
-		productAnalyticsView?.reset();
-		modelProxyView?.reset();
 		registryView?.reset();
 		gitCredentialsView?.reset();
 	}
@@ -119,22 +88,6 @@
 			descriptions.notifications,
 			notifications
 		)}
-		{#if showProductAnalytics}
-			{@render section(
-				m.platform_settings_product_analytics(),
-				'product-analytics',
-				descriptions.productAnalytics,
-				productAnalytics
-			)}
-		{/if}
-		{#if modelProxySettings}
-			{@render section(
-				m.platform_settings_model_proxy(),
-				'model-proxy',
-				descriptions.modelProxy,
-				modelProxy
-			)}
-		{/if}
 	</form>
 
 	{#if showRegistryConnections}
@@ -215,39 +168,6 @@
 		{appNotification}
 		{saving}
 	/>
-{/snippet}
-
-{#snippet productAnalytics()}
-	<ProductAnalyticsView
-		bind:this={productAnalyticsView}
-		bind:dirty={productAnalyticsDirty}
-		consent={productTelemetryConsent ?? {}}
-		{saving}
-	/>
-{/snippet}
-
-{#snippet modelProxy()}
-	{#if modelProxySettings}
-		<ModelProxyView
-			bind:this={modelProxyView}
-			bind:dirty={modelProxyDirty}
-			settings={modelProxySettings}
-			usage={modelProxyUsage}
-			{saving}
-		/>
-	{/if}
-{/snippet}
-
-{#snippet productAnalyticsSnippet()}
-	<p class="text-muted-content text-sm font-light">
-		{m.platform_settings_share_usage()}
-		<a
-			class="text-link"
-			href="https://docs.obot.ai/configuration/product-analytics"
-			target="_blank"
-			rel="external noopener noreferrer">{m.platform_learn_more()}</a
-		>
-	</p>
 {/snippet}
 
 {#snippet registryConnections()}

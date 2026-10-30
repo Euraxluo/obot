@@ -1,4 +1,5 @@
 import { page as appPage } from '$app/state';
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import type { MCPFilter } from '$lib/services';
 import { preparePageData } from '../../../../tests/helpers/pageData';
 import { worker } from '../../../../tests/mocks/worker';
@@ -7,6 +8,8 @@ import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
+
+overwriteGetLocale(() => 'en');
 
 function createFilter(overrides: Partial<MCPFilter>): MCPFilter {
 	return {
@@ -25,10 +28,10 @@ function createFilter(overrides: Partial<MCPFilter>): MCPFilter {
 function mockFilterApis() {
 	const serverCalls = vi.fn();
 	worker.use(
-		http.get('/api/llm-gateway/guardrails', () =>
+		http.get('/api/guardrails', () =>
 			HttpResponse.json({ items: [{ id: 'gp1secrets', name: 'Secrets', type: 'secrets' }] })
 		),
-		http.get('/api/llm-gateway/guardrails/providers', () => HttpResponse.json({ items: [] })),
+		http.get('/api/guardrails/providers', () => HttpResponse.json({ items: [] })),
 		http.post('/api/mcp-webhook-validations/:id/:action', ({ params }) => {
 			serverCalls(params.action);
 			return HttpResponse.json({ error: 'not found' }, { status: 404 });

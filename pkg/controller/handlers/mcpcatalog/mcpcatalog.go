@@ -315,6 +315,7 @@ func filterConflictingCatalogEntries(ctx context.Context, c kclient.Client, name
 			result = append(result, obj)
 			continue
 		}
+		preserveMarketPublication(entry, existing)
 		if existing.Spec.Detached {
 			result = append(result, obj)
 			continue
@@ -327,6 +328,19 @@ func filterConflictingCatalogEntries(ctx context.Context, c kclient.Client, name
 	}
 
 	return result, errsBySourceURL, nil
+}
+
+// preserveMarketPublication keeps the administrator's publish choice across catalog syncs.
+// Marketplace publication is Obot-local state, not a property of the catalog source.
+func preserveMarketPublication(desired *v1.MCPServerCatalogEntry, existing v1.MCPServerCatalogEntry) {
+	value, ok := existing.Spec.Manifest.Metadata[types.MarketPublishedMetadataKey]
+	if !ok {
+		return
+	}
+	if desired.Spec.Manifest.Metadata == nil {
+		desired.Spec.Manifest.Metadata = make(map[string]string)
+	}
+	desired.Spec.Manifest.Metadata[types.MarketPublishedMetadataKey] = value
 }
 
 func reconcileRemovedEntries(ctx context.Context, c kclient.Client, catalog *v1.MCPCatalog, desired []kclient.Object) error {
@@ -680,6 +694,9 @@ func (h *Handler) readMCPCatalog(ctx context.Context, catalogName, sourceURL, to
 			errs = append(errs, fmt.Errorf("invalid catalog entry: %w", err))
 			continue
 		}
+		// Marketplace publication is administrator-owned Obot state. A catalog
+		// source must not be able to publish itself into the terminal marketplace.
+		delete(entry.Metadata, types.MarketPublishedMetadataKey)
 		if entry.Metadata["categories"] == "Official" {
 			delete(entry.Metadata, "categories") // This shouldn't happen, but do this just in case.
 			// We don't want to mark random MCP servers from the catalog as official.

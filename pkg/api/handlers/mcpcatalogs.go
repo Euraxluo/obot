@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"maps"
+	"reflect"
 	"regexp"
 	"slices"
 	"sort"
@@ -242,7 +244,7 @@ func (h *MCPCatalogHandler) ListEntries(req api.Context) error {
 	if (req.UserIsAdmin() || req.UserIsAuditor()) && req.URL.Query().Get("all") == "true" {
 		entries := make([]types.MCPServerCatalogEntry, 0, len(list.Items))
 		for _, entry := range list.Items {
-			entries = append(entries, convertMCPServerCatalogEntryForList(entry, workspaceID, powerUserID, minimal))
+			entries = append(entries, convertMCPServerCatalogEntryForList(entry, workspaceID, powerUserID, minimal, false))
 		}
 		return req.Write(types.MCPServerCatalogEntryList{Items: entries})
 	}
@@ -271,7 +273,7 @@ func (h *MCPCatalogHandler) ListEntries(req api.Context) error {
 			if !req.UserIsAdmin() && entryRequiresStaticOAuthCreds(entry) {
 				continue
 			}
-			entries = append(entries, convertMCPServerCatalogEntryForList(entry, workspaceID, powerUserID, minimal))
+			entries = append(entries, convertMCPServerCatalogEntryForList(entry, workspaceID, powerUserID, minimal, false))
 		}
 	}
 
@@ -341,6 +343,9 @@ func (h *MCPCatalogHandler) CreateEntry(req api.Context) error {
 		return types.NewErrBadRequest("failed to read entry manifest: %v", err)
 	}
 	mcpcatalog.NormalizeManifest(&manifest)
+	if err := preserveMarketPublication(types.MCPServerCatalogEntryManifest{}, &manifest, req.UserIsAdmin()); err != nil {
+		return err
+	}
 	if err := h.prepareOpenAPIEntry(req.Context(), &manifest); err != nil {
 		return types.NewErrBadRequest("failed to prepare OpenAPI entry: %v", err)
 	}
@@ -443,15 +448,26 @@ func (h *MCPCatalogHandler) UpdateEntry(req api.Context) error {
 		return err
 	}
 
-	if !entry.Spec.Editable {
-		return types.NewErrBadRequest("entry is not editable")
-	}
-
 	var manifest types.MCPServerCatalogEntryManifest
 	if err := req.Read(&manifest); err != nil {
 		return types.NewErrBadRequest("failed to read entry manifest: %v", err)
 	}
 	mcpcatalog.NormalizeManifest(&manifest)
+	if err := preserveMarketPublication(entry.Spec.Manifest, &manifest, req.UserIsAdmin()); err != nil {
+		return err
+	}
+
+	if isMarketPublicationOnlyUpdate(entry.Spec.Manifest, manifest) {
+		setMarketPublishedMetadata(&entry.Spec.Manifest, manifest.Metadata[types.MarketPublishedMetadataKey])
+		if err := req.Update(&entry); err != nil {
+			return fmt.Errorf("failed to update entry: %w", err)
+		}
+		return req.Write(ConvertMCPServerCatalogEntry(entry))
+	}
+
+	if !entry.Spec.Editable {
+		return types.NewErrBadRequest("entry is not editable")
+	}
 
 	if err := h.prepareOpenAPIEntry(req.Context(), &manifest); err != nil {
 		return types.NewErrBadRequest("failed to prepare OpenAPI entry: %v", err)
@@ -498,6 +514,74 @@ func (h *MCPCatalogHandler) UpdateEntry(req api.Context) error {
 	}
 
 	return req.Write(ConvertMCPServerCatalogEntry(entry))
+}
+
+func preserveMarketPublication(existing types.MCPServerCatalogEntryManifest, incoming *types.MCPServerCatalogEntryManifest, isAdmin bool) error {
+	submitted, submittedSet := incoming.Metadata[types.MarketPublishedMetadataKey]
+	if submittedSet && submitted != "true" && submitted != "false" {
+		return types.NewErrBadRequest("%s must be \"true\" or \"false\"", types.MarketPublishedMetadataKey)
+	}
+
+	current, currentSet := existing.Metadata[types.MarketPublishedMetadataKey]
+	if !submittedSet {
+		if currentSet {
+			setMarketPublishedMetadata(incoming, current)
+		}
+		return nil
+	}
+
+	if !isAdmin && (!currentSet || submitted != current) {
+		return types.NewErrForbidden("only admins can change %s", types.MarketPublishedMetadataKey)
+	}
+
+	setMarketPublishedMetadata(incoming, submitted)
+	return nil
+}
+
+func setMarketPublishedMetadata(manifest *types.MCPServerCatalogEntryManifest, value string) {
+	if manifest.Metadata == nil {
+		manifest.Metadata = make(map[string]string)
+	}
+	manifest.Metadata[types.MarketPublishedMetadataKey] = value
+}
+
+func isMarketPublicationOnlyUpdate(existing, incoming types.MCPServerCatalogEntryManifest) bool {
+	value, ok := incoming.Metadata[types.MarketPublishedMetadataKey]
+	if !ok || (value != "true" && value != "false") {
+		return false
+	}
+
+	existing = *existing.DeepCopy()
+	mcpcatalog.NormalizeManifest(&existing)
+	addExtractedEnvVarsToCatalogEntryManifest(&existing)
+	existingWithoutPublication := withoutMarketPublication(&existing)
+	incomingWithoutPublication := withoutMarketPublication(&incoming)
+	if existingWithoutPublication.OpenAPIConfig != nil {
+		existingWithoutPublication.OpenAPIConfig.Schema = nil
+	}
+	if incomingWithoutPublication.OpenAPIConfig != nil {
+		incomingWithoutPublication.OpenAPIConfig.Schema = nil
+	}
+	return reflect.DeepEqual(existingWithoutPublication, incomingWithoutPublication)
+}
+
+func withoutMarketPublication(manifest *types.MCPServerCatalogEntryManifest) types.MCPServerCatalogEntryManifest {
+	normalized := *manifest.DeepCopy()
+	normalized.Metadata = withoutMarketPublishedMetadata(normalized.Metadata)
+	return normalized
+}
+
+func withoutMarketPublishedMetadata(metadata map[string]string) map[string]string {
+	if len(metadata) == 0 {
+		return nil
+	}
+
+	normalized := maps.Clone(metadata)
+	delete(normalized, types.MarketPublishedMetadataKey)
+	if len(normalized) == 0 {
+		return nil
+	}
+	return normalized
 }
 
 // normalizedStaticConfiguration keys the values stored for an entry's configuration by the keys

@@ -16,7 +16,6 @@ import (
 	gateway "github.com/obot-platform/obot/pkg/gateway/client"
 	"github.com/obot-platform/obot/pkg/gateway/server/dispatcher"
 	gatewaytypes "github.com/obot-platform/obot/pkg/gateway/types"
-	"github.com/obot-platform/obot/pkg/license"
 	"github.com/obot-platform/obot/pkg/localauth"
 	"github.com/obot-platform/obot/pkg/scim/setup"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
@@ -36,10 +35,9 @@ const (
 )
 
 type Handler struct {
-	gatewayClient   *gateway.Client
-	dispatcher      *dispatcher.Dispatcher
-	licenseProvider *license.Provider
-	postgresDSN     string
+	gatewayClient *gateway.Client
+	dispatcher    *dispatcher.Dispatcher
+	postgresDSN   string
 	// storage reads without a cache. Setting up SCIM must see every auth provider cleanup and group reference that
 	// exists, not the ones a cache has caught up with.
 	storage kclient.Reader
@@ -79,13 +77,12 @@ func terminalConflictf(format string, args ...any) error {
 }
 
 // New returns the Handler. storage must read without a cache.
-func New(gatewayClient *gateway.Client, dispatcher *dispatcher.Dispatcher, licenseProvider *license.Provider, postgresDSN string, storage kclient.Reader) *Handler {
+func New(gatewayClient *gateway.Client, dispatcher *dispatcher.Dispatcher, postgresDSN string, storage kclient.Reader) *Handler {
 	return &Handler{
-		gatewayClient:   gatewayClient,
-		dispatcher:      dispatcher,
-		licenseProvider: licenseProvider,
-		postgresDSN:     postgresDSN,
-		storage:         storage,
+		gatewayClient: gatewayClient,
+		dispatcher:    dispatcher,
+		postgresDSN:   postgresDSN,
+		storage:       storage,
 	}
 }
 
@@ -130,11 +127,6 @@ func (h *Handler) Reconcile(req router.Request, _ router.Response) error {
 			}
 			return err
 		}
-	case v1.ProviderTypeModel:
-		// Model providers were replaced by the LLM gateway, whose providers are configured in
-		// the gateway itself.
-		change.Status.Error = "model providers are configured in the LLM gateway"
-		return nil
 	}
 
 	// Moving a provider to SCIM changes no configuration that its daemon runs with.
@@ -157,8 +149,6 @@ func validateChange(change *v1.ProviderConfigurationChange) error {
 	switch change.Spec.ProviderType {
 	case v1.ProviderTypeAuth:
 		expectedName = system.ProviderChangeAuthName
-	case v1.ProviderTypeModel:
-		expectedName = name.SafeConcatName(system.ProviderChangePrefix, change.Spec.ProviderName)
 	default:
 		return fmt.Errorf("provider configuration change %q has invalid provider type %q", change.Name, change.Spec.ProviderType)
 	}
@@ -343,7 +333,7 @@ func (h *Handler) reconcileAuthProvider(ctx context.Context, client kclient.Clie
 		if err := h.deconfigureAuthProvider(ctx, client, outgoingProvider); err != nil {
 			return err
 		}
-		if err := provider.SetAuthProviderConfiguredStatus(ctx, h.gatewayClient, h.licenseProvider, &outgoingProvider); err != nil {
+		if err := provider.SetAuthProviderConfiguredStatus(ctx, h.gatewayClient, &outgoingProvider); err != nil {
 			return fmt.Errorf("recompute auth provider %q status: %w", outgoingProvider.Name, err)
 		}
 		if err := client.Status().Update(ctx, &outgoingProvider); err != nil {
@@ -430,7 +420,7 @@ func (h *Handler) reconcileAuthProvider(ctx context.Context, client kclient.Clie
 		}
 	}
 
-	if err := provider.SetAuthProviderConfiguredStatus(ctx, h.gatewayClient, h.licenseProvider, &authProvider); err != nil {
+	if err := provider.SetAuthProviderConfiguredStatus(ctx, h.gatewayClient, &authProvider); err != nil {
 		return fmt.Errorf("recompute auth provider %q status: %w", authProvider.Name, err)
 	}
 	if err := client.Status().Update(ctx, &authProvider); err != nil {
@@ -723,12 +713,6 @@ func AdvanceDaemonRevision(ctx context.Context, client kclient.Client, providerT
 	return err
 }
 
-// AdvanceLLMGatewayRevision bumps the LLM gateway's configuration revision so every other
-// replica reloads its gateway, and returns the new revision.
-func AdvanceLLMGatewayRevision(ctx context.Context, client kclient.Client) (int64, error) {
-	return advanceRevision(ctx, client, v1.ProviderTypeLLMGateway, system.DefaultNamespace, system.LLMGatewayModelProvider)
-}
-
 func advanceRevision(ctx context.Context, client kclient.Client, providerType v1.ProviderType, namespace, providerName string) (int64, error) {
 	if err := EnsureDaemonSync(ctx, client); err != nil {
 		return 0, err
@@ -760,18 +744,6 @@ func advanceRevision(ctx context.Context, client kclient.Client, providerType v1
 		return 0, fmt.Errorf("advance provider daemon sync: %w", err)
 	}
 	return advanced, nil
-}
-
-// CurrentLLMGatewayRevision returns the latest LLM gateway configuration revision announced
-// to the replicas.
-func CurrentLLMGatewayRevision(ctx context.Context, client kclient.Client) (int64, error) {
-	var daemonSync v1.ProviderSync
-	if err := client.Get(ctx, kclient.ObjectKey{Namespace: system.DefaultNamespace, Name: system.ProviderSyncName}, &daemonSync); apierrors.IsNotFound(err) {
-		return 0, nil
-	} else if err != nil {
-		return 0, err
-	}
-	return daemonSync.Spec.Revisions[providerDaemonRevisionKey(v1.ProviderTypeLLMGateway, system.DefaultNamespace, system.LLMGatewayModelProvider)].Revision, nil
 }
 
 func providerDaemonRevisionKey(providerType v1.ProviderType, namespace, providerName string) string {

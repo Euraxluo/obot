@@ -12,7 +12,6 @@
 		type ParameterNotice
 	} from '$lib/components/admin/ProviderConfigure.svelte';
 	import ProviderDeconfigureConfirm from '$lib/components/admin/ProviderDeconfigureConfirm.svelte';
-	import LicenseProviderDialog from '$lib/components/admin/license/LicenseProviderDialog.svelte';
 	import { describeGroupReference } from '$lib/components/admin/scim/groupReferences';
 	import IconButton from '$lib/components/primitives/IconButton.svelte';
 	import { CommonAuthProviderIds, PAGE_TRANSITION_DURATION, SCIM_VIEW_PATH } from '$lib/constants';
@@ -25,7 +24,7 @@
 		ProviderParameter,
 		ResidualGroupData
 	} from '$lib/services/admin/types.js';
-	import { errors, license, profile, version } from '$lib/stores';
+	import { errors, profile } from '$lib/stores';
 	import { adminConfigStore } from '$lib/stores/adminConfig.svelte.js';
 	import { clearUrlParams } from '$lib/url';
 	import { TriangleAlert, Info, CircleAlert, ArrowLeft, Trash2 } from '@lucide/svelte';
@@ -38,7 +37,6 @@
 		authEnabled = true
 	}: { authProviders: AuthProvider[]; authEnabled?: boolean } = $props();
 	let authProviders = $state(untrack(() => initialAuthProviders));
-	let licenseRequiredProvider = $state<AuthProvider>();
 
 	const SWITCH_STEPS = ['configure', 'signin', 'switch'] as const;
 	type SwitchStep = (typeof SWITCH_STEPS)[number];
@@ -208,9 +206,7 @@
 		// configuring it or adding the first user.
 		if (localAuthConfigureOpen) return;
 
-		const configuredAuthProvider = authProviders.find(
-			(provider) => provider.configured && (provider.missingEntitlements || []).length === 0
-		);
+		const configuredAuthProvider = authProviders.find((provider) => provider.configured);
 		if (!configuredAuthProvider) return;
 
 		const bootstrapStatus = await UserService.getBootstrapStatus();
@@ -585,34 +581,7 @@
 		}
 	}
 
-	async function handleCommunitySubmit() {
-		if (!licenseRequiredProvider) return;
-
-		const newVersion = await UserService.getVersion();
-		version.initialize(newVersion);
-
-		authProviders = await AdminService.listAuthProviders();
-		adminConfigStore.updateAuthProviders(authProviders);
-
-		const updatedMatch = authProviders.find(
-			(provider) => provider.id === licenseRequiredProvider?.id
-		);
-
-		if (updatedMatch) {
-			handleClickConfigure(updatedMatch);
-		} else {
-			errors.append(m.identity_access_auth_providers_fetch_config_failed());
-		}
-
-		licenseRequiredProvider = undefined;
-	}
-
 	async function handleClickConfigure(authProvider: AuthProvider) {
-		if (authProvider.missingEntitlements && authProvider.missingEntitlements.length > 0) {
-			licenseRequiredProvider = authProvider;
-			return;
-		}
-
 		steppedBackTo = undefined;
 		confirmDiscardSwitch = false;
 		confirmSwitch = false;
@@ -740,7 +709,6 @@
 								deconfigureAuthProviderDialog?.open();
 							}}
 					readonly={isReadonly}
-					licenseKey={license.current.licenseKey}
 				/>
 			{/each}
 		</div>
@@ -1077,12 +1045,3 @@
 		showTitle={false}
 	/>
 </ResponsiveDialog>
-
-<LicenseProviderDialog
-	bind:provider={licenseRequiredProvider}
-	allowSignup={!licenseRequiredProvider?.configured}
-	licenseKey={license.current.licenseKey}
-	endpoint={AdminService.createCommunityLicense}
-	onSubmit={handleCommunitySubmit}
-	signUpMessage={m.identity_access_auth_providers_signup_message()}
-/>

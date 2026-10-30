@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { productTitle } from '$lib/branding.svelte';
 	import { m } from '$lib/i18n';
 	import type { MCPFilterInput, MCPFilterResource, MCPFilterWebhookSelector } from '$lib/services';
 	import FilterView from '../../../FilterView.svelte';
@@ -34,5 +35,5 @@
 <FilterView {title} {filter} entry={data.entry} />
 
 <svelte:head>
-	<title>Obot | {title}</title>
+	<title>{productTitle(title)}</title>
 </svelte:head>

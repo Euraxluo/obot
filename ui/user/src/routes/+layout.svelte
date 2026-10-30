@@ -13,14 +13,9 @@
 		mcpServersAndEntries,
 		mcpTunnelConnections,
 		vmcpInstances,
-		defaultModelAliases,
 		userDeviceSettings,
-		license,
-		accessibleModels,
-		appNotification,
-		productTelemetryConsent
+		appNotification
 	} from '$lib/stores';
-	import { clearProductAnalyticsConsentDeferral } from '$lib/stores/productTelemetryConsent.svelte';
 	import '../app.css';
 	import type { PageData } from './$types';
 	import { apply, isSupported } from '@oddbird/popover-polyfill/fn';
@@ -51,9 +46,6 @@
 
 		if (data.profile) {
 			profile.initialize(data.profile);
-			if (data.profile.unauthorized) {
-				clearProductAnalyticsConsentDeferral();
-			}
 		}
 
 		if (data.version) {
@@ -62,21 +54,6 @@
 
 		if (data.appNotification) {
 			appNotification.initialize(data.appNotification);
-		}
-
-		productTelemetryConsent.initialize(
-			data.productTelemetryConsent,
-			data.productTelemetryConsentAvailable
-		);
-
-		license.initialize(data.license);
-
-		if (data.defaultModelAliases) {
-			untrack(() => defaultModelAliases.initialize(data.defaultModelAliases));
-		}
-
-		if (data.models) {
-			untrack(() => accessibleModels.initialize(data.models));
 		}
 
 		if (browser) {
@@ -107,10 +84,12 @@
 		const pathname = page.url.pathname;
 		const view = page.url.searchParams.get('view');
 		const isPageRequiresMcpServers =
-			pathname.startsWith('/mcp-servers') || pathname.startsWith('/vmcps');
+			pathname.startsWith('/mcp-servers') ||
+			pathname.startsWith('/vmcps') ||
+			pathname.startsWith('/market');
 		const forceRefresh =
 			(pathname === '/mcp-servers' || pathname === '/vmcps') &&
-			(!view || ['servers', 'vmcps'].includes(view));
+			(!view || ['connectors', 'servers', 'vmcps'].includes(view));
 		const scope = profile.current.hasAdminAccess?.() ? 'admin' : 'user';
 		// A restricted session is walled off from every one of these endpoints, so prefetching the
 		// catalog only produces a wall of 403s (and races to create the same identity).
@@ -132,7 +111,7 @@
 			pathname === '/mcp-servers' &&
 			(!view || ['servers', 'deployments', 'tunnels'].includes(view));
 		const isValidVmcpsView =
-			pathname === '/vmcps' && (!view || ['deployments', 'vmcps'].includes(view));
+			pathname === '/vmcps' && (!view || ['connectors', 'deployments', 'vmcps'].includes(view));
 		const usesMcpTunnelStatus = isSingleMcpServerView || isValidMcpServersView || isValidVmcpsView;
 
 		if (profile.current.loaded && usesMcpTunnelStatus) {

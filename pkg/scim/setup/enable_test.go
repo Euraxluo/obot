@@ -113,9 +113,8 @@ func newEnableTest(t *testing.T) *enableTest {
 			ProviderUserID:        nativeID,
 			HashedProviderUserID:  hash.String(nativeID),
 			Email:                 nativeID + "@example.com",
-		}, "", clienttypes.RoleOwner, gclient.UserLimit{
-			Unlimited: true,
-		})
+		}, "", clienttypes.RoleOwner,
+		)
 		if err != nil {
 			t.Fatalf("failed to sign in %s: %v", nativeID, err)
 		}
@@ -388,8 +387,8 @@ func TestEnableRefusesDuplicateNamesWithAnActionableError(t *testing.T) {
 	message := blocked.Error()
 	for _, want := range []string{
 		`Groups named "ENGINEERING":`,
-		`"Engineering" (` + engineeringGroupID + `, https://example-admin.okta.com/admin/group/00g00000000000000eng), referenced by model access policy "engineering-policy"`,
-		`"ENGINEERING" (okta/00g00000engineering), referenced by model access policy "duplicate-policy"`,
+		`"Engineering" (` + engineeringGroupID + `, https://example-admin.okta.com/admin/group/00g00000000000000eng), referenced by skill access rule "engineering-policy"`,
+		`"ENGINEERING" (okta/00g00000engineering), referenced by skill access rule "duplicate-policy"`,
 		"Remove the references to all but one of them",
 		"rename the group in Okta",
 	} {

@@ -1,11 +1,7 @@
 import { invalidate } from '$app/navigation';
-import {
-	Group,
-	type GitCredential,
-	type ImagePullSecret,
-	type ModelProxySettings
-} from '$lib/services';
-import { errors, productTelemetryConsent, profile } from '$lib/stores';
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
+import { Group, type GitCredential, type ImagePullSecret } from '$lib/services';
+import { errors, profile } from '$lib/stores';
 import { defaultAppNotification } from '$lib/stores/appNotification.svelte';
 import { success } from '$lib/stores/success';
 import { createMockProfile, preparePageData } from '../../../tests/helpers/pageData';
@@ -16,6 +12,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
 
+overwriteGetLocale(() => 'en');
 vi.mock('$app/navigation', async (importOriginal) => {
 	const actual = await importOriginal<typeof import('$app/navigation')>();
 	return {
@@ -29,32 +26,20 @@ vi.mock('$lib/url', async (importOriginal) => ({
 	setUrlParamAndUpdateUrl: vi.fn()
 }));
 
-const proxyUrl = 'https://model-service.obot.ai';
-
 function renderSettings({
-	consent,
 	gitCredentials = [],
 	imagePullSecrets = [],
-	modelProxySettings = { enabled: false, url: proxyUrl },
-	showProductAnalytics = true,
 	showRegistryConnections = false
 }: {
-	consent?: boolean;
 	gitCredentials?: GitCredential[];
 	imagePullSecrets?: ImagePullSecret[];
-	modelProxySettings?: ModelProxySettings;
-	showProductAnalytics?: boolean;
 	showRegistryConnections?: boolean;
 } = {}) {
-	productTelemetryConsent.initialize({ consent }, true);
 	return render(SettingsView, {
 		appNotification: defaultAppNotification,
 		capability: { available: showRegistryConnections },
 		gitCredentials,
 		imagePullSecrets,
-		modelProxySettings,
-		productTelemetryConsent: { consent },
-		showProductAnalytics,
 		showRegistryConnections
 	});
 }
@@ -69,13 +54,7 @@ describe('Platform settings view', () => {
 	it('groups the former tabs into named sections with one save and cancel', async () => {
 		await renderSettings({ showRegistryConnections: true });
 
-		for (const name of [
-			'Notifications',
-			'Product Analytics',
-			'Model Proxy',
-			'Registry Connections',
-			'Git Credentials'
-		]) {
+		for (const name of ['Notifications', 'Registry Connections', 'Git Credentials']) {
 			await expect.element(page.getByRole('heading', { name, exact: true })).toBeVisible();
 		}
 
@@ -84,109 +63,14 @@ describe('Platform settings view', () => {
 	});
 
 	it('hides sections that are not available', async () => {
-		await renderSettings({ showProductAnalytics: false, showRegistryConnections: false });
+		await renderSettings({ showRegistryConnections: false });
 
-		await expect
-			.element(page.getByRole('heading', { name: 'Product Analytics', exact: true }))
-			.not.toBeInTheDocument();
 		await expect
 			.element(page.getByRole('heading', { name: 'Registry Connections', exact: true }))
 			.not.toBeInTheDocument();
 		await expect
 			.element(page.getByRole('heading', { name: 'Notifications', exact: true }))
 			.toBeVisible();
-	});
-
-	it.each([
-		[false, true],
-		[true, false]
-	] as const)('saves a product analytics change from %s to %s', async (initial, selected) => {
-		const update = vi.fn();
-		const successNotification = vi.spyOn(success, 'add');
-		worker.use(
-			http.put('/api/product-telemetry-consent', async ({ request }) => {
-				update(await request.json());
-				return HttpResponse.json({ consent: selected });
-			})
-		);
-
-		await renderSettings({ consent: initial });
-		const save = page.getByRole('button', { name: 'Save', exact: true });
-		const radio = page.getByRole('radio', {
-			name: selected ? 'Enable product analytics' : 'Disable product analytics',
-			exact: true
-		});
-		await radio.click();
-		await expect.element(save).toBeEnabled();
-		await save.click();
-
-		await vi.waitFor(() => {
-			expect(update).toHaveBeenCalledWith({ consent: selected });
-			expect(productTelemetryConsent.consent).toBe(selected);
-			expect(successNotification).toHaveBeenCalledWith(
-				'Product analytics preference updated successfully.'
-			);
-		});
-		await expect.element(radio).toBeChecked();
-		await expect.element(save).toBeDisabled();
-		successNotification.mockRestore();
-	});
-
-	it('cancels an unsaved product analytics choice', async () => {
-		await renderSettings({ consent: false });
-		const radio = page.getByRole('radio', { name: 'Enable product analytics', exact: true });
-		await radio.click();
-		await expect.element(radio).toBeChecked();
-		await page.getByRole('button', { name: 'Cancel', exact: true }).click();
-		await expect.element(radio).not.toBeChecked();
-		await expect.element(page.getByRole('button', { name: 'Save', exact: true })).toBeDisabled();
-	});
-
-	it('retains an unsaved product analytics choice when saving fails', async () => {
-		worker.use(
-			http.put('/api/product-telemetry-consent', () =>
-				HttpResponse.json({ error: 'try again' }, { status: 500 })
-			)
-		);
-
-		await renderSettings({ consent: false });
-		const radio = page.getByRole('radio', { name: 'Enable product analytics', exact: true });
-		const save = page.getByRole('button', { name: 'Save', exact: true });
-		await radio.click();
-		await save.click();
-
-		await expect.element(radio).toBeChecked();
-		await expect.element(save).toBeEnabled();
-	});
-
-	it.each([
-		[false, true],
-		[true, false]
-	] as const)('saves a model proxy change from %s to %s', async (initial, selected) => {
-		const update = vi.fn();
-		const successNotification = vi.spyOn(success, 'add');
-		worker.use(
-			http.put('/api/model-proxy', async ({ request }) => {
-				update(await request.json());
-				return HttpResponse.json({ enabled: selected, url: proxyUrl });
-			})
-		);
-
-		await renderSettings({ modelProxySettings: { enabled: initial, url: proxyUrl } });
-		const toggle = page.getByRole('checkbox', { name: /^Enable Model Proxy/ });
-		const save = page.getByRole('button', { name: 'Save', exact: true });
-		await toggle.click();
-		await save.click();
-
-		await vi.waitFor(() => {
-			expect(update).toHaveBeenCalledWith({ enabled: selected });
-			expect(invalidate).toHaveBeenCalledWith('model-proxy:usage');
-			expect(successNotification).toHaveBeenCalledWith(
-				'Model proxy settings updated successfully.'
-			);
-		});
-		await expect.element(save).toBeDisabled();
-		successNotification.mockRestore();
 	});
 
 	it('creates a git credential from the dialog', async () => {
@@ -579,20 +463,10 @@ describe('Platform settings view', () => {
 	});
 
 	it('does not save other sections when the notification banner is invalid', async () => {
-		const updateConsent = vi.fn();
-		worker.use(
-			http.put('/api/product-telemetry-consent', async ({ request }) => {
-				updateConsent(await request.json());
-				return HttpResponse.json({ consent: true });
-			})
-		);
-
-		await renderSettings({ consent: false });
+		await renderSettings();
 		await page.getByRole('checkbox', { name: /Enable Banner/ }).click();
-		await page.getByRole('radio', { name: 'Enable product analytics', exact: true }).click();
 		await page.getByRole('button', { name: 'Save', exact: true }).click();
 
 		await expect.element(page.getByText('This field is required.', { exact: true })).toBeVisible();
-		expect(updateConsent).not.toHaveBeenCalled();
 	});
 });

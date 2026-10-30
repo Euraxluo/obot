@@ -247,7 +247,6 @@ func (h *Handler) Cleanup(req router.Request, resp router.Response) error {
 	}
 	_, err = h.Gateway.DeleteCredential(ctx, "substrate-agent", instance.Name)
 	if err == nil {
-		_, err = h.Gateway.DeleteCredential(ctx, client.ClaudeLLMCredentialContext, instance.Name)
 	}
 	if err == nil && instance.Spec.ClaudeOrder != "" {
 		_, err = h.Gateway.DeleteCredential(ctx, "claude-runner", instance.Name)

@@ -788,9 +788,7 @@ func TestSCIMWritesAfterTheirConnectionIsDeleted(t *testing.T) {
 		UserName:   "new@example.com",
 		ExternalID: "00u-new",
 	}, SCIMUserCreateOptions{
-		UserLimit: UserLimit{
-			Unlimited: true,
-		},
+
 		DefaultRole: apitypes.RoleBasic,
 	}); !errors.Is(err, ErrSCIMConnectionNotFound) {
 		t.Fatalf("CreateSCIMUser() for a deleted connection error = %v", err)
@@ -1148,9 +1146,7 @@ func TestEnforceSCIMConnectionOnPostgres(t *testing.T) {
 			UserName:   "unprovisioned@example.com",
 			ExternalID: "00u-unprovisioned",
 		}, SCIMUserCreateOptions{
-			UserLimit: UserLimit{
-				Unlimited: true,
-			},
+
 			DefaultRole: apitypes.RoleBasic,
 		})
 		provisioned <- err
@@ -1654,7 +1650,7 @@ func TestNewStartsTheExpiryOfDeletionMarks(t *testing.T) {
 	// The client of the restarted replica expires the mark once it starts.
 	ctx, cancel := context.WithCancel(t.Context())
 	defer cancel()
-	New(ctx, c.db, c.storageClient, nil, nil, nil, nil, time.Hour, 10, 0, 0, 0, false)
+	New(ctx, c.db, c.storageClient, nil, nil, nil, nil, time.Hour, 10, 0, 0)
 	deadline := time.Now().Add(5 * time.Second)
 	for len(pendingDeletions(t, c)) != 0 {
 		if time.Now().After(deadline) {

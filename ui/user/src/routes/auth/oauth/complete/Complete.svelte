@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { productTitle } from '$lib/branding.svelte';
 	import BetaLogo from '$lib/components/navbar/BetaLogo.svelte';
 	import { m } from '$lib/i18n';
 	import { CircleCheckBig } from '@lucide/svelte';
@@ -39,7 +40,7 @@
 </script>
 
 <svelte:head>
-	<title>{m.auth_oauth_complete_title()}</title>
+	<title>{productTitle(m.auth_oauth_complete_title())}</title>
 </svelte:head>
 
 <main

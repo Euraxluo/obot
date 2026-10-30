@@ -5,26 +5,28 @@ import type { AppPreferences } from '$lib/services';
 export const DEFAULT_LOGOS = {
 	// Logo.svelte variants
 	icon: {
-		default: '/user/images/obot-icon-blue.svg',
-		error: '/user/images/obot-icon-grumpy-blue.svg',
-		warning: '/user/images/obot-icon-surprised-yellow.svg'
+		default: '/user/images/ztocc/driver-app-logo.png',
+		error: '/user/images/ztocc/driver-app-logo.png',
+		warning: '/user/images/ztocc/driver-app-logo.png'
 	},
 	// BetaLogo.svelte variants
 	beta: {
 		dark: {
-			chat: '/user/images/obot-chat-logo-blue-white-text.svg',
-			enterprise: '/user/images/obot-enterprise-logo-blue-white-text.svg',
-			community: '/user/images/obot-community-logo-blue-white-text.svg',
-			default: '/user/images/obot-logo-blue-white-text.svg'
+			chat: '/user/images/ztocc/drp-admin-logo.png',
+			enterprise: '/user/images/ztocc/drp-admin-logo.png',
+			community: '/user/images/ztocc/drp-admin-logo.png',
+			default: '/user/images/ztocc/drp-admin-logo.png'
 		},
 		light: {
-			chat: '/user/images/obot-chat-logo-blue-black-text.svg',
-			enterprise: '/user/images/obot-enterprise-logo-blue-black-text.svg',
-			community: '/user/images/obot-community-logo-blue-black-text.svg',
-			default: '/user/images/obot-logo-blue-black-text.svg'
+			chat: '/user/images/ztocc/ztocc-logo.png',
+			enterprise: '/user/images/ztocc/ztocc-logo.png',
+			community: '/user/images/ztocc/ztocc-logo.png',
+			default: '/user/images/ztocc/ztocc-logo.png'
 		}
 	}
 } as const;
+
+export const DEFAULT_DISPLAY_NAME = 'ZTOCC';
 
 /** Default UI font stack; kept in sync with `app.css` (`--theme-font-family` fallback). */
 export const DEFAULT_FONT_FAMILY =
@@ -42,6 +44,7 @@ export const FONT_FAMILY_PRESETS: { label: string; value: string }[] = [
 
 export function compileAppPreferences(preferences?: AppPreferences): AppPreferences {
 	return {
+		displayName: preferences?.displayName?.trim() || DEFAULT_DISPLAY_NAME,
 		logos: {
 			logoIcon: preferences?.logos?.logoIcon ?? DEFAULT_LOGOS.icon.default,
 			logoIconError: preferences?.logos?.logoIconError ?? DEFAULT_LOGOS.icon.error,
@@ -57,34 +60,34 @@ export function compileAppPreferences(preferences?: AppPreferences): AppPreferen
 			darkLogoCommunity: preferences?.logos?.darkLogoCommunity ?? DEFAULT_LOGOS.beta.dark.community
 		},
 		theme: {
-			backgroundColor: preferences?.theme?.backgroundColor ?? 'hsl(0 0 100)',
-			onBackgroundColor: preferences?.theme?.onBackgroundColor ?? 'hsl(0 0 0)',
-			surface1Color: preferences?.theme?.surface1Color ?? 'hsl(0 0 calc(2.5 + 93))',
-			surface2Color: preferences?.theme?.surface2Color ?? 'hsl(0 0 calc(2.5 + 90))',
-			surface3Color: preferences?.theme?.surface3Color ?? 'hsl(0 0 calc(2.5 + 80))',
-			secondaryColor: preferences?.theme?.secondaryColor ?? 'hsl(0 0 82.5)',
-			successColor: preferences?.theme?.successColor ?? 'oklch(67% 0.13 149)',
-			warningColor: preferences?.theme?.warningColor ?? 'oklch(79.5% 0.184 86.047)',
-			errorColor: preferences?.theme?.errorColor ?? '#ef4444',
-			primaryColor: preferences?.theme?.primaryColor ?? '#4f7ef3',
-			onPrimaryColor: preferences?.theme?.onPrimaryColor ?? 'hsl(0 0 100)',
-			onSuccessColor: preferences?.theme?.onSuccessColor ?? 'hsl(0 0 100)',
-			onWarningColor: preferences?.theme?.onWarningColor ?? 'hsl(0 0 100)',
-			onErrorColor: preferences?.theme?.onErrorColor ?? 'hsl(0 0 100)',
-			darkBackgroundColor: preferences?.theme?.darkBackgroundColor ?? 'hsl(0 0 0)',
-			darkOnBackgroundColor: preferences?.theme?.darkOnBackgroundColor ?? 'hsl(0 0 calc(2.5 + 95))',
-			darkSurface1Color: preferences?.theme?.darkSurface1Color ?? 'hsl(0 0 calc(2.5 + 5))',
-			darkSurface2Color: preferences?.theme?.darkSurface2Color ?? 'hsl(0 0 calc(2.5 + 10))',
-			darkSurface3Color: preferences?.theme?.darkSurface3Color ?? 'hsl(0 0 calc(2.5 + 20))',
-			darkSecondaryColor: preferences?.theme?.darkSecondaryColor ?? 'hsl(0 0 22.5)',
-			darkSuccessColor: preferences?.theme?.darkSuccessColor ?? 'oklch(67% 0.13 149)',
-			darkWarningColor: preferences?.theme?.darkWarningColor ?? 'oklch(79.5% 0.184 86.047)',
-			darkErrorColor: preferences?.theme?.darkErrorColor ?? '#ef4444',
-			darkPrimaryColor: preferences?.theme?.darkPrimaryColor ?? '#4f7ef3',
-			darkOnPrimaryColor: preferences?.theme?.darkOnPrimaryColor ?? 'hsl(0 0 97.5)',
-			darkOnSuccessColor: preferences?.theme?.darkOnSuccessColor ?? 'hsl(0 0 97.5)',
-			darkOnWarningColor: preferences?.theme?.darkOnWarningColor ?? 'hsl(0 0 97.5)',
-			darkOnErrorColor: preferences?.theme?.darkOnErrorColor ?? 'hsl(0 0 97.5)',
+			backgroundColor: preferences?.theme?.backgroundColor ?? '#f2f7f4',
+			onBackgroundColor: preferences?.theme?.onBackgroundColor ?? '#1e3431',
+			surface1Color: preferences?.theme?.surface1Color ?? '#ffffff',
+			surface2Color: preferences?.theme?.surface2Color ?? '#e4eee9',
+			surface3Color: preferences?.theme?.surface3Color ?? '#d8e6df',
+			secondaryColor: preferences?.theme?.secondaryColor ?? '#e4eee9',
+			successColor: preferences?.theme?.successColor ?? '#159a91',
+			warningColor: preferences?.theme?.warningColor ?? '#b97d10',
+			errorColor: preferences?.theme?.errorColor ?? '#d64545',
+			primaryColor: preferences?.theme?.primaryColor ?? '#159a91',
+			onPrimaryColor: preferences?.theme?.onPrimaryColor ?? '#f2f7f4',
+			onSuccessColor: preferences?.theme?.onSuccessColor ?? '#f2f7f4',
+			onWarningColor: preferences?.theme?.onWarningColor ?? '#f2f7f4',
+			onErrorColor: preferences?.theme?.onErrorColor ?? '#f2f7f4',
+			darkBackgroundColor: preferences?.theme?.darkBackgroundColor ?? '#0e1514',
+			darkOnBackgroundColor: preferences?.theme?.darkOnBackgroundColor ?? '#c4d3ce',
+			darkSurface1Color: preferences?.theme?.darkSurface1Color ?? '#17211f',
+			darkSurface2Color: preferences?.theme?.darkSurface2Color ?? '#1e2b29',
+			darkSurface3Color: preferences?.theme?.darkSurface3Color ?? '#2a3a37',
+			darkSecondaryColor: preferences?.theme?.darkSecondaryColor ?? '#1e2b29',
+			darkSuccessColor: preferences?.theme?.darkSuccessColor ?? '#159a91',
+			darkWarningColor: preferences?.theme?.darkWarningColor ?? '#b97d10',
+			darkErrorColor: preferences?.theme?.darkErrorColor ?? '#d64545',
+			darkPrimaryColor: preferences?.theme?.darkPrimaryColor ?? '#2dd4bf',
+			darkOnPrimaryColor: preferences?.theme?.darkOnPrimaryColor ?? '#f2f7f4',
+			darkOnSuccessColor: preferences?.theme?.darkOnSuccessColor ?? '#f2f7f4',
+			darkOnWarningColor: preferences?.theme?.darkOnWarningColor ?? '#f2f7f4',
+			darkOnErrorColor: preferences?.theme?.darkOnErrorColor ?? '#f2f7f4',
 			fontFamily: preferences?.theme?.fontFamily ?? DEFAULT_FONT_FAMILY
 		}
 	};

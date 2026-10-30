@@ -14,10 +14,9 @@
 
 	interface Props {
 		query?: string;
-		logType?: 'mcp' | 'llm';
 	}
 
-	let { query, logType = 'mcp' }: Props = $props();
+	let { query }: Props = $props();
 
 	let loading = $state(false);
 	let exports = $state<AuditLogExport[]>([]);
@@ -72,7 +71,7 @@
 
 	async function loadExports() {
 		try {
-			const response = await AdminService.getAuditLogExports(logType);
+			const response = await AdminService.getAuditLogExports();
 			return response.items ?? [];
 		} catch (error) {
 			console.error('Failed to load exports:', error);
@@ -126,11 +125,7 @@
 	}
 
 	function handleRowClick(exportItem: AuditLogExport) {
-		goto(
-			logType === 'llm'
-				? `/audit-logs/llm/exports/${exportItem.id}/view`
-				: `/audit-logs/mcp/exports/${exportItem.id}/view`
-		);
+		goto(`/audit-logs/mcp/exports/${exportItem.id}/view`);
 	}
 </script>
 

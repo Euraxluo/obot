@@ -1,6 +1,7 @@
 package guardrails
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"strings"
@@ -11,6 +12,27 @@ import (
 	kuser "k8s.io/apiserver/pkg/authentication/user"
 )
 
+const leakedKey = "AKIAIOSFODNN7EXAMPLE"
+
+type fakeStore struct {
+	guardrails []types.Guardrail
+	secrets    map[string]map[string]string
+	loadErr    error
+}
+
+func (f *fakeStore) ListGuardrails(context.Context) ([]types.Guardrail, error) {
+	return f.guardrails, f.loadErr
+}
+
+func (f *fakeStore) GuardrailSecrets(_ context.Context, id string) (map[string]string, error) {
+	return f.secrets[id], nil
+}
+
+func guardrail(id, typ string, config map[string]any) types.Guardrail {
+	raw, _ := json.Marshal(config)
+	return types.Guardrail{ID: id, Name: id, Type: typ, Config: raw}
+}
+
 func secretsFilter(action, direction string) MCPFilter {
 	return MCPFilter{ID: "mwv1secrets", Name: "No secrets", Config: apitypes.MCPGuardrailFilterConfig{
 		GuardrailIDs: []string{"secrets"}, Action: action, Direction: direction, SamplingRate: 100,
@@ -20,7 +42,7 @@ func secretsFilter(action, direction string) MCPFilter {
 func secretsEngine(t *testing.T) (*Engine, *fakeStore) {
 	t.Helper()
 	store := &fakeStore{guardrails: []types.Guardrail{guardrail("secrets", "secrets", nil)}}
-	return New(store, nil), store
+	return New(store), store
 }
 
 func TestMCPFilterRedactsToolCallArguments(t *testing.T) {
@@ -212,24 +234,8 @@ func TestResolveIdentityAdmin(t *testing.T) {
 			admin: true,
 		},
 		{
-			name: "LLM-only API key of an admin",
-			user: &kuser.DefaultInfo{UID: "1", Groups: []string{apitypes.GroupLLM}, Extra: map[string][]string{
-				"obot_groups": {apitypes.GroupAdmin, apitypes.GroupBasic},
-			}},
-			admin: true,
-		},
-		{
-			name: "LLM-only API key of the owner",
-			user: &kuser.DefaultInfo{UID: "1", Groups: []string{apitypes.GroupLLM}, Extra: map[string][]string{
-				"obot_groups": {apitypes.GroupOwner},
-			}},
-			admin: true,
-		},
-		{
-			name: "LLM-only API key of a basic user",
-			user: &kuser.DefaultInfo{UID: "4", Groups: []string{apitypes.GroupLLM}, Extra: map[string][]string{
-				"obot_groups": {apitypes.GroupBasic},
-			}},
+			name:  "basic session",
+			user:  &kuser.DefaultInfo{UID: "4", Groups: []string{apitypes.GroupBasic}},
 			admin: false,
 		},
 	}

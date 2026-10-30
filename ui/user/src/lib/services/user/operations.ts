@@ -5,7 +5,6 @@ import { Group } from '$lib/services/admin/types';
 import { buildQueryString } from '$lib/url';
 import type {
 	AuthProvider,
-	License,
 	MCPCatalogEntry,
 	MCPCatalogEntryServerManifest,
 	MCPCatalogServerManifest,
@@ -40,7 +39,6 @@ import {
 	type ClaudeEnvironmentPayload,
 	type ClaudeOrganizationAccount,
 	type ClaudeSession,
-	type DefaultModelAlias,
 	type DeviceCodeVerificationResponse,
 	type DeviceScan,
 	type DeviceScanListFilters,
@@ -52,7 +50,6 @@ import {
 	type MCPServerPrompt,
 	type McpServerResource,
 	type MCPServerTool,
-	type Model,
 	type OrgGroup,
 	type OrgGroupPage,
 	type OrgUser,
@@ -69,7 +66,8 @@ import {
 	type VMCPInstance,
 	type VMCPManifest,
 	type VMCPConfiguration,
-	type Skill
+	type Skill,
+	type ConnectorAccessRequest
 } from './types';
 
 type ItemsResponse<T> = { items: T[] | null };
@@ -126,9 +124,10 @@ export async function getMCPServerOrVMCP(
 
 export async function createVMCP(
 	manifest: VMCPManifest,
-	opts?: { fetch?: Fetcher }
+	opts?: { fetch?: Fetcher; scope?: 'personal' }
 ): Promise<VMCP> {
-	return (await doPost('/vmcps', manifest, opts)) as VMCP;
+	const path = opts?.scope === 'personal' ? '/vmcps?scope=personal' : '/vmcps';
+	return (await doPost(path, manifest, opts)) as VMCP;
 }
 
 export async function revealVMCP(
@@ -450,18 +449,6 @@ export async function getBootstrapStatus(): Promise<BootstrapStatus> {
 	return (await doGet('/bootstrap')) as BootstrapStatus;
 }
 
-// Default model aliases
-
-export async function listDefaultModelAliases(opts?: {
-	fetch?: Fetcher;
-}): Promise<DefaultModelAlias[]> {
-	const response = (await doGet(
-		'/default-model-aliases',
-		opts
-	)) as ItemsResponse<DefaultModelAlias>;
-	return response.items ?? [];
-}
-
 // Device login
 
 export async function verifyDeviceCode(code: string): Promise<DeviceCodeVerificationResponse> {
@@ -730,13 +717,6 @@ export async function listSingleOrRemoteMcpServerResources(
 		}
 		throw error;
 	}
-}
-
-// Models
-
-export async function listModels(opts?: { fetch?: Fetcher }): Promise<Model[]> {
-	const response = (await doGet('/models', opts)) as ItemsResponse<Model>;
-	return response.items ?? [];
 }
 
 // Organization
@@ -1502,12 +1482,6 @@ export async function fetchWorkspaceIDForProfile(
 	return workspaceID;
 }
 
-// License
-
-export async function getLicense(opts?: { fetch?: Fetcher }): Promise<License> {
-	return (await doGet('/license', opts)) as License;
-}
-
 // Skills
 
 export async function listSkills(opts?: {
@@ -1530,6 +1504,77 @@ export async function downloadSkill(
 		...opts,
 		blob: true
 	})) as Blob;
+}
+
+export async function getSkillDownloadURL(id: string, opts?: { fetch?: Fetcher }): Promise<string> {
+	const response = (await doGet(`/skills/${encodeURIComponent(id)}/download-url`, opts)) as {
+		path: string;
+	};
+	return response.path;
+}
+
+// Connector access requests
+
+export async function listConnectorAccessRequests(opts?: {
+	fetch?: Fetcher;
+	mine?: boolean;
+	status?: string;
+}): Promise<ConnectorAccessRequest[]> {
+	const params = new URLSearchParams();
+	if (opts?.mine) params.set('mine', 'true');
+	if (opts?.status) params.set('status', opts.status);
+	const suffix = params.size > 0 ? `?${params.toString()}` : '';
+	const response = (await doGet(
+		`/connector-access-requests${suffix}`,
+		opts
+	)) as ItemsResponse<ConnectorAccessRequest>;
+	return response.items ?? [];
+}
+
+export async function createConnectorAccessRequest(
+	connectorID: string,
+	reason?: string,
+	opts?: { fetch?: Fetcher }
+): Promise<ConnectorAccessRequest> {
+	return (await doPost(
+		'/connector-access-requests',
+		{
+			connectorID,
+			reason: reason || ''
+		},
+		opts
+	)) as ConnectorAccessRequest;
+}
+
+export async function approveConnectorAccessRequest(
+	id: string,
+	comment?: string,
+	opts?: { fetch?: Fetcher }
+): Promise<ConnectorAccessRequest> {
+	return (await doPost(
+		`/connector-access-requests/${encodeURIComponent(id)}/approve`,
+		{ comment: comment || '' },
+		opts
+	)) as ConnectorAccessRequest;
+}
+
+export async function rejectConnectorAccessRequest(
+	id: string,
+	comment?: string,
+	opts?: { fetch?: Fetcher }
+): Promise<ConnectorAccessRequest> {
+	return (await doPost(
+		`/connector-access-requests/${encodeURIComponent(id)}/reject`,
+		{ comment: comment || '' },
+		opts
+	)) as ConnectorAccessRequest;
+}
+
+export async function deleteConnectorAccessRequest(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<void> {
+	await doDelete(`/connector-access-requests/${encodeURIComponent(id)}`, opts);
 }
 
 // Claude

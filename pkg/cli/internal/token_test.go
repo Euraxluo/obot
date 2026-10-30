@@ -242,13 +242,6 @@ func TestTokenRequestIncludesRequestedScopes(t *testing.T) {
 			},
 		},
 		{
-			name:   "LLM scope",
-			scopes: []string{types.APIKeyScopeLLM},
-			want: createRequest{
-				Scopes: gatewaytypes.APIKeyScopes{CanAccessLLMProxy: true},
-			},
-		},
-		{
 			name:   "skills scope",
 			scopes: []string{types.APIKeyScopeSkills},
 			want: createRequest{
@@ -266,13 +259,12 @@ func TestTokenRequestIncludesRequestedScopes(t *testing.T) {
 		},
 		{
 			name:   "combined scopes",
-			scopes: []string{types.APIKeyScopeAPI, types.APIKeyScopeLLM, types.APIKeyScopeSkills, types.APIKeyScopeAllMCP},
+			scopes: []string{types.APIKeyScopeAPI, types.APIKeyScopeSkills, types.APIKeyScopeAllMCP},
 			want: createRequest{
 				Scopes: gatewaytypes.APIKeyScopes{
-					CanAccessAPI:      true,
-					CanAccessLLMProxy: true,
-					CanAccessSkills:   true,
-					MCPServerIDs:      []string{"*"},
+					CanAccessAPI:    true,
+					CanAccessSkills: true,
+					MCPServerIDs:    []string{"*"},
 				},
 			},
 		},
@@ -464,7 +456,7 @@ func TestTokenReusesAPIKeyringTokenForNonMCPScopes(t *testing.T) {
 	store.tokens[srv.URL] = "api-token"
 
 	token, err := Token(WithNonInteractive(t.Context()), srv.URL+"/api", apiclient.TokenFetchOptions{
-		Scopes: []string{types.APIKeyScopeSkills, types.APIKeyScopeLLM},
+		Scopes: []string{types.APIKeyScopeSkills},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -724,9 +716,6 @@ func assertCreateRequestScopes(t *testing.T, got, want createRequest) {
 	}
 	if got.Scopes.CanAccessAPI != want.Scopes.CanAccessAPI {
 		t.Fatalf("CanAccessAPI = %v, want %v", got.Scopes.CanAccessAPI, want.Scopes.CanAccessAPI)
-	}
-	if got.Scopes.CanAccessLLMProxy != want.Scopes.CanAccessLLMProxy {
-		t.Fatalf("CanAccessLLMProxy = %v, want %v", got.Scopes.CanAccessLLMProxy, want.Scopes.CanAccessLLMProxy)
 	}
 	if got.Scopes.CanAccessSkills != want.Scopes.CanAccessSkills {
 		t.Fatalf("CanAccessSkills = %v, want %v", got.Scopes.CanAccessSkills, want.Scopes.CanAccessSkills)

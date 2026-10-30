@@ -1,3 +1,4 @@
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import type {
 	MCPFilter,
 	MCPFilterManifest,
@@ -10,6 +11,8 @@ import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
+
+overwriteGetLocale(() => 'en');
 
 const guardrails: MCPGuardrail[] = [
 	{ id: 'gp1secrets', name: 'Secrets scanner', type: 'secrets' },
@@ -48,8 +51,8 @@ function createGuardrailFilter(overrides: Partial<MCPFilter> = {}): MCPFilter {
 
 beforeEach(() => {
 	worker.use(
-		http.get('/api/llm-gateway/guardrails', () => HttpResponse.json({ items: guardrails })),
-		http.get('/api/llm-gateway/guardrails/providers', () => HttpResponse.json({ items: providers }))
+		http.get('/api/guardrails', () => HttpResponse.json({ items: guardrails })),
+		http.get('/api/guardrails/providers', () => HttpResponse.json({ items: providers }))
 	);
 });
 
@@ -69,13 +72,13 @@ describe('GuardrailFilterForm.svelte', () => {
 		await expect.element(page.getByText('Content moderation')).toBeVisible();
 		await expect
 			.element(page.getByRole('link', { name: 'Manage guardrails' }))
-			.toHaveAttribute('href', expect.stringContaining('/models?view=guardrails'));
+			.toHaveAttribute('href', expect.stringContaining('/mcp-servers?view=filters'));
 	});
 
 	it('creates a guardrail in place and selects it', async () => {
 		const created = vi.fn();
 		worker.use(
-			http.get('/api/llm-gateway/guardrails/providers', () =>
+			http.get('/api/guardrails/providers', () =>
 				HttpResponse.json({
 					items: [
 						{
@@ -89,7 +92,7 @@ describe('GuardrailFilterForm.svelte', () => {
 					]
 				})
 			),
-			http.post('/api/llm-gateway/guardrails', async ({ request }) => {
+			http.post('/api/guardrails', async ({ request }) => {
 				const body = (await request.json()) as Record<string, unknown>;
 				created(body);
 				return HttpResponse.json({ ...body, id: 'gp1new' });
@@ -198,7 +201,7 @@ describe('GuardrailFilterForm.svelte', () => {
 	it('validates the condition against the MCP target', async () => {
 		const requests: { target: string; condition: string }[] = [];
 		worker.use(
-			http.post('/api/llm-gateway/guardrails/validate-condition', async ({ request }) => {
+			http.post('/api/guardrails/validate-condition', async ({ request }) => {
 				const req = (await request.json()) as { target: string; condition: string };
 				requests.push(req);
 				return HttpResponse.json({ valid: false, error: 'undeclared reference to "foo"' });

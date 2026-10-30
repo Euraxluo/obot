@@ -162,9 +162,7 @@ func provisionTestSCIMUser(t *testing.T, c *Client, conn *types.SCIMConnection, 
 			},
 		},
 	}, SCIMUserCreateOptions{
-		UserLimit: UserLimit{
-			Unlimited: true,
-		},
+
 		DefaultRole: apitypes.RoleBasic,
 	})
 	if err != nil {
@@ -371,12 +369,8 @@ func TestSCIMProvidersNeverReachTheDirectory(t *testing.T) {
 	c := newLifecycleTestClient(t)
 	stub, srv := newAuthProviderStub(t)
 	ctx := accesstoken.ContextWithAccessToken(auth.ContextWithProviderGroupIDPrefix(auth.ContextWithProviderURL(t.Context(), srv.URL), "okta/"), "access-token")
-	unlimited := UserLimit{
-		Unlimited: true,
-	}
-
 	// Without a connection, sign-in synchronizes the directory.
-	existing, err := c.EnsureIdentity(ctx, signInIdentity("00u-existing", "existing@example.com"), "", unlimited)
+	existing, err := c.EnsureIdentity(ctx, signInIdentity("00u-existing", "existing@example.com"), "")
 	if err != nil {
 		t.Fatalf("failed to sign in: %v", err)
 	}
@@ -394,13 +388,13 @@ func TestSCIMProvidersNeverReachTheDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 	signedIn := signInIdentity("00u-existing", "existing@example.com")
-	if _, err := c.EnsureIdentity(ctx, signedIn, "", unlimited); err != nil {
+	if _, err := c.EnsureIdentity(ctx, signedIn, ""); err != nil {
 		t.Fatalf("failed to sign in with a connection: %v", err)
 	}
 	if ids := signedIn.GetAuthProviderGroupIDs(); len(ids) != 1 || ids[0] != "okta/00g-directory" {
 		t.Fatalf("sign-in with a connection reported groups %v, want the cached group", ids)
 	}
-	if _, err := c.EnsureIdentity(ctx, signInIdentity("00u-new", "new@example.com"), "", unlimited); err != nil {
+	if _, err := c.EnsureIdentity(ctx, signInIdentity("00u-new", "new@example.com"), ""); err != nil {
 		t.Fatalf("failed to create a user just in time with a connection: %v", err)
 	}
 	if err := c.ensureGroups(ctx, signedIn); err != nil {
@@ -440,7 +434,7 @@ func TestSCIMModeLookupFailureNeverFallsBackToTheDirectory(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if _, err := c.EnsureIdentity(ctx, signInIdentity("00u-alice", "alice@example.com"), "", UserLimit{Unlimited: true}); err == nil {
+	if _, err := c.EnsureIdentity(ctx, signInIdentity("00u-alice", "alice@example.com"), ""); err == nil {
 		t.Fatal("sign-in succeeded although the SCIM mode could not be read")
 	}
 	if _, err := c.ListAuthGroups(ctx, srv.URL, lifecycleTestProvider.Namespace, lifecycleTestProvider.Name, ListAuthGroupsOptions{}); err == nil {
@@ -457,11 +451,7 @@ func TestSCIMModeLookupFailureNeverFallsBackToTheDirectory(t *testing.T) {
 func TestSignInRequiresABindingOnceSCIMIsEnforced(t *testing.T) {
 	c := newLifecycleTestClient(t)
 	ctx := t.Context()
-	unlimited := UserLimit{
-		Unlimited: true,
-	}
-
-	unbound, err := c.EnsureIdentity(ctx, signInIdentity("00u-unbound", "unbound@example.com"), "", unlimited)
+	unbound, err := c.EnsureIdentity(ctx, signInIdentity("00u-unbound", "unbound@example.com"), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -471,7 +461,7 @@ func TestSignInRequiresABindingOnceSCIMIsEnforced(t *testing.T) {
 	setSCIMConnectionState(t, c, conn, types.SCIMConnectionStateEnforced)
 
 	// A provisioned user signs in.
-	user, err := c.EnsureIdentity(ctx, signInIdentity("00u-bound", "bound@example.com"), "", unlimited)
+	user, err := c.EnsureIdentity(ctx, signInIdentity("00u-bound", "bound@example.com"), "")
 	if err != nil || user.ID != bound.UserID {
 		t.Fatalf("a provisioned user's sign-in = %v, %v", user, err)
 	}
@@ -500,7 +490,7 @@ func TestSignInRequiresABindingOnceSCIMIsEnforced(t *testing.T) {
 		signInIdentity("00u-stranger", "stranger@example.com"),
 		signInIdentity("00u-departed", "departed@example.com"),
 	} {
-		_, err := c.EnsureIdentity(ctx, identity, "", unlimited)
+		_, err := c.EnsureIdentity(ctx, identity, "")
 		if denied, ok := errors.AsType[*UserAccessDeniedError](err); !ok || denied.Status != apitypes.UserStatusDisabled {
 			t.Fatalf("sign-in of %s failed with %v, want a UserAccessDeniedError", identity.ProviderUserID, err)
 		}
@@ -519,11 +509,7 @@ func TestSignInRequiresABindingOnceSCIMIsEnforced(t *testing.T) {
 func TestSignInLeavesTheSCIMProfileAlone(t *testing.T) {
 	c := newLifecycleTestClient(t)
 	ctx := t.Context()
-	unlimited := UserLimit{
-		Unlimited: true,
-	}
-
-	unbound, err := c.EnsureIdentity(ctx, signInIdentity("00u-unbound", "unbound@example.com"), "", unlimited)
+	unbound, err := c.EnsureIdentity(ctx, signInIdentity("00u-unbound", "unbound@example.com"), "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -535,7 +521,7 @@ func TestSignInLeavesTheSCIMProfileAlone(t *testing.T) {
 	c.emailsWithExplicitRoles = map[string]apitypes.Role{
 		"login@example.com": apitypes.RoleOwner,
 	}
-	user, err := c.EnsureIdentity(ctx, signInIdentity("00u-provisioned", "login@example.com"), "", unlimited)
+	user, err := c.EnsureIdentity(ctx, signInIdentity("00u-provisioned", "login@example.com"), "")
 	if err != nil {
 		t.Fatalf("failed to sign in: %v", err)
 	}
@@ -550,7 +536,7 @@ func TestSignInLeavesTheSCIMProfileAlone(t *testing.T) {
 	c.emailsWithExplicitRoles = map[string]apitypes.Role{
 		"scim@example.com": apitypes.RoleOwner,
 	}
-	if _, err := c.EnsureIdentity(ctx, signInIdentity("00u-provisioned", "login@example.com"), "", unlimited); err != nil {
+	if _, err := c.EnsureIdentity(ctx, signInIdentity("00u-provisioned", "login@example.com"), ""); err != nil {
 		t.Fatalf("failed to sign in: %v", err)
 	}
 	stored = storedLifecycleUser(t, c, provisioned.UserID)
@@ -566,7 +552,7 @@ func TestSignInLeavesTheSCIMProfileAlone(t *testing.T) {
 	c.emailsWithExplicitRoles = nil
 
 	// A user SCIM has not provisioned still gets the profile the sign-in asserts.
-	if _, err := c.EnsureIdentity(ctx, signInIdentity("00u-unbound", "renamed@example.com"), "", unlimited); err != nil {
+	if _, err := c.EnsureIdentity(ctx, signInIdentity("00u-unbound", "renamed@example.com"), ""); err != nil {
 		t.Fatal(err)
 	}
 	if got := storedLifecycleUser(t, c, unbound.ID); got.Email != "renamed@example.com" {
@@ -731,9 +717,7 @@ func TestLoginDisplayNameFillInFlightWhenSCIMProvisionsWritesNothing(t *testing.
 			UserName:   "alice@example.com",
 			ExternalID: "00u-alice",
 		}, SCIMUserCreateOptions{
-			UserLimit: UserLimit{
-				Unlimited: true,
-			},
+
 			DefaultRole: apitypes.RoleBasic,
 		})
 		started <- err
@@ -803,12 +787,8 @@ func TestDirectoryResponsesInFlightWhenSCIMStartsAreDiscarded(t *testing.T) {
 		c := newLifecycleTestClient(t)
 		stub, srv := newAuthProviderStub(t)
 		ctx := accesstoken.ContextWithAccessToken(auth.ContextWithProviderGroupIDPrefix(auth.ContextWithProviderURL(t.Context(), srv.URL), "okta/"), "access-token")
-		unlimited := UserLimit{
-			Unlimited: true,
-		}
-
 		// Without a connection, sign-in adds alice to the directory's group.
-		alice, err := c.EnsureIdentity(ctx, signInIdentity("00u-alice", "alice@example.com"), "", unlimited)
+		alice, err := c.EnsureIdentity(ctx, signInIdentity("00u-alice", "alice@example.com"), "")
 		if err != nil {
 			t.Fatalf("failed to sign in: %v", err)
 		}
@@ -831,7 +811,7 @@ func TestDirectoryResponsesInFlightWhenSCIMStartsAreDiscarded(t *testing.T) {
 		})
 
 		signedIn := signInIdentity("00u-alice", "alice@example.com")
-		if _, err := c.EnsureIdentity(ctx, signedIn, "", unlimited); err != nil {
+		if _, err := c.EnsureIdentity(ctx, signedIn, ""); err != nil {
 			t.Fatalf("failed to sign in while SCIM starts: %v", err)
 		}
 		requireStarted(t, started)
@@ -993,9 +973,7 @@ func TestEnforcedSignInNeverCreatesAnAccount(t *testing.T) {
 		signInIdentity("00u-deleted", "deleted@example.com"),
 		signInIdentity("00u-unknown", "unknown@example.com"),
 	} {
-		_, err := c.EnsureIdentity(ctx, id, "", UserLimit{
-			Unlimited: true,
-		})
+		_, err := c.EnsureIdentity(ctx, id, "")
 		if _, ok := errors.AsType[*UserAccessDeniedError](err); !ok {
 			t.Fatalf("enforced sign-in of %s failed with %v, want a UserAccessDeniedError", id.ProviderUserID, err)
 		}
@@ -1026,9 +1004,8 @@ func TestSignInThroughAnotherProviderLeavesTheSCIMProfileAlone(t *testing.T) {
 		ProviderUsername:      "person-google",
 		ProviderUserID:        "google-1",
 		Email:                 "person@example.com",
-	}, "", UserLimit{
-		Unlimited: true,
-	})
+	}, "",
+	)
 	if err != nil {
 		t.Fatalf("failed to sign in through another provider: %v", err)
 	}

@@ -1,14 +1,10 @@
-import type { DefaultModelAlias, MCPCatalogServer, Model, Version } from '$lib/services';
-import {
-	MCPTesterSession,
-	normalizeTesterSection,
-	testerChatAvailability,
-	testerConnectionKey
-} from './tester.svelte';
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
+import type { MCPCatalogServer } from '$lib/services';
+import { MCPTesterSession, normalizeTesterSection, testerConnectionKey } from './tester.svelte';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import type { GetPromptResult, ReadResourceResult } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, it, vi } from 'vitest';
 
+overwriteGetLocale(() => 'en');
 const server = {
 	id: 'ms1tester',
 	configured: true,
@@ -278,76 +274,11 @@ describe('testerConnectionKey', () => {
 	});
 });
 
-describe('testerChatAvailability', () => {
-	const aliases = [{ alias: 'llm', model: 'm1default' }] as DefaultModelAlias[];
-	const models = [{ id: 'm1default', active: true }] as Model[];
-
-	it('uses the model service when no provider is configured', () => {
-		expect(
-			testerChatAvailability(
-				{ hasModelProvider: false, hasValidLicense: true, mcpTesterModelProxyAvailable: true },
-				[],
-				[]
-			)
-		).toEqual({ available: true, unavailableMessage: '' });
-	});
-
-	it.each([
-		{
-			name: 'an unlicensed installation',
-			version: { hasModelProvider: false, hasValidLicense: false },
-			message:
-				'The chat feature is managed by your administrator. Contact your Obot admin to enable access.'
-		},
-		{
-			name: 'a disabled model service',
-			version: {
-				hasModelProvider: false,
-				hasValidLicense: true,
-				mcpTesterModelProxyAvailable: false
-			},
-			message: 'The MCP Tester model service is disabled or unavailable. Contact an administrator.'
-		},
-		{
-			name: 'unreadable model configuration',
-			version: { hasModelProvider: null, hasValidLicense: true },
-			message: 'Model configuration is unavailable or changing. Try again later.'
-		}
-	])('refuses Chat for $name even with a usable default model', ({ version, message }) => {
-		expect(testerChatAvailability(version as Version, aliases, models)).toEqual({
-			available: false,
-			unavailableMessage: message
-		});
-	});
-
-	it('falls back to the default model alias when a provider is configured', () => {
-		const version = { hasModelProvider: true, hasValidLicense: false } as Version;
-
-		expect(testerChatAvailability(version, aliases, models).available).toBe(true);
-		expect(testerChatAvailability(version, [], [])).toEqual({
-			available: false,
-			unavailableMessage: 'No default llm model is configured. Configure one to use Chat.'
-		});
-		expect(
-			testerChatAvailability(version, aliases, [{ id: 'm1default', active: false }] as Model[])
-		).toEqual({
-			available: false,
-			unavailableMessage:
-				'The configured default llm model is inactive or unavailable to your account.'
-		});
-	});
-
-	it('keeps the pre-model-service behavior when the version response is unavailable', () => {
-		expect(testerChatAvailability({}, aliases, models).available).toBe(true);
-		expect(testerChatAvailability({}, [], []).available).toBe(false);
-	});
-});
-
 describe('MCPTesterSession', () => {
 	it('defaults missing and invalid tab values to tools', () => {
 		expect(normalizeTesterSection(undefined)).toBe('tools');
 		expect(normalizeTesterSection('invalid')).toBe('tools');
-		expect(normalizeTesterSection('chat')).toBe('chat');
+		expect(normalizeTesterSection('chat')).toBe('tools');
 		expect(normalizeTesterSection('logs')).toBe('logs');
 		expect(normalizeTesterSection('resources')).toBe('resources');
 	});
@@ -505,74 +436,6 @@ describe('MCPTesterSession', () => {
 		session.close();
 	});
 
-	it('stages only supported prompt and resource text within the 100 KiB limit', () => {
-		const session = new MCPTesterSession(
-			server,
-			{ name: 'obot-mcp-tester', version: 'test' },
-			vi.fn<typeof fetch>()
-		);
-		const prompt = {
-			messages: [
-				{ role: 'user', content: { type: 'text', text: 'first' } },
-				{ role: 'assistant', content: { type: 'text', text: 'second' } }
-			]
-		} as GetPromptResult;
-		const resource = {
-			contents: [{ uri: 'file:///guide.txt', mimeType: 'text/plain', text: 'guide' }]
-		} as ReadResourceResult;
-
-		expect(session.stagePrompt('ordered', prompt)).toEqual({ ok: true });
-		expect(session.stageResource('guide', resource)).toEqual({ ok: true });
-		expect(session.stagedContext).toHaveLength(2);
-		expect(session.stagedContext[0]).toMatchObject({ type: 'prompt', messages: prompt.messages });
-		expect(
-			session.stageResource('binary', {
-				contents: [{ uri: 'file:///image.png', mimeType: 'image/png', blob: 'AAAA' }]
-			} as ReadResourceResult)
-		).toMatchObject({ ok: false });
-		expect(
-			session.stagePrompt('oversized', {
-				messages: [{ role: 'user', content: { type: 'text', text: 'x'.repeat(100 * 1024 + 1) } }]
-			} as GetPromptResult)
-		).toMatchObject({ ok: false, message: expect.stringContaining('100 KiB') });
-		expect(session.stagePrompt('empty', { messages: [] } as GetPromptResult)).toMatchObject({
-			ok: false
-		});
-		expect(session.stageResource('empty', { contents: [] } as ReadResourceResult)).toMatchObject({
-			ok: false
-		});
-		expect(session.stagedContext).toHaveLength(2);
-		session.close();
-	});
-
-	it('sizes staged resources by the representation the backend measures', () => {
-		const session = new MCPTesterSession(
-			server,
-			{ name: 'obot-mcp-tester', version: 'test' },
-			vi.fn<typeof fetch>()
-		);
-		// "Resource: file:///guide.txt" + "\nMIME type: text/plain" + "\n\n" = 51 bytes of metadata
-		// that the backend counts and the text alone does not.
-		const metadataBytes = 51;
-		const resource = (textBytes: number) =>
-			({
-				contents: [
-					{ uri: 'file:///guide.txt', mimeType: 'text/plain', text: 'x'.repeat(textBytes) }
-				]
-			}) as ReadResourceResult;
-
-		expect(session.stageResource('exact', resource(100 * 1024 - metadataBytes))).toEqual({
-			ok: true
-		});
-		// Text alone still fits, but the serialized block does not.
-		expect(session.stageResource('over', resource(100 * 1024 - metadataBytes + 1))).toMatchObject({
-			ok: false,
-			message: expect.stringContaining('100 KiB')
-		});
-		expect(session.stagedContext).toHaveLength(1);
-		session.close();
-	});
-
 	it('holds the workflow token until a cancelled operation settles', async () => {
 		const session = new MCPTesterSession(
 			server,
@@ -635,7 +498,9 @@ describe('MCPTesterSession', () => {
 		expect(session.status).toBe('ready');
 
 		const workflow = session.beginWorkflow('direct', 'tool call');
-		expect(() => session.beginWorkflow('chat', 'chat turn')).toThrow(/tool call is active/);
+		expect(() => session.beginWorkflow('direct', 'second operation')).toThrow(
+			/tool call is active/
+		);
 		session.close();
 
 		expect(workflow.abort.signal.aborted).toBe(true);

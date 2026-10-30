@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import Logo from '$lib/components/Logo.svelte';
 	import SensitiveInput from '$lib/components/SensitiveInput.svelte';
 	import { LOCAL_AUTH_MIN_PASSWORD_LENGTH } from '$lib/constants';
@@ -51,7 +52,7 @@
 </script>
 
 <svelte:head>
-	<title>Obot | {m.auth_password_page_title()}</title>
+	<title>{productTitle(m.auth_password_page_title())}</title>
 </svelte:head>
 
 <div

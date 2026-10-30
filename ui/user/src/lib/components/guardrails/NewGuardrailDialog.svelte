@@ -7,7 +7,7 @@
 		listGuardrails,
 		type Guardrail,
 		type GuardrailProvider
-	} from '$lib/services/llm-gateway/guardrails';
+	} from '$lib/services/guardrails/guardrails';
 	import GuardrailForm from './GuardrailForm.svelte';
 	import GuardrailTypePicker from './GuardrailTypePicker.svelte';
 

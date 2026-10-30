@@ -69,14 +69,14 @@ func newRefreshTokenRequest(t *testing.T) (api.Context, *handler, v1.OAuthClient
 	token.UID = "grant-uid"
 	client, gateway, tokens := newOAuthTokenTestServices(t, token)
 	return api.Context{
-		Storage:        client,
-		GatewayClient:  gateway,
-		Request:        httptest.NewRequest(http.MethodPost, "/oauth/token", nil).WithContext(t.Context()),
-		ResponseWriter: httptest.NewRecorder(),
-	}, &handler{baseURL: "https://obot.example.com", tokenService: tokens}, v1.OAuthClient{
-		Namespace: system.DefaultNamespace,
-		Name:      token.Spec.ClientID,
-	}, original
+			Storage:        client,
+			GatewayClient:  gateway,
+			Request:        httptest.NewRequest(http.MethodPost, "/oauth/token", nil).WithContext(t.Context()),
+			ResponseWriter: httptest.NewRecorder(),
+		}, &handler{baseURL: "https://obot.example.com", tokenService: tokens}, v1.OAuthClient{
+			Namespace: system.DefaultNamespace,
+			Name:      token.Spec.ClientID,
+		}, original
 }
 
 func readRefreshGrant(t *testing.T, req api.Context, original string) *v1.OAuthToken {

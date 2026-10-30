@@ -60,6 +60,7 @@ export interface AppNotification {
 // App preferences
 
 export interface AppPreferences {
+	displayName: string;
 	logos: {
 		logoIcon: string;
 		logoIconError: string;
@@ -401,7 +402,6 @@ export type ClaudeRuntime = {
 	image: string;
 	workerImage: string;
 	allowAllEgress?: boolean;
-	llmProxy?: boolean;
 	egressHosts: string[];
 	worker: {
 		workerReplicas: number;
@@ -590,16 +590,6 @@ export interface K8sServerDetail {
 }
 export interface K8sServerLog {
 	message: string;
-}
-
-// Licensing
-export interface LicenseEntitlementViolation {
-	type: string;
-	namespace: string;
-	name: string;
-	requiredEntitlements: string[];
-	missingEntitlements: string[];
-	message?: string;
 }
 
 // MCP catalog servers
@@ -918,6 +908,9 @@ export interface MCPServer {
 	metadata?: {
 		categories?: string;
 		deprecated?: string;
+		displayNameZh?: string;
+		/** Pipe- or newline-separated example prompts, shown as 试试这样用. */
+		usageExamples?: string;
 	};
 
 	runtime: Runtime;
@@ -964,68 +957,6 @@ export interface MCP {
 	created: string;
 	manifest: MCPInfo;
 	type: string;
-}
-
-// Models
-
-export interface ModelProvider {
-	id: string;
-	name: string;
-	description?: string;
-	icon?: string;
-	iconDark?: string;
-	configured: boolean;
-	modelsBackPopulated?: boolean;
-	requiredConfigurationParameters?: {
-		name: string;
-		friendlyName?: string;
-		description?: string;
-		sensitive?: boolean;
-		hidden?: boolean;
-	}[];
-	missingEntitlements?: string[];
-	missingConfigurationParameters?: string[];
-	created: string;
-	optionalConfigurationParameters?: {
-		name: string;
-		friendlyName?: string;
-		description?: string;
-		sensitive?: boolean;
-		hidden?: boolean;
-	}[];
-	image: string;
-	port: number;
-	path?: string;
-	dialect?: string;
-	type: 'modelprovider';
-}
-export interface Model {
-	id: string;
-	active: boolean;
-	alias?: string;
-	aliasAssigned: boolean;
-	created: number;
-	modelProvider: string;
-	modelProviderName: string;
-	name: string;
-	displayName: string;
-	targetModel: string;
-	dialect?: string;
-	usage: string;
-	icon?: string;
-	iconDark?: string;
-}
-export const ModelAlias = {
-	Llm: 'llm',
-	LlmMini: 'llm-mini',
-	TextEmbedding: 'text-embedding',
-	ImageGeneration: 'image-generation',
-	Vision: 'vision'
-} as const;
-export type ModelAlias = (typeof ModelAlias)[keyof typeof ModelAlias];
-export interface DefaultModelAlias {
-	alias: ModelAlias;
-	model: string;
 }
 
 // Organization
@@ -1162,23 +1093,13 @@ export interface ToolReferenceList {
 // Version
 
 export interface Version {
-	hasModelProvider?: boolean | null;
-	hasValidLicense?: boolean;
-	mcpTesterModelProxyAvailable?: boolean;
-	latestVersion?: string;
 	sessionStore?: string;
 	obot?: string;
 	authEnabled?: boolean;
-	enterprise?: boolean;
-	community?: boolean;
-	licenseEntitlements?: string[];
+	devLoginEnabled?: boolean;
+	marketOpen?: boolean;
 	userCount?: number;
-	userLimit?: number;
 	deviceCount?: number;
-	deviceLimit?: number;
-	licenseEntitlementViolations?: LicenseEntitlementViolation[];
-	missingLicenseEntitlements?: string[];
-	upgradeAvailable?: boolean;
 	engine?: 'docker' | 'kubernetes' | 'local';
 	mcpNetworkPolicyEnabled?: boolean;
 	mcpDefaultDenyAllEgress?: boolean;
@@ -1220,4 +1141,27 @@ export interface Skill {
 	valid?: boolean;
 	validationError?: string;
 	lastIndexedAt?: string;
+}
+
+// Connector access requests
+
+export type ConnectorAccessRequestStatus = 'pending' | 'approved' | 'rejected';
+
+export interface ConnectorAccessRequest {
+	id: string;
+	created?: string;
+	connectorPublished?: boolean;
+	manifest: {
+		requesterUserID: string;
+		requesterUsername?: string;
+		requesterEmail?: string;
+		connectorID: string;
+		connectorName?: string;
+		mcpCatalogID?: string;
+		status: ConnectorAccessRequestStatus;
+		reason?: string;
+		reviewerUserID?: string;
+		reviewerUsername?: string;
+		reviewComment?: string;
+	};
 }

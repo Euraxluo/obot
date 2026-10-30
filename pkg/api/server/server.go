@@ -25,8 +25,6 @@ import (
 	"github.com/obot-platform/obot/pkg/auth"
 	gclient "github.com/obot-platform/obot/pkg/gateway/client"
 	"github.com/obot-platform/obot/pkg/i18n"
-	"github.com/obot-platform/obot/pkg/license"
-	"github.com/obot-platform/obot/pkg/llm"
 	"github.com/obot-platform/obot/pkg/principal"
 	"github.com/obot-platform/obot/pkg/proxy"
 	"github.com/obot-platform/obot/pkg/scim"
@@ -53,19 +51,18 @@ var (
 )
 
 type Server struct {
-	storageClient           storage.Client
-	gatewayClient           *gclient.Client
-	localK8sClient          kclient.Client
-	obotNamespace           string
-	authenticator           *authn.Authenticator
-	authorizer              *authz.Authorizer
-	proxyManager            *proxy.Manager
-	auditLogger             audit.Logger
-	rateLimiter             *ratelimiter.RateLimiter
-	baseURL                 string
-	mcpOAuthScope           string
-	registryNoAuth          bool
-	providerEntitlementGate *license.ProviderEntitlementGate
+	storageClient  storage.Client
+	gatewayClient  *gclient.Client
+	localK8sClient kclient.Client
+	obotNamespace  string
+	authenticator  *authn.Authenticator
+	authorizer     *authz.Authorizer
+	proxyManager   *proxy.Manager
+	auditLogger    audit.Logger
+	rateLimiter    *ratelimiter.RateLimiter
+	baseURL        string
+	mcpOAuthScope  string
+	registryNoAuth bool
 	// devUI is set when the UI is served by the Vite dev server (dev mode).
 	devUI bool
 
@@ -86,26 +83,25 @@ type responseWriter struct {
 	auditLogger audit.Logger
 }
 
-func NewServer(storageClient storage.Client, gatewayClient *gclient.Client, localK8sClient kclient.Client, obotNamespace string, authn *authn.Authenticator, authz *authz.Authorizer, proxyManager *proxy.Manager, auditLogger audit.Logger, rateLimiter *ratelimiter.RateLimiter, baseURL string, oauthScopesSupported []string, registryNoAuth bool, licenseProvider *license.Provider) *Server {
+func NewServer(storageClient storage.Client, gatewayClient *gclient.Client, localK8sClient kclient.Client, obotNamespace string, authn *authn.Authenticator, authz *authz.Authorizer, proxyManager *proxy.Manager, auditLogger audit.Logger, rateLimiter *ratelimiter.RateLimiter, baseURL string, oauthScopesSupported []string, registryNoAuth bool) *Server {
 	var scope string
 	if len(oauthScopesSupported) > 0 {
 		scope = fmt.Sprintf(", scope=\"%s\"", strings.Join(oauthScopesSupported, " "))
 	}
 	s := &Server{
-		storageClient:           storageClient,
-		gatewayClient:           gatewayClient,
-		localK8sClient:          localK8sClient,
-		obotNamespace:           obotNamespace,
-		authenticator:           authn,
-		authorizer:              authz,
-		proxyManager:            proxyManager,
-		baseURL:                 baseURL + "/api",
-		mcpOAuthScope:           scope,
-		auditLogger:             auditLogger,
-		rateLimiter:             rateLimiter,
-		registryNoAuth:          registryNoAuth,
-		mux:                     http.NewServeMux(),
-		providerEntitlementGate: license.NewProviderEntitlementGate(licenseProvider, storageClient),
+		storageClient:  storageClient,
+		gatewayClient:  gatewayClient,
+		localK8sClient: localK8sClient,
+		obotNamespace:  obotNamespace,
+		authenticator:  authn,
+		authorizer:     authz,
+		proxyManager:   proxyManager,
+		baseURL:        baseURL + "/api",
+		mcpOAuthScope:  scope,
+		auditLogger:    auditLogger,
+		rateLimiter:    rateLimiter,
+		registryNoAuth: registryNoAuth,
+		mux:            http.NewServeMux(),
 	}
 	s.otelHandler = traced(s.mux)
 	return s
@@ -200,14 +196,6 @@ func (s *Server) Wrap(f api.HandlerFunc) http.HandlerFunc {
 
 		// SCIM clients understand only SCIM responses, so every failure on a SCIM route is written as one.
 		isSCIM := scim.IsSCIMPath(req.URL.Path)
-		// LLM API clients and SDKs understand errors in their API's format, so every failure on the
-		// LLM proxy is written in the format of the request.
-		httpError := http.Error
-		if llm.IsProxyPath(req.URL.Path) {
-			httpError = func(w http.ResponseWriter, message string, code int) {
-				llm.WriteError(w, req, message, code)
-			}
-		}
 
 		user, err := s.authenticator.Authenticate(req)
 		if err != nil {
@@ -232,7 +220,7 @@ func (s *Server) Wrap(f api.HandlerFunc) http.HandlerFunc {
 
 			// Check if this is a FetchUserGroupsError which indicates an auth provider configuration issue
 			if fetchGroupsErr, ok := authenticationError[*gclient.FetchUserGroupsError](err); ok {
-				httpError(rw, fmt.Sprintf("Authentication provider configuration error: %s. Please contact an administrator to fix the auth provider configuration.", fetchGroupsErr.Message), http.StatusInternalServerError)
+				http.Error(rw, fmt.Sprintf("Authentication provider configuration error: %s. Please contact an administrator to fix the auth provider configuration.", fetchGroupsErr.Message), http.StatusInternalServerError)
 			} else if denied, ok := authenticationError[*gclient.UserAccessDeniedError](err); ok {
 				// End the browser session, so that the login page is reachable and can say why.
 				http.SetCookie(rw, &http.Cookie{
@@ -255,12 +243,12 @@ func (s *Server) Wrap(f api.HandlerFunc) http.HandlerFunc {
 					return
 				}
 				httpErr := denied.HTTPError()
-				httpError(rw, httpErr.Message, httpErr.Code)
+				http.Error(rw, httpErr.Message, httpErr.Code)
 			} else if lookupErr, ok := authenticationError[*gclient.UserAccessLookupError](err); ok {
 				slog.Error("Denied request because the user's status could not be checked", "userID", lookupErr.UserID, "error", lookupErr.Err)
-				httpError(rw, "Unable to verify account status. Please try again.", http.StatusServiceUnavailable)
+				http.Error(rw, "Unable to verify account status. Please try again.", http.StatusServiceUnavailable)
 			} else {
-				httpError(rw, err.Error(), http.StatusUnauthorized)
+				http.Error(rw, err.Error(), http.StatusUnauthorized)
 			}
 
 			return
@@ -277,7 +265,7 @@ func (s *Server) Wrap(f api.HandlerFunc) http.HandlerFunc {
 					if isSCIM {
 						scim.WriteError(rw, http.StatusTooManyRequests, err.Error())
 					} else {
-						httpError(rw, err.Error(), http.StatusTooManyRequests)
+						http.Error(rw, err.Error(), http.StatusTooManyRequests)
 					}
 					return
 				}
@@ -327,7 +315,7 @@ func (s *Server) Wrap(f api.HandlerFunc) http.HandlerFunc {
 		// rejected probes stay auditable and a cookie refresh is not lost to a blocked operation.
 		if cmp.Or(user.GetExtra()["password_change_required"]...) == "true" && !passwordChangeRequestAllowed(req, s.devUI) {
 			if req.Pattern != "/" {
-				httpError(rw, "password change required", http.StatusForbidden)
+				http.Error(rw, "password change required", http.StatusForbidden)
 			} else {
 				rd := req.URL.RequestURI()
 				http.Redirect(rw, req, "/change-password?rd="+url.QueryEscape(rd), http.StatusSeeOther)
@@ -336,57 +324,54 @@ func (s *Server) Wrap(f api.HandlerFunc) http.HandlerFunc {
 		}
 
 		var shouldLogError bool
-		err = s.providerEntitlementGate.Check(req)
-		if err == nil {
-			if !s.authorizer.Authorize(req, user) {
-				if _, err := req.Cookie(auth.ObotAccessTokenCookie); err == nil && req.URL.Path == "/api/me" {
-					// Tell the browser to delete the obot_access_token cookie.
-					// If the user tried to access this path and was unauthorized, then something is wrong with their token.
-					http.SetCookie(rw, &http.Cookie{
-						Name:   auth.ObotAccessTokenCookie,
-						Value:  "",
-						Path:   "/",
-						MaxAge: -1,
-					})
-				}
-
-				// Only set WWW-Authenticate if not in no-auth mode
-				if strings.HasPrefix(req.URL.Path, "/v0.1") && !s.registryNoAuth {
-					rw.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer realm="MCP Registry", resource_metadata="%s/.well-known/oauth-protected-resource/v0.1/servers"`, strings.TrimSuffix(s.baseURL, "/api")))
-				}
-
-				switch {
-				case isSCIM && authenticated:
-					scim.WriteError(rw, http.StatusForbidden, "this credential cannot access this SCIM endpoint")
-				case isSCIM:
-					scim.WriteUnauthorized(rw)
-				case authenticated:
-					httpError(rw, "forbidden", http.StatusForbidden)
-				default:
-					httpError(rw, "unauthorized", http.StatusUnauthorized)
-				}
-
-				return
+		if !s.authorizer.Authorize(req, user) {
+			if _, err := req.Cookie(auth.ObotAccessTokenCookie); err == nil && req.URL.Path == "/api/me" {
+				// Tell the browser to delete the obot_access_token cookie.
+				// If the user tried to access this path and was unauthorized, then something is wrong with their token.
+				http.SetCookie(rw, &http.Cookie{
+					Name:   auth.ObotAccessTokenCookie,
+					Value:  "",
+					Path:   "/",
+					MaxAge: -1,
+				})
 			}
 
-			if strings.HasPrefix(req.URL.Path, "/api/") {
-				rw.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0")
-				rw.Header().Set("Pragma", "no-cache")
-				rw.Header().Set("Expires", "0")
+			// Only set WWW-Authenticate if not in no-auth mode
+			if strings.HasPrefix(req.URL.Path, "/v0.1") && !s.registryNoAuth {
+				rw.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer realm="MCP Registry", resource_metadata="%s/.well-known/oauth-protected-resource/v0.1/servers"`, strings.TrimSuffix(s.baseURL, "/api")))
 			}
 
-			err = f(api.Context{
-				ResponseWriter: rw,
-				Request:        req,
-				Storage:        s.storageClient,
-				GatewayClient:  s.gatewayClient,
-				User:           user,
-				APIBaseURL:     s.baseURL,
-				LocalK8sClient: s.localK8sClient,
-				ObotNamespace:  s.obotNamespace,
-			})
+			switch {
+			case isSCIM && authenticated:
+				scim.WriteError(rw, http.StatusForbidden, "this credential cannot access this SCIM endpoint")
+			case isSCIM:
+				scim.WriteUnauthorized(rw)
+			case authenticated:
+				http.Error(rw, "forbidden", http.StatusForbidden)
+			default:
+				http.Error(rw, "unauthorized", http.StatusUnauthorized)
+			}
+
+			return
 		}
-		writeError := httpError
+
+		if strings.HasPrefix(req.URL.Path, "/api/") {
+			rw.Header().Set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0")
+			rw.Header().Set("Pragma", "no-cache")
+			rw.Header().Set("Expires", "0")
+		}
+
+		err = f(api.Context{
+			ResponseWriter: rw,
+			Request:        req,
+			Storage:        s.storageClient,
+			GatewayClient:  s.gatewayClient,
+			User:           user,
+			APIBaseURL:     s.baseURL,
+			LocalK8sClient: s.localK8sClient,
+			ObotNamespace:  s.obotNamespace,
+		})
+		writeError := http.Error
 		if isSCIM {
 			writeError = func(w http.ResponseWriter, message string, code int) {
 				scim.WriteError(w, code, message)
@@ -438,7 +423,6 @@ func passwordChangeRequestAllowed(req *http.Request, devUI bool) bool {
 	return (req.Method == http.MethodGet && slices.Contains([]string{
 		"/api/me",
 		"/api/version",
-		"/api/license",
 		"/api/app-preferences",
 	}, req.URL.Path)) ||
 		(req.Method == http.MethodPost && slices.Contains([]string{

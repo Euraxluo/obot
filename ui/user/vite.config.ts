@@ -18,7 +18,9 @@ export default defineConfig(({ mode }) => {
 	// This is needed for EventSource requests which don't support custom headers
 	const proxyConfig = {
 		target: apiTarget,
-		changeOrigin: true,
+		// Keep the browser's Origin and the proxied Host aligned. The local auth
+		// provider rejects login forms whose Origin does not match the API Host.
+		changeOrigin: false,
 		secure: true,
 		// The agent terminal is a websocket under /api, and the proxy ignores
 		// upgrade requests unless this is set.
@@ -29,6 +31,7 @@ export default defineConfig(({ mode }) => {
 	return {
 		server: {
 			port: 5174,
+			allowedHosts: true,
 			proxy:
 				mode === 'test'
 					? undefined
@@ -42,7 +45,7 @@ export default defineConfig(({ mode }) => {
 				project: './project.inlang',
 				outdir: './src/lib/paraglide',
 				// Keep in sync with the `i18n:compile` script in package.json
-				strategy: ['localStorage', 'preferredLanguage', 'baseLocale']
+				strategy: ['localStorage', 'baseLocale']
 			}),
 			tailwindcss(),
 			sveltekit()
@@ -82,7 +85,8 @@ export default defineConfig(({ mode }) => {
 						name: 'server',
 						environment: 'node',
 						include: ['src/**/*.{test,spec}.{js,ts}'],
-						exclude: ['src/**/*.svelte.{test,spec}.{js,ts}', 'src/**/*.ssr.{test,spec}.{js,ts}']
+						exclude: ['src/**/*.svelte.{test,spec}.{js,ts}', 'src/**/*.ssr.{test,spec}.{js,ts}'],
+						setupFiles: ['src/tests/vitest-setup-node.ts'],
 					}
 				}
 			]

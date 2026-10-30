@@ -1,6 +1,6 @@
 {
 	"$schema": "https://inlang.com/schema/project-settings",
-	"baseLocale": "en",
+	"baseLocale": "zh-CN",
 	"locales": ["en", "ja", "ko", "zh-CN"],
 	"modules": ["./node_modules/@inlang/plugin-message-format/dist/index.js"],
 	"plugin.inlang.messageFormat": {
@@ -13,10 +13,12 @@
 			"./messages/claude_environments/{locale}.json",
 			"./messages/core/{locale}.json",
 			"./messages/dashboard/{locale}.json",
+			"./messages/data_permissions/{locale}.json",
 			"./messages/guardrails/{locale}.json",
 			"./messages/identity_access/{locale}.json",
 			"./messages/install_cli/{locale}.json",
 			"./messages/inventory_enforcement/{locale}.json",
+			"./messages/market/{locale}.json",
 			"./messages/mcps/{locale}.json",
 			"./messages/models/{locale}.json",
 			"./messages/platform/{locale}.json",

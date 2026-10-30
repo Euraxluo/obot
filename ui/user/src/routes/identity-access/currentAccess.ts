@@ -28,7 +28,6 @@ export interface CurrentAccessTarget {
 export type AccessResourceType =
 	| 'mcpServerCatalogEntry'
 	| 'mcpServer'
-	| 'model'
 	| 'skill'
 	| 'skillRepository'
 	| 'vmcp'
@@ -75,7 +74,6 @@ export const EVERYTHING_RESOURCE_ID = '*';
 
 export interface CurrentAccessSections {
 	mcp: MatchedAccessPolicy[];
-	models: MatchedAccessPolicy[];
 	skills: MatchedAccessPolicy[];
 	vmcps: MatchedAccessPolicy[];
 }
@@ -353,19 +351,6 @@ export async function loadCurrentAccess(
 				(policy) => ({ powerUserID: policy.powerUserID })
 			);
 		}
-		case 'models': {
-			const models = await AdminService.listModelAccessPolicies();
-			return matchPolicies(
-				models,
-				target,
-				(policy) => `/models/profiles/${policy.id}`,
-				(policy) =>
-					(policy.models ?? []).map(({ id }) => ({
-						type: id === EVERYTHING_RESOURCE_ID ? 'selector' : 'model',
-						id
-					}))
-			);
-		}
 		case 'skills': {
 			const skills = await AdminService.listSkillAccessPolicies();
 			return matchPolicies(
@@ -383,10 +368,5 @@ export async function loadCurrentAccess(
 }
 
 export function hasAnyCurrentAccess(sections: CurrentAccessSections): boolean {
-	return (
-		sections.mcp.length > 0 ||
-		sections.models.length > 0 ||
-		sections.skills.length > 0 ||
-		sections.vmcps.length > 0
-	);
+	return sections.mcp.length > 0 || sections.skills.length > 0 || sections.vmcps.length > 0;
 }

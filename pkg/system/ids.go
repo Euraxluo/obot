@@ -7,9 +7,7 @@ import (
 )
 
 const (
-	ModelPrefix                   = "m1"
 	AliasPrefix                   = "al1"
-	DefaultModelAliasPrefix       = "dma1"
 	DeviceEnrollmentPrefix        = "ode1"
 	UserDeletePrefix              = "ud1"
 	AuthProviderCleanupPrefix     = "apc1"
@@ -29,6 +27,8 @@ const (
 	SkillRepositoryPrefix         = "skr1"
 	SkillPrefix                   = "sk1"
 	SkillAccessRulePrefix         = "sar1"
+	SkillPublicationRulePrefix    = "spr1"
+	ConnectorAccessRequestPrefix  = "car1"
 	OAuthClientPrefix             = "oc1"
 	OAuthAuthRequestPrefix        = "oar1"
 	AccessControlRulePrefix       = "acr1"
@@ -37,8 +37,6 @@ const (
 	AuditLogExportPrefix          = "ael1"
 	ScheduledAuditLogExportPrefix = "sael1"
 	SystemMCPServerPrefix         = "sms1"
-	ModelAccessPolicyPrefix       = "map1"
-	MessagePolicyPrefix           = "mp1"
 	APIKeyPrefix                  = "ok1"
 
 	ProviderChangeAuthName = ProviderChangePrefix + "auth"
@@ -70,10 +68,6 @@ func IsSystemMCPServerID(id string) bool {
 
 func IsWebhookSystemMCPServerID(id string) bool {
 	return strings.HasPrefix(id, SystemMCPServerPrefix+MCPWebhookValidationPrefix)
-}
-
-func IsModelID(id string) bool {
-	return strings.HasPrefix(id, ModelPrefix)
 }
 
 func GetPowerUserWorkspaceID(userID string) string {

@@ -50,7 +50,6 @@ type tokenScopeValidationResponse struct {
 	Scopes  struct {
 		CanAccessAPI         bool     `json:"canAccessAPI"`
 		CanAccessSkills      bool     `json:"canAccessSkills"`
-		CanAccessLLMProxy    bool     `json:"canAccessLLMProxy"`
 		CanAccessDeviceScans bool     `json:"canAccessDeviceScans"`
 		MCPServerIDs         []string `json:"mcpServerIds,omitempty"`
 	} `json:"scopes"`
@@ -109,10 +108,6 @@ func TokenHasScopes(ctx context.Context, baseURL, token string, scopes []string)
 			}
 		case types.APIKeyScopeSkills:
 			if !validation.Scopes.CanAccessSkills && !validation.Scopes.CanAccessAPI {
-				return fmt.Errorf("token does not have scope: %s", scope)
-			}
-		case types.APIKeyScopeLLM:
-			if !validation.Scopes.CanAccessLLMProxy && !validation.Scopes.CanAccessAPI {
 				return fmt.Errorf("token does not have scope: %s", scope)
 			}
 		case types.APIKeyScopeAllMCP:

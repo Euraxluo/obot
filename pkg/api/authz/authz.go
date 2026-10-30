@@ -3,6 +3,7 @@ package authz
 import (
 	"context"
 	"net/http"
+	"os"
 	"slices"
 	"strings"
 
@@ -40,8 +41,6 @@ var (
 		"/api/claude-environments",
 		"/api/claude-environments/",
 		"POST /api/openapi-import",
-		"/api/model-proxy",
-		"/api/model-proxy/",
 		"/api/mcp-tunnels",
 		"/api/mcp-tunnels/",
 		"/api/mcp-catalogs",
@@ -67,18 +66,11 @@ var (
 		"GET /api/mcp-audit-logs/",
 		"GET /api/egress-audit-logs",
 		"GET /api/egress-audit-logs/",
-		"GET /api/llm-audit-logs",
-		"GET /api/llm-audit-logs/",
-		"GET /api/llm-audit-logs/filter-options/",
 		"GET /api/mcp-stats",
 		"GET /api/mcp-stats/",
 		"GET /debug/pprof/",
 		"GET /debug/triggers",
 		"GET /debug/metrics",
-		"PUT /api/license",
-		"POST /api/license",
-		"POST /api/license/community",
-		"DELETE /api/license",
 		"POST /api/auth-providers/{id}/configure",
 		"POST /api/auth-providers/{id}/deconfigure",
 		"POST /api/auth-providers/{id}/reveal",
@@ -87,14 +79,7 @@ var (
 		"GET /api/scim-connections/",
 		"/api/local-auth/users",
 		"/api/local-auth/users/",
-		"/api/model-providers",
-		"/api/model-providers/",
-		"/api/llm-gateway/",
 		"GET /api/bookstrap",
-		"/api/models",
-		"/api/models/",
-		"/api/model-access-policies",
-		"/api/model-access-policies/",
 		"DELETE /api/devices/scans/{scan_id}",
 		"/api/devices/scan-stats",
 		"/api/devices/mcp-servers/",
@@ -109,10 +94,6 @@ var (
 		"/api/mdm/asset-source",
 		"/api/mdm/asset-source/",
 		"GET /api/mdm/assets",
-		"/api/available-models",
-		"/api/available-models/",
-		"/api/default-model-aliases",
-		"/api/default-model-aliases/",
 		"/api/users",
 		"POST /api/users/{user_id}/enable",
 		"GET /api/groups",
@@ -147,9 +128,12 @@ var (
 		"/api/skill-repositories/",
 		"/api/skill-access-rules",
 		"/api/skill-access-rules/",
+		"/api/skill-publication-rules",
+		"/api/skill-publication-rules/",
+		"/api/connector-access-requests",
+		"/api/connector-access-requests/",
 		"GET /api/eula",
 		"PUT /api/eula",
-		"/api/product-telemetry-consent",
 		"PUT /api/app-preferences",
 		"PUT /api/app-notification",
 
@@ -179,18 +163,12 @@ var (
 		types.GroupAdmin: adminAndOwnerRules,
 		types.GroupOwner: append(slices.Clone(adminAndOwnerRules), ownerRules...),
 		types.GroupAuditor: {
-			"GET /api/llm-gateway/",
-			"GET /api/model-proxy",
-			"GET /api/model-proxy/usage",
 			"GET /api/admin-api-keys",
 			"GET /api/admin-api-keys/{id}",
 			"GET /api/mcp-audit-logs",
 			"GET /api/mcp-audit-logs/",
 			"GET /api/egress-audit-logs",
 			"GET /api/egress-audit-logs/",
-			"GET /api/llm-audit-logs",
-			"GET /api/llm-audit-logs/",
-			"GET /api/llm-audit-logs/filter-options/",
 			"GET /api/mcp-stats",
 			"GET /api/mcp-stats/",
 			"GET /api/mcp-capacity",
@@ -206,8 +184,6 @@ var (
 			"GET /api/mcp-webhook-validations",
 			"GET /api/mcp-webhook-validations/",
 			"GET /api/mcp-servers/",
-			"GET /api/model-access-policies",
-			"GET /api/model-access-policies/",
 			"GET /api/user-default-role-settings",
 			"GET /api/k8s-settings",
 			"GET /api/image-pull-secrets/capability",
@@ -235,6 +211,8 @@ var (
 			"GET /api/skill-repositories/",
 			"GET /api/skill-access-rules",
 			"GET /api/skill-access-rules/",
+			"GET /api/skill-publication-rules",
+			"GET /api/skill-publication-rules/",
 			"GET /api/enforcement-decisions",
 			"GET /api/enforcement-decisions/",
 			"GET /api/devices/scan-stats",
@@ -313,10 +291,7 @@ var (
 			"DELETE /api/claude-environments/{environment}/agent",
 			"POST /api/token-request/verify",
 			// Whether Claude subscriptions may be used, for the gateway's setup instructions.
-			"GET /api/llm-gateway/settings",
 			"POST /api/local-agent-audit-logs",
-			"GET /api/models",
-			"GET /api/model-providers",
 			"GET /api/users",
 			"GET /api/groups",
 
@@ -343,14 +318,12 @@ var (
 
 			"GET /api/users",
 			"GET /api/users/{user_id}",
-			"GET /api/default-model-aliases",
 			"/api/oauth/redirect/{namespace}/{name}",
 			"DELETE /api/me",
 			"PATCH /api/me",
 			"POST /api/logout-all",
 			"GET /api/version",
 			"GET /api/default-k8s-settings",
-			"GET /api/license",
 			"GET /api/setup/oauth-complete",
 
 			// Users should be able to get the connected tunnel information
@@ -374,15 +347,17 @@ var (
 			"GET /oauth/userinfo",
 			"GET /api/me",
 			"POST /api/local-auth/change-password",
+
+			// Connector access requests: users file requests for marketplace
+			// connectors and track their own progress (scoping in handler).
+			"GET /api/connector-access-requests",
+			"GET /api/connector-access-requests/{connector_access_request_id}",
+			"POST /api/connector-access-requests",
 		},
 
 		types.GroupSkills: {
 			// Skill discovery and download are filtered in the handler.
 			"GET /api/skills",
-		},
-
-		types.GroupLLM: {
-			"/api/llm-proxy/",
 		},
 
 		types.GroupDeviceScans: {
@@ -407,7 +382,6 @@ var (
 
 		MetricsGroup: {
 			"/debug/metrics",
-			"GET /api/llm-gateway/metrics",
 		},
 	}
 
@@ -549,6 +523,17 @@ func defaultRules(devMode bool, registryNoAuth bool) []rule {
 	registryRuleMCPOAuth.mux.Handle("GET /v0.1", f)
 	registryRuleMCPOAuth.mux.Handle("GET /v0.1/", f)
 	rules = append(rules, registryRuleBasic, registryRuleMCPOAuth)
+
+	if os.Getenv("OBOT_DEV_LOGIN") == "true" {
+		// The login page needs the feature flag before it has a session. The explicit
+		// environment gate keeps /api/version authenticated in normal deployments.
+		devVersionRule := rule{
+			group: anyGroup,
+			mux:   http.NewServeMux(),
+		}
+		devVersionRule.mux.Handle("GET /api/version", f)
+		rules = append(rules, devVersionRule)
+	}
 
 	if devMode {
 		for group := range devModeRules {

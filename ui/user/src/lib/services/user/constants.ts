@@ -1,6 +1,3 @@
-export const MCP_CONNECTION_INVALID_LICENSE_MESSAGE =
-	"We're sorry, this system is currently operating with limited functionality. Please contact your administrator.";
-
 export enum AiClient {
 	Claude = 'claude',
 	Codex = 'codex',
@@ -11,7 +8,8 @@ export enum AiClient {
 	Hermes = 'hermes',
 	Goose = 'goose',
 	Zed = 'zed',
-	Windsurf = 'windsurf'
+	Windsurf = 'windsurf',
+	WorkBuddy = 'workbuddy'
 }
 
 export const COMMON_AI_CLIENTS = [
@@ -30,6 +28,11 @@ export const COMMON_AI_CLIENTS = [
 		icon: '/user/images/assistant/cursor-mark.svg',
 		iconDark: '/user/images/assistant/cursor-mark-dark.svg',
 		alt: 'Cursor'
+	},
+	{
+		id: AiClient.WorkBuddy,
+		icon: '/user/images/assistant/workbuddy-mark.svg',
+		alt: 'WorkBuddy'
 	},
 	{
 		id: AiClient.VSCode,

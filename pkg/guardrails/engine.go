@@ -14,7 +14,6 @@ import (
 
 	gateway "github.com/obot-platform/obot/pkg/gateway/client"
 	"github.com/obot-platform/obot/pkg/gateway/types"
-	"github.com/obot-platform/obot/pkg/messagepolicy"
 )
 
 const (
@@ -30,9 +29,6 @@ var (
 type Identity struct {
 	UserID string
 	Groups []string
-	// ProfileIDs are the gateway profiles that apply to the caller. LLM policies apply through
-	// them.
-	ProfileIDs []string
 }
 
 // Request is content to evaluate.
@@ -126,7 +122,6 @@ type checkResult struct {
 
 // Store is where policies and guardrails live. *gateway.Client implements it.
 type Store interface {
-	ListGuardrailPolicies(ctx context.Context) ([]types.GuardrailPolicy, error)
 	ListGuardrails(ctx context.Context) ([]types.Guardrail, error)
 	GuardrailSecrets(ctx context.Context, id string) (map[string]string, error)
 }
@@ -138,7 +133,6 @@ type Engine struct {
 
 	lock       sync.Mutex
 	loadedAt   time.Time
-	policies   []*compiledPolicy
 	guardrails map[string]*compiledGuardrail
 
 	// conditionErrors throttles warnings for policies whose condition fails at runtime, which
@@ -164,48 +158,38 @@ func (p Plan) Modifies() bool {
 	})
 }
 
-// New creates an engine. judge may be nil, in which case LLM-judge guardrails fail.
-func New(client Store, judge *messagepolicy.Helper) *Engine {
+// New creates a guardrail engine for MCP traffic.
+func New(client Store) *Engine {
 	return &Engine{
 		client: client,
 		deps: Deps{
-			Judge:      judge,
 			HTTPClient: newHTTPClient(),
 		},
 	}
 }
 
-// Invalidate makes the next evaluation reload policies and guardrails.
+// Invalidate makes the next evaluation reload configured guardrails.
 func (e *Engine) Invalidate() {
 	e.lock.Lock()
 	e.loadedAt = time.Time{}
 	e.lock.Unlock()
 }
 
-func (e *Engine) load(ctx context.Context) ([]*compiledPolicy, error) {
-	policies, _, err := e.loadAll(ctx)
-	return policies, err
-}
-
-// loadAll returns the enabled policies and every guardrail, by ID.
+// loadAll returns the configured guardrails, by ID.
 func (e *Engine) loadAll(ctx context.Context) ([]*compiledPolicy, map[string]*compiledGuardrail, error) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	if time.Since(e.loadedAt) < cacheTTL {
-		return e.policies, e.guardrails, nil
+		return nil, e.guardrails, nil
 	}
 
-	policies, err := e.client.ListGuardrailPolicies(ctx)
-	if err != nil {
-		return nil, nil, err
-	}
-	guardrails, err := e.client.ListGuardrails(ctx)
+	configured, err := e.client.ListGuardrails(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 
 	byID := map[string]*compiledGuardrail{}
-	for _, p := range guardrails {
+	for _, p := range configured {
 		cp := &compiledGuardrail{guardrail: p}
 		info, ok := Provider(p.Type)
 		cp.redacts = ok && info.Redacts
@@ -226,58 +210,25 @@ func (e *Engine) loadAll(ctx context.Context) ([]*compiledPolicy, map[string]*co
 		byID[p.ID] = cp
 	}
 
-	compiled := make([]*compiledPolicy, 0, len(policies))
-	for _, r := range policies {
-		if !r.Enabled {
-			continue
-		}
-		cr := &compiledPolicy{policy: r, allRedact: true}
-		for _, id := range r.GuardrailIDs {
-			p, ok := byID[id]
-			if !ok {
-				// A guardrail deleted while a policy still names it fails like a guardrail error, so
-				// the policy keeps applying and follows its fail-open or fail-closed setting, as
-				// guardrail filters do.
-				p = &compiledGuardrail{guardrail: types.Guardrail{ID: id, Name: id}, err: fmt.Errorf("guardrail %s does not exist", id)}
-			}
-			cr.guardrails = append(cr.guardrails, p)
-			cr.allRedact = cr.allRedact && p.redacts
-		}
-		if len(cr.guardrails) > 0 {
-			compiled = append(compiled, cr)
-		}
-	}
-	e.policies = compiled
 	e.guardrails = byID
 	e.loadedAt = time.Now()
-	return compiled, byID, nil
+	return nil, byID, nil
 }
 
 func stageMatches(applyTo, stage string) bool {
 	return applyTo == types.GuardrailApplyBoth || applyTo == stage
 }
-
-// appliesTo reports whether a policy applies to the caller. An LLM policy applies through its
-// gateway profile, and one without a profile applies to no one. An MCP guardrail filter's
-// policy applies to its subjects.
-func appliesTo(policy types.GuardrailPolicy, identity Identity) bool {
-	if policy.Target == types.GuardrailTargetLLM {
-		return policy.ProfileID != "" && slices.Contains(identity.ProfileIDs, policy.ProfileID)
-	}
-	return subjectsMatch(policy.Subjects, identity)
-}
-
 func subjectsMatch(subjects []types.GuardrailPolicySubject, identity Identity) bool {
 	if len(subjects) == 0 {
 		return true
 	}
 	return slices.ContainsFunc(subjects, func(s types.GuardrailPolicySubject) bool {
 		switch s.Type {
-		case types.LLMGatewayBudgetSubjectEveryone, "selector":
+		case "everyone", "selector":
 			return true
-		case types.LLMGatewayBudgetSubjectUser:
+		case "user":
 			return s.ID == identity.UserID
-		case types.LLMGatewayBudgetSubjectGroup:
+		case "group":
 			return slices.Contains(identity.Groups, s.ID)
 		}
 		return false
@@ -286,22 +237,14 @@ func subjectsMatch(subjects []types.GuardrailPolicySubject, identity Identity) b
 
 // Plan returns the policies that apply to a request's target, stage, caller and variables.
 // Sampling is decided here, once per request and stage.
-func (e *Engine) Plan(ctx context.Context, target, stage string, identity Identity, vars map[string]any) (Plan, error) {
-	policies, err := e.load(ctx)
-	if err != nil {
-		return Plan{}, err
-	}
-	var plan Plan
-	for _, r := range policies {
-		e.addToPlan(&plan, r, target, stage, identity, vars)
-	}
-	return plan, nil
+func (e *Engine) Plan(context.Context, string, string, Identity, map[string]any) (Plan, error) {
+	return Plan{}, nil
 }
 
 // addToPlan adds a policy to a plan when it applies to the target, stage, caller and
 // variables, and is sampled.
 func (e *Engine) addToPlan(plan *Plan, r *compiledPolicy, target, stage string, identity Identity, vars map[string]any) {
-	if r.policy.Target != target || !stageMatches(r.policy.ApplyTo, stage) || !appliesTo(r.policy, identity) {
+	if r.policy.Target != target || !stageMatches(r.policy.ApplyTo, stage) || !subjectsMatch(r.policy.Subjects, identity) {
 		return
 	}
 	ok, err := evalCondition(target, r.policy.Condition, identity, vars)
@@ -346,11 +289,6 @@ func (e *Engine) Evaluate(ctx context.Context, plan Plan, req Request) Decision 
 	for _, r := range plan.policies {
 		segments := d.Segments
 		offset := 0
-		// Input scope only applies to conversations; an MCP tool call has no earlier turns.
-		if req.Target == types.GuardrailTargetLLM && req.Stage == StageInput && r.policy.InputScope == types.GuardrailScopeLatest && r.policy.Action != types.GuardrailActionRedact {
-			offset = latestStart(segments)
-			segments = segments[offset:]
-		}
 		if len(segments) == 0 {
 			continue
 		}

@@ -1,26 +1,13 @@
 import { Group } from '$lib/services';
 import type { Profile } from '$lib/services/user/types';
-import {
-	accessibleModels,
-	appNotification,
-	appPreferences,
-	defaultModelAliases,
-	license as licenseStore,
-	productTelemetryConsent,
-	profile,
-	userDeviceSettings,
-	version
-} from '$lib/stores';
+import { appNotification, appPreferences, profile, userDeviceSettings, version } from '$lib/stores';
 import { compileAppPreferences } from '$lib/stores/appPreferences.svelte';
 import type { LayoutData } from '../../routes/$types';
 import {
 	getAppNotificationResponse,
-	getLicenseResponse,
 	getProfileResponse,
 	getVersionResponse,
-	listAppPreferencesResponse,
-	listDefaultModelAliasesResponse,
-	listModelsResponse
+	listAppPreferencesResponse
 } from '../mocks/data';
 
 type PageDataOverrides = Partial<LayoutData> & Record<string, unknown>;
@@ -48,8 +35,8 @@ export function createMockProfile(groups: string[] = [Group.ADMIN]): Profile {
  *
  * @example
  * ```ts
- * const data = createPageData<PageData>({ license: mockLicense });
- * render(LicensePage, { data });
+ * const data = createPageData<PageData>({ version: mockVersion });
+ * render(SettingsPage, { data });
  * ```
  */
 export function createPageData<T = LayoutData>(overrides: PageDataOverrides = {}): T {
@@ -57,12 +44,7 @@ export function createPageData<T = LayoutData>(overrides: PageDataOverrides = {}
 		appPreferences: compileAppPreferences(listAppPreferencesResponse),
 		profile: createMockProfile(),
 		version: getVersionResponse,
-		license: getLicenseResponse,
-		defaultModelAliases: listDefaultModelAliasesResponse,
-		models: listModelsResponse,
 		appNotification: getAppNotificationResponse,
-		productTelemetryConsent: { consent: false },
-		productTelemetryConsentAvailable: true,
 		...overrides
 	} as T;
 }
@@ -85,19 +67,6 @@ export async function initializePageStores(data: LayoutData) {
 	if (data.appNotification) {
 		await appNotification.initialize(data.appNotification);
 	}
-	productTelemetryConsent.initialize(
-		data.productTelemetryConsent,
-		data.productTelemetryConsentAvailable
-	);
-
-	licenseStore.initialize(data.license);
-
-	if (data.defaultModelAliases) {
-		await defaultModelAliases.initialize(data.defaultModelAliases);
-	}
-	if (data.models) {
-		await accessibleModels.initialize(data.models);
-	}
 }
 
 /**
@@ -107,8 +76,7 @@ export async function initializePageStores(data: LayoutData) {
  * @example
  * ```ts
  * const data = await preparePageData<PageData>({
- *   license: { ...getLicenseResponse, licenseKey: 'key' },
- *   version: { ...getVersionResponse, userCount: 90, userLimit: 100 }
+ *   version: { ...getVersionResponse, userCount: 90 }
  * });
  * render(LicensePage, { data });
  * ```

@@ -25,6 +25,11 @@ const (
 	// Retained for legacy MCP servers.
 	ServerUserTypeSingleUser ServerUserType = "singleUser"
 	ServerUserTypeMultiUser  ServerUserType = "multiUser"
+
+	// MarketPublishedMetadataKey marks a catalog entry as curated for the open marketplace.
+	// Admin-managed entries store it in their manifest metadata; catalog sync preserves its
+	// current value so a source refresh cannot change an administrator's publishing choice.
+	MarketPublishedMetadataKey = "marketPublished"
 )
 
 // Runtime represents the execution runtime type for MCP servers
@@ -130,6 +135,7 @@ type MCPServerCatalogEntry struct {
 	PowerUserID               string                        `json:"powerUserID,omitempty"`
 	NeedsUpdate               bool                          `json:"needsUpdate,omitempty"`
 	OAuthCredentialConfigured bool                          `json:"oauthCredentialConfigured,omitempty"`
+	Authorized                bool                          `json:"authorized,omitempty"`
 }
 
 type MCPResourceRequirements struct {

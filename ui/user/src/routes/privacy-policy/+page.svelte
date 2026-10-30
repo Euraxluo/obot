@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { productTitle } from '$lib/branding.svelte';
 	import Footer from '$lib/components/Footer.svelte';
 	import BetaLogo from '$lib/components/navbar/BetaLogo.svelte';
 	import Menu from '$lib/components/navbar/Menu.svelte';
+	import { m } from '$lib/i18n';
 	import { responsive } from '$lib/stores';
 	import { darkMode } from '$lib/stores';
 	import { goto } from '$lib/url';
@@ -114,7 +116,7 @@
 {/snippet}
 
 <svelte:head>
-	<title>Obot - Privacy Policy</title>
+	<title>{productTitle(m.footer_privacy_policy())}</title>
 </svelte:head>
 
 <div class="text-base-content relative flex h-dvh w-full flex-col">
@@ -743,7 +745,7 @@
 		&::before {
 			content: '';
 			position: absolute;
-			background-image: url('/user/images/obot-icon-white.svg');
+			background-image: url('/user/images/ztocc/driver-app-logo.png');
 			width: 10rem;
 			height: 10rem;
 			background-size: 100%;

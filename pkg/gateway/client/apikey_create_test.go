@@ -18,10 +18,9 @@ func TestCreateAPIKeyFromTokenRequestCopiesScopesAndUpdatesRequest(t *testing.T)
 		Name:        "CLI login",
 		Description: "created by tests",
 		Scopes: types.APIKeyScopes{
-			CanAccessAPI:      true,
-			CanAccessLLMProxy: true,
-			CanAccessSkills:   true,
-			MCPServerIDs:      []string{"*"},
+			CanAccessAPI:    true,
+			CanAccessSkills: true,
+			MCPServerIDs:    []string{"*"},
 		},
 	}
 	if err := c.db.WithContext(ctx).Create(tr).Error; err != nil {
@@ -108,7 +107,6 @@ func assertAPIKeyScopes(t *testing.T, got, want types.APIKeyScopes) {
 	t.Helper()
 
 	if got.CanAccessAPI != want.CanAccessAPI ||
-		got.CanAccessLLMProxy != want.CanAccessLLMProxy ||
 		got.CanAccessSkills != want.CanAccessSkills ||
 		got.CanAccessDeviceScans != want.CanAccessDeviceScans ||
 		strings.Join(got.MCPServerIDs, ",") != strings.Join(want.MCPServerIDs, ",") {

@@ -80,14 +80,6 @@ func (db *DB) AutoMigrate() (err error) {
 		return fmt.Errorf("failed to migrate mcp_audit_log client info: %w", err)
 	}
 
-	if err = migrateRunTokenActivityInputOutput(tx); err != nil {
-		return fmt.Errorf("failed to rename run_token_activities token columns: %w", err)
-	}
-
-	if err = dropRunTokenActivityPersonalToken(tx); err != nil {
-		return fmt.Errorf("failed to drop run_token_activities personal_token column: %w", err)
-	}
-
 	if err = migrateUserDailyTokenLimits(tx); err != nil {
 		return fmt.Errorf("failed to rename users daily token limit columns: %w", err)
 	}
@@ -145,12 +137,8 @@ func (db *DB) AutoMigrate() (err error) {
 	if err := tx.AutoMigrate(
 		types.AuthToken{},
 		types.TokenRequest{},
-		types.LLMAuditLog{},
 		types.EgressAuditLog{},
-		types.LLMGatewayBudget{},
-		types.GuardrailPolicy{},
 		types.Guardrail{},
-		types.LLMGatewayBudgetUsage{},
 		types.User{},
 		types.Identity{},
 		types.Group{},
@@ -158,7 +146,6 @@ func (db *DB) AutoMigrate() (err error) {
 		types.GroupRoleAssignment{},
 		types.APIActivity{},
 		types.Image{},
-		types.RunTokenActivity{},
 		types.MCPOAuthToken{},
 		types.MCPOAuthPendingState{},
 		types.MCPAuditLog{},
@@ -166,7 +153,6 @@ func (db *DB) AutoMigrate() (err error) {
 		types.Property{},
 		types.APIKey{},
 		types.ServiceAccountAPIKey{},
-		types.MessagePolicyViolation{},
 		types.DeviceScan{},
 		types.DeviceScanMCPServer{},
 		types.DeviceScanSkill{},

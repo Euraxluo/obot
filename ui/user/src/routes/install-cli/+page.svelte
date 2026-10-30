@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/state';
+	import { productTitle } from '$lib/branding.svelte';
 	import CopyButton from '$lib/components/CopyButton.svelte';
 	import Layout from '$lib/components/Layout.svelte';
 	import Logo from '$lib/components/Logo.svelte';
@@ -51,7 +52,7 @@
 		<section class="paper">
 			<div class="flex flex-col @2xl/cli:flex-row items-center justify-center gap-8">
 				<div class="max-w-md">
-					<Logo class="@2xl/cli:size-16 size-12 mb-1 mx-auto @2xl:mx-0" />
+					<Logo class="@2xl/cli:size-12 size-10 mb-1 mx-auto @2xl:mx-0" />
 					<h2 class="text-2xl font-bold mb-2">{m.install_cli_hero_heading()}</h2>
 					{#if isAdmin}
 						<p class="font-light">
@@ -273,7 +274,7 @@
 {/snippet}
 
 <svelte:head>
-	<title>{m.install_cli_page_title()}</title>
+	<title>{productTitle(m.install_cli_title())}</title>
 </svelte:head>
 
 <style lang="postcss">

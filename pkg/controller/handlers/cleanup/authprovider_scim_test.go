@@ -90,11 +90,11 @@ func TestAuthProviderCleanupOfAProviderWithSCIMGroupIDs(t *testing.T) {
 				},
 			}
 
-			modelPolicy := &v1.ModelAccessPolicy{
-				Name:      "model-policy",
+			skillRule := &v1.SkillAccessRule{
+				Name:      "skill-rule",
 				Namespace: namespace,
-				Spec: v1.ModelAccessPolicySpec{
-					Manifest: clienttypes.ModelAccessPolicyManifest{
+				Spec: v1.SkillAccessRuleSpec{
+					Manifest: clienttypes.SkillAccessRuleManifest{
 						Subjects: subjects,
 					},
 				},
@@ -102,7 +102,7 @@ func TestAuthProviderCleanupOfAProviderWithSCIMGroupIDs(t *testing.T) {
 
 			baseClient := fake.NewClientBuilder().
 				WithScheme(storagescheme.Scheme).
-				WithObjects(cleanupTask, accessRule, modelPolicy).
+				WithObjects(cleanupTask, accessRule, skillRule).
 				Build()
 			storageClient := &generatedNameClient{WithWatch: baseClient}
 			gatewayClient, gatewayDB := newAuthProviderCleanupGatewayClient(t)
@@ -174,9 +174,9 @@ func TestAuthProviderCleanupOfAProviderWithSCIMGroupIDs(t *testing.T) {
 			gotAccessRule := &v1.AccessControlRule{}
 			mustGet(t, storageClient, accessRule, gotAccessRule)
 			assertSubjects(t, gotAccessRule.Spec.Manifest.Subjects, tt.wantSubjects)
-			gotModelPolicy := &v1.ModelAccessPolicy{}
-			mustGet(t, storageClient, modelPolicy, gotModelPolicy)
-			assertSubjects(t, gotModelPolicy.Spec.Manifest.Subjects, tt.wantSubjects)
+			gotSkillRule := &v1.SkillAccessRule{}
+			mustGet(t, storageClient, skillRule, gotSkillRule)
+			assertSubjects(t, gotSkillRule.Spec.Manifest.Subjects, tt.wantSubjects)
 			for _, model := range []any{new(gatewaytypes.Group), new(gatewaytypes.GroupMemberships), new(gatewaytypes.GroupRoleAssignment)} {
 				var n int64
 				if err := gatewayDB.Model(model).Count(&n).Error; err != nil {

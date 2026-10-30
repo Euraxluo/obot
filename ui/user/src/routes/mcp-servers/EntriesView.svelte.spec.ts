@@ -1,8 +1,11 @@
+import { m } from '$lib/i18n';
 import { mcpServersAndEntries } from '$lib/stores';
 import { openUrl } from '$lib/utils';
 import { createMCPCatalogEntry } from '../../tests/helpers/mcp';
 import { preparePageData } from '../../tests/helpers/pageData';
+import { worker } from '../../tests/mocks/worker';
 import EntriesView from './EntriesView.svelte';
+import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
@@ -31,6 +34,17 @@ async function renderEntriesView(readonly = false) {
 		isInitialized: true
 	};
 	return render(EntriesView, { entity: 'catalog', id: 'default', readonly });
+}
+
+function mockMarketPublicationUpdate(handler: (body: unknown) => void) {
+	worker.use(
+		http.put('/api/mcp-catalogs/default/entries/:entryID', async ({ params, request }) => {
+			const body = await request.json();
+			handler(body);
+			const base = params.entryID === workspaceEntry.id ? workspaceEntry : catalogEntry;
+			return HttpResponse.json({ ...base, ...(body as object) });
+		})
+	);
 }
 
 async function clickRow(name: string) {
@@ -68,5 +82,75 @@ describe('MCP Servers EntriesView', () => {
 		const row = page.getByRole('row').filter({ hasText: 'Catalog Entry' });
 		await expect.element(row.getByRole('button', { name: 'Row actions' })).not.toBeInTheDocument();
 		await expect.element(page.getByText('View Audit Logs')).not.toBeInTheDocument();
+	});
+
+	it('publishes a single catalog entry from its marketplace toggle', async () => {
+		const update = vi.fn();
+		mockMarketPublicationUpdate(update);
+		await renderEntriesView();
+
+		const row = page.getByRole('row').filter({ hasText: 'Catalog Entry' });
+		await row.getByRole('switch', { name: m.mcps_servers_market_publish() }).click();
+
+		await expect.poll(() => update).toHaveBeenCalledOnce();
+		expect(update).toHaveBeenCalledWith(
+			expect.objectContaining({
+				metadata: expect.objectContaining({ marketPublished: 'true' })
+			})
+		);
+	});
+
+	it('publishes selected catalog entries in bulk', async () => {
+		const update = vi.fn();
+		mockMarketPublicationUpdate(update);
+		await renderEntriesView();
+
+		// Native DOM click: Playwright actionability fails on sticky table headers / scroll container.
+		const selectButton = page.getByRole('row').filter({ hasText: 'Catalog Entry' }).getByRole('button').first();
+		const el = await selectButton.element();
+		if (el instanceof HTMLElement) el.click();
+
+		await page.getByRole('button', { name: m.mcps_servers_market_publish_selected() }).click();
+		await expect.poll(() => update).toHaveBeenCalledOnce();
+	});
+
+	it('unpublishes selected catalog entries in bulk', async () => {
+		const publishedEntry = createMCPCatalogEntry({
+			id: 'published-entry',
+			name: 'Published Entry',
+			manifest: { metadata: { marketPublished: 'true' } }
+		});
+		await preparePageData();
+		mcpServersAndEntries.current = {
+			entries: [publishedEntry],
+			servers: [],
+			userInstances: [],
+			userConfiguredServers: [],
+			loading: false,
+			lastFetched: null,
+			isInitialized: true
+		};
+		const update = vi.fn();
+		worker.use(
+			http.put('/api/mcp-catalogs/default/entries/published-entry', async ({ request }) => {
+				const body = await request.json();
+				update(body);
+				return HttpResponse.json({ ...publishedEntry, ...(body as object) });
+			})
+		);
+		render(EntriesView, { entity: 'catalog', id: 'default' });
+
+		// Native DOM click: Playwright actionability fails on sticky table headers / scroll container.
+		const selectButton = page.getByRole('row').filter({ hasText: 'Published Entry' }).getByRole('button').first();
+		const el = await selectButton.element();
+		if (el instanceof HTMLElement) el.click();
+		await page.getByRole('button', { name: m.mcps_servers_market_unpublish_selected() }).click();
+
+		await expect.poll(() => update).toHaveBeenCalledOnce();
+		expect(update).toHaveBeenCalledWith(
+			expect.objectContaining({
+				metadata: expect.objectContaining({ marketPublished: 'false' })
+			})
+		);
 	});
 });

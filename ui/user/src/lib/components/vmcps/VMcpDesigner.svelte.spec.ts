@@ -1,4 +1,5 @@
 import { page as appPage } from '$app/state';
+import { m } from '$lib/i18n';
 import {
 	finishVMcpCreateHandoff,
 	queueToolSetupForCreatedVMcp
@@ -2622,7 +2623,7 @@ describe('VMcpDesigner.svelte', () => {
 			await renderDesigner([componentEntry], createIssueTrackerVMcp());
 
 			await expect
-				.element(page.getByText('Start your vMCP to use chat and inspect tools.'))
+				.element(page.getByText(m.vmcps_tester_start_prompt()))
 				.toBeVisible();
 			await expect.element(page.getByRole('button', { name: 'Start Session' })).toBeVisible();
 			await expect.element(page.getByCSS('[data-vmcp-canvas]')).not.toBeInTheDocument();

@@ -1,5 +1,5 @@
 import { m } from '$lib/i18n';
-import type { DefaultModelAlias, MCPCatalogServer, Model, Version } from '$lib/services/user/types';
+import type { MCPCatalogServer } from '$lib/services/user/types';
 import { LoggingTransport } from './logging-transport';
 import { TesterClient, type RejectedTesterTool } from './tester-client';
 import { testerErrorDetails } from './tester-errors';
@@ -18,14 +18,12 @@ import {
 	type GetPromptResult,
 	type Implementation,
 	type Prompt,
-	type PromptMessage,
 	type ReadResourceResult,
 	type Resource,
-	type ResourceContents,
 	type Tool
 } from '@modelcontextprotocol/sdk/types.js';
 
-export type TesterSection = 'chat' | 'tools' | 'prompts' | 'resources' | 'logs';
+export type TesterSection = 'tools' | 'prompts' | 'resources' | 'logs';
 export type TesterCapabilitySection = Extract<TesterSection, 'tools' | 'prompts' | 'resources'>;
 export type TesterStatus =
 	| 'idle'
@@ -55,7 +53,7 @@ export function testerStatusLabel(status: TesterStatus): string {
 	}
 }
 
-export type TesterWorkflowKind = 'chat' | 'direct';
+export type TesterWorkflowKind = 'direct';
 export type DirectOperationStatus =
 	| 'success'
 	| 'mcp-error'
@@ -72,30 +70,8 @@ export interface DirectOperationResult<T> {
 	details?: unknown;
 }
 
-export interface StagedPromptContext {
-	id: string;
-	type: 'prompt';
-	name: string;
-	messages: PromptMessage[];
-}
-
-export interface StagedResourceContext {
-	id: string;
-	type: 'resource';
-	name: string;
-	contents: Array<{ uri: string; mimeType?: string; text: string }>;
-}
-
-export type StagedTesterContext = StagedPromptContext | StagedResourceContext;
-
-export interface StageResult {
-	ok: boolean;
-	message?: string;
-}
-
 export function normalizeTesterSection(value: string | null | undefined): TesterSection {
 	switch (value) {
-		case 'chat':
 		case 'prompts':
 		case 'resources':
 		case 'logs':
@@ -116,60 +92,6 @@ export function testerConnectionKey(server?: MCPCatalogServer): string | undefin
 		Boolean(server.missingOAuthCredentials),
 		server.deploymentStatus ?? ''
 	]);
-}
-
-export interface TesterChatAvailability {
-	available: boolean;
-	unavailableMessage: string;
-}
-
-// Chat runs either on the installation's configured model provider or, when there is none, on the
-// MCP Tester model service. Both Tester hosts resolve it here so a new host cannot drift back to
-// checking only the default model alias.
-export function testerChatAvailability(
-	version: Version,
-	aliases: DefaultModelAlias[] | undefined,
-	models: Model[] | undefined
-): TesterChatAvailability {
-	// A null value means the server could not read model configuration, which is never permission
-	// to use the external model service.
-	if (version.hasModelProvider === null) {
-		return {
-			available: false,
-			unavailableMessage: m.mcps_tester_chat_model_config_unavailable()
-		};
-	}
-
-	if (version.hasModelProvider === false) {
-		if (version.mcpTesterModelProxyAvailable === true) {
-			return { available: true, unavailableMessage: '' };
-		}
-
-		return {
-			available: false,
-			unavailableMessage:
-				version.hasValidLicense !== true
-					? m.mcps_tester_chat_managed_by_admin()
-					: m.mcps_tester_chat_model_service_unavailable()
-		};
-	}
-
-	const configuredDefault = aliases?.find((alias) => alias.alias === 'llm');
-	const defaultModel = configuredDefault?.model
-		? models?.find(
-				(model) =>
-					model.active &&
-					(model.id === configuredDefault.model ||
-						(model.aliasAssigned && model.alias === configuredDefault.model))
-			)
-		: undefined;
-
-	return {
-		available: Boolean(configuredDefault?.model && defaultModel),
-		unavailableMessage: !configuredDefault?.model
-			? m.mcps_tester_chat_no_default_model()
-			: m.mcps_tester_chat_default_model_inactive()
-	};
 }
 
 export interface TesterWorkflow {
@@ -227,12 +149,10 @@ export interface TesterInspectorStates {
 		selectedName?: string;
 		argumentsValue: Record<string, string>;
 		result?: DirectOperationResult<GetPromptResult>;
-		stageError?: string;
 	};
 	resources: {
 		selectedURI?: string;
 		result?: DirectOperationResult<ReadResourceResult>;
-		stageError?: string;
 	};
 }
 
@@ -243,8 +163,6 @@ function emptyInspectorStates(): TesterInspectorStates {
 		resources: {}
 	};
 }
-
-const MAX_STAGED_CONTEXT_BYTES = 100 * 1024;
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
@@ -284,17 +202,6 @@ function classifyOperationError(
 		message: errorMessage(error),
 		details: testerErrorDetails(error)
 	};
-}
-
-function byteLength(value: string): number {
-	return new TextEncoder().encode(value).byteLength;
-}
-
-function stagedResourceText(content: { uri: string; mimeType?: string; text: string }): string {
-	const metadata = content.mimeType
-		? `Resource: ${content.uri}\nMIME type: ${content.mimeType}`
-		: `Resource: ${content.uri}`;
-	return `${metadata}\n\n${content.text}`;
 }
 
 export function isTextualMimeType(mimeType?: string): boolean {
@@ -414,7 +321,6 @@ export class MCPTesterSession {
 		prompts: emptyCache(),
 		resources: emptyCache()
 	});
-	stagedContext = $state<StagedTesterContext[]>([]);
 	inspectors = $state<TesterInspectorStates>(emptyInspectorStates());
 
 	constructor(server: MCPCatalogServer, clientInfo: Implementation, fetcher: typeof fetch = fetch) {
@@ -656,51 +562,6 @@ export class MCPTesterSession {
 		});
 	}
 
-	async snapshotChatTools(
-		signal: AbortSignal,
-		onRejectedTools?: (tools: RejectedTesterTool[]) => void
-	): Promise<Tool[]> {
-		if (!this.isCapabilitySupported('tools')) {
-			onRejectedTools?.([]);
-			return [];
-		}
-		try {
-			const result = await this.listTools(signal);
-			if (!signal.aborted) onRejectedTools?.(result.rejectedTools ?? []);
-			return result.items;
-		} catch (error) {
-			if (error instanceof NoValidTesterToolsError && !signal.aborted) {
-				onRejectedTools?.(error.rejectedTools);
-			}
-			const classified = classifyOperationError(error, signal);
-			if (classified.status === 'denied') this.status = 'access-denied';
-			throw new Error(classified.message, { cause: error });
-		}
-	}
-
-	async callChatTool(
-		name: string,
-		args: Record<string, unknown>,
-		signal: AbortSignal
-	): Promise<DirectOperationResult<CallToolResult>> {
-		const started = performance.now();
-		try {
-			const value = (await this.client.callTool({ name, arguments: args }, undefined, {
-				signal
-			})) as CallToolResult;
-			return {
-				status: value.isError === true ? 'mcp-error' : 'success',
-				durationMs: performance.now() - started,
-				value
-			};
-		} catch (error) {
-			return {
-				...classifyOperationError(error, signal),
-				durationMs: performance.now() - started
-			};
-		}
-	}
-
 	getPrompt(
 		name: string,
 		args: Record<string, string>
@@ -714,71 +575,6 @@ export class MCPTesterSession {
 		return this.executeDirect('resource read', (signal) =>
 			this.client.readResource({ uri }, { signal })
 		);
-	}
-
-	stagePrompt(name: string, result: GetPromptResult): StageResult {
-		if (result.messages.length === 0) {
-			return { ok: false, message: m.mcps_tester_stage_prompt_empty() };
-		}
-		if (result.messages.some((message) => message.content.type !== 'text')) {
-			return {
-				ok: false,
-				message: m.mcps_tester_stage_prompt_unsupported()
-			};
-		}
-		const size = result.messages.reduce(
-			(total, message) =>
-				total + byteLength(message.content.type === 'text' ? message.content.text : ''),
-			0
-		);
-		if (size > MAX_STAGED_CONTEXT_BYTES) {
-			return { ok: false, message: m.mcps_tester_stage_prompt_too_large() };
-		}
-		this.stagedContext.push({
-			id: crypto.randomUUID(),
-			type: 'prompt',
-			name,
-			messages: result.messages
-		});
-		return { ok: true };
-	}
-
-	stageResource(name: string, result: ReadResourceResult): StageResult {
-		if (result.contents.length === 0) {
-			return { ok: false, message: m.mcps_tester_stage_resource_empty() };
-		}
-		const textContents = result.contents.filter(
-			(content): content is ResourceContents & { text: string } =>
-				'text' in content && isTextualMimeType(content.mimeType)
-		);
-		if (textContents.length !== result.contents.length) {
-			return {
-				ok: false,
-				message: m.mcps_tester_stage_resource_unsupported()
-			};
-		}
-		const size = textContents.reduce(
-			(total, content) => total + byteLength(stagedResourceText(content)),
-			0
-		);
-		if (size > MAX_STAGED_CONTEXT_BYTES) {
-			return { ok: false, message: m.mcps_tester_stage_resource_too_large() };
-		}
-		this.stagedContext.push({
-			id: crypto.randomUUID(),
-			type: 'resource',
-			name,
-			contents: textContents.map((content) => ({
-				uri: content.uri,
-				mimeType: content.mimeType,
-				text: content.text
-			}))
-		});
-		return { ok: true };
-	}
-
-	removeStagedContext(id: string): void {
-		this.stagedContext = this.stagedContext.filter((context) => context.id !== id);
 	}
 
 	private isClosed(): boolean {
@@ -822,7 +618,6 @@ export class MCPTesterSession {
 			prompts: emptyCache(),
 			resources: emptyCache()
 		};
-		this.stagedContext = [];
 		this.inspectors = emptyInspectorStates();
 		this.error = undefined;
 		this.status = 'closed';

@@ -1,3 +1,4 @@
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import { AdminService } from '$lib/services';
 import { createVMCP } from '../../tests/helpers/mcp';
 import {
@@ -14,6 +15,8 @@ import {
 	type MatchedAccessPolicy
 } from './currentAccess';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
+overwriteGetLocale(() => 'en');
 
 const userTarget: CurrentAccessTarget = {
 	kind: 'user',
@@ -135,21 +138,21 @@ describe('collectAccessResources', () => {
 			'server-1'
 		]);
 		expect(grantsEverything(policies)).toBe(true);
-		expect(grantsEverything([policy('policy-2', 'Second', [{ type: 'model', id: 'gpt-*' }])])).toBe(
-			false
-		);
+		expect(
+			grantsEverything([policy('policy-2', 'Second', [{ type: 'mcpServer', id: 'gpt-*' }])])
+		).toBe(false);
 	});
 
 	it('expands an everything grant into each catalog resource', () => {
 		const everything = policy('policy-all', 'All', [{ type: 'selector', id: '*' }]);
-		const specific = policy('policy-one', 'One', [{ type: 'model', id: 'model-1' }]);
+		const specific = policy('policy-one', 'One', [{ type: 'skill', id: 'skill-1' }]);
 
 		const resources = collectAccessResources([everything, specific], describeResource, [
-			{ type: 'model', id: 'model-2' },
-			{ type: 'model', id: 'model-1' }
+			{ type: 'skill', id: 'skill-2' },
+			{ type: 'skill', id: 'skill-1' }
 		]);
 
-		expect(resources.map((resource) => resource.id)).toEqual(['model-1', 'model-2']);
+		expect(resources.map((resource) => resource.id)).toEqual(['skill-1', 'skill-2']);
 		expect(resources[0]?.policies.map((granting) => granting.id)).toEqual([
 			'policy-one',
 			'policy-all'
@@ -215,7 +218,6 @@ describe('loadCurrentAccess', () => {
 				subjects: [{ type: 'group', id: 'engineering' }]
 			}
 		]);
-		const listModels = vi.spyOn(AdminService, 'listModelAccessPolicies');
 		const listSkills = vi.spyOn(AdminService, 'listSkillAccessPolicies');
 		const listVmcps = vi.spyOn(AdminService, 'listAllVMCPs');
 
@@ -224,10 +226,9 @@ describe('loadCurrentAccess', () => {
 		expect(mcp.map((policy) => policy.id)).toEqual(['mcp-user', 'mcp-ws']);
 		expect(mcp[1]?.href).toBe('/mcp-servers/access-policies/w/ws-1/r/mcp-ws');
 		expect(mcp[1]?.powerUserID).toBe('owner-1');
-		expect(listModels).not.toHaveBeenCalled();
 		expect(listSkills).not.toHaveBeenCalled();
 		expect(listVmcps).not.toHaveBeenCalled();
-		expect(hasAnyCurrentAccess({ mcp, models: [], skills: [], vmcps: [] })).toBe(true);
+		expect(hasAnyCurrentAccess({ mcp, skills: [], vmcps: [] })).toBe(true);
 	});
 
 	it('normalizes the resources each policy grants', async () => {
@@ -241,25 +242,9 @@ describe('loadCurrentAccess', () => {
 			}
 		]);
 		vi.spyOn(AdminService, 'listAllUserWorkspaceAccessControlRules').mockResolvedValue([]);
-		vi.spyOn(AdminService, 'listModelAccessPolicies').mockResolvedValue([
-			{
-				id: 'model-everyone',
-				displayName: 'Everyone Models',
-				created: '2026-01-01T00:00:00Z',
-				subjects: [{ type: 'selector', id: '*' }],
-				models: [{ id: 'model-1' }, { id: '*' }]
-			}
-		]);
-
 		const mcp = await loadCurrentAccess(userTarget, 'mcp');
-		const models = await loadCurrentAccess(userTarget, 'models');
 
 		expect(mcp[0]?.resources).toEqual([{ type: 'mcpServerCatalogEntry', id: 'entry-1' }]);
-		// A model policy stores bare ids, so the wildcard becomes a selector resource.
-		expect(models[0]?.resources).toEqual([
-			{ type: 'model', id: 'model-1' },
-			{ type: 'selector', id: '*' }
-		]);
 	});
 
 	it('includes vMCPs whose profiles apply to the target', async () => {
@@ -301,7 +286,7 @@ describe('loadCurrentAccess', () => {
 			}
 		]);
 		expect(listMcp).not.toHaveBeenCalled();
-		expect(hasAnyCurrentAccess({ mcp: [], models: [], skills: [], vmcps })).toBe(true);
+		expect(hasAnyCurrentAccess({ mcp: [], skills: [], vmcps })).toBe(true);
 	});
 
 	it('includes admin-created vMCPs and personal vMCPs the user owns', async () => {
@@ -344,10 +329,10 @@ describe('loadCurrentAccess', () => {
 	});
 
 	it('rejects when the requested view fails', async () => {
-		vi.spyOn(AdminService, 'listModelAccessPolicies').mockRejectedValue(
-			new Error('models unavailable')
+		vi.spyOn(AdminService, 'listSkillAccessPolicies').mockRejectedValue(
+			new Error('skills unavailable')
 		);
 
-		await expect(loadCurrentAccess(userTarget, 'models')).rejects.toThrow('models unavailable');
+		await expect(loadCurrentAccess(userTarget, 'skills')).rejects.toThrow('skills unavailable');
 	});
 });

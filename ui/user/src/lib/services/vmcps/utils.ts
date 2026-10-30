@@ -466,6 +466,10 @@ function textContains(text: string | undefined, needle: string) {
 	return Boolean(text?.toLowerCase().includes(needle));
 }
 
+export function catalogEntryDisplayName(entry: MCPCatalogEntry) {
+	return entry.manifest.metadata?.displayNameZh?.trim() || entry.manifest.name;
+}
+
 export function queryMatchScore(
 	item: MCPCatalogEntry | MCPCatalogServer | VMCP,
 	query: string,
@@ -496,7 +500,12 @@ export function queryMatchScore(
 		}
 	} else {
 		const { name, description, shortDescription } = item.manifest;
+		const displayNameZh =
+			'isCatalogEntry' in item ? item.manifest.metadata?.displayNameZh : undefined;
 		if (textContains(name, needle)) {
+			score = Math.max(score, QUERY_MATCH_WEIGHT_NAME);
+		}
+		if (textContains(displayNameZh, needle)) {
 			score = Math.max(score, QUERY_MATCH_WEIGHT_NAME);
 		}
 		if (textContains(description, needle) || textContains(shortDescription, needle)) {
@@ -676,7 +685,7 @@ function popularityRank(entry: MCPCatalogEntry) {
 }
 
 function compareCatalogNames(a: MCPCatalogEntry, b: MCPCatalogEntry) {
-	return (a.manifest.name ?? '').localeCompare(b.manifest.name ?? '', undefined, {
+	return (catalogEntryDisplayName(a) ?? '').localeCompare(catalogEntryDisplayName(b) ?? '', 'zh', {
 		sensitivity: 'base'
 	});
 }

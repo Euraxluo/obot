@@ -73,7 +73,7 @@ func (s *authProviderSCIMTest) settleChange(errC <-chan error, apply func(*v1.Pr
 func (s *authProviderSCIMTest) reconcileChange(change *v1.ProviderConfigurationChange) v1.ProviderConfigurationChangeStatus {
 	s.t.Helper()
 
-	controller := providerconfigurationchange.New(s.gateway, s.dispatcher, s.license, "", s.storage)
+	controller := providerconfigurationchange.New(s.gateway, s.dispatcher, "", s.storage)
 	require.NoError(s.t, controller.Reconcile(router.Request{
 		Client:    s.storage,
 		Object:    change,
@@ -166,18 +166,19 @@ func TestSCIMConnectionHandlerRoles(t *testing.T) {
 
 func TestNewGroupReferencesMustNameAGroupOfTheSCIMProvider(t *testing.T) {
 	s := newAuthProviderSCIMTest(t)
-	h := &ModelAccessPolicyHandler{}
+	h := &SkillAccessRuleHandler{}
 	owner := &user.DefaultInfo{
 		Name:   "owner",
 		UID:    "1",
 		Groups: clienttypes.RoleOwner.Groups(),
 	}
 	manifest := func(groupIDs ...string) string {
-		m := clienttypes.ModelAccessPolicyManifest{
-			DisplayName: "Models",
-			Models: []clienttypes.ModelResource{
+		m := clienttypes.SkillAccessRuleManifest{
+			DisplayName: "Skills",
+			Resources: []clienttypes.SkillResource{
 				{
-					ID: "*",
+					Type: clienttypes.SkillResourceTypeSelector,
+					ID:   "*",
 				},
 			},
 		}
@@ -193,29 +194,29 @@ func TestNewGroupReferencesMustNameAGroupOfTheSCIMProvider(t *testing.T) {
 	}
 
 	// Without a connection, the provider's groups are discovered at sign-in, so any ID is accepted.
-	req, rec := s.scimContext(http.MethodPost, "/api/model-access-policies", manifest("okta/00g-before"), owner)
+	req, rec := s.scimContext(http.MethodPost, "/api/skill-access-rules", manifest("okta/00g-before"), owner)
 	require.NoError(t, h.Create(req))
-	var created clienttypes.ModelAccessPolicy
+	var created clienttypes.SkillAccessRule
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &created))
 
 	s.connect()
 
 	// With one, a new reference must name an existing group of the provider.
-	req, _ = s.scimContext(http.MethodPost, "/api/model-access-policies", manifest("okta/00g-missing"), owner)
+	req, _ = s.scimContext(http.MethodPost, "/api/skill-access-rules", manifest("okta/00g-missing"), owner)
 	err := h.Create(req)
 	require.ErrorContains(t, err, "okta/00g-missing")
 	require.ErrorContains(t, err, "push the group")
-	var policies v1.ModelAccessPolicyList
+	var policies v1.SkillAccessRuleList
 	require.NoError(t, s.storage.List(t.Context(), &policies))
 	assert.Len(t, policies.Items, 1, "a refused policy was saved")
 
 	// An existing reference to a missing group does not block an unrelated edit, and groups of other providers are
 	// not checked.
-	req, _ = s.scimContext(http.MethodPut, "/api/model-access-policies/"+created.ID, manifest("okta/00g-before", "entra/engineering"), owner)
-	req.SetPathValue("id", created.ID)
+	req, _ = s.scimContext(http.MethodPut, "/api/skill-access-rules/"+created.ID, manifest("okta/00g-before", "entra/engineering"), owner)
+	req.SetPathValue("skill_access_rule_id", created.ID)
 	require.NoError(t, h.Update(req))
 
-	var policy v1.ModelAccessPolicy
+	var policy v1.SkillAccessRule
 	require.NoError(t, s.storage.Get(t.Context(), kclient.ObjectKey{Namespace: system.DefaultNamespace, Name: created.ID}, &policy))
 	assert.Len(t, policy.Spec.Manifest.Subjects, 2)
 }
@@ -262,21 +263,6 @@ func TestHandlersRefuseNewReferencesToMissingSCIMGroups(t *testing.T) {
 			},
 			create: (&AccessControlRuleHandler{}).Create,
 			saved:  &v1.AccessControlRuleList{},
-		},
-		{
-			name: "model access policy",
-			path: "/api/model-access-policies",
-			body: clienttypes.ModelAccessPolicyManifest{
-				DisplayName: "Models",
-				Subjects:    missing,
-				Models: []clienttypes.ModelResource{
-					{
-						ID: "*",
-					},
-				},
-			},
-			create: (&ModelAccessPolicyHandler{}).Create,
-			saved:  &v1.ModelAccessPolicyList{},
 		},
 		{
 			name: "skill access rule",

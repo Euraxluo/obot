@@ -1,10 +1,5 @@
 import type { AdminService, UserService } from '$lib/services';
-import type {
-	MCPCatalogEntryFieldManifest,
-	ServerK8sSettings,
-	TokenUsageStats
-} from '$lib/services/admin/types';
-import type { GatewayStatus } from '$lib/services/llm-gateway/gateway';
+import type { MCPCatalogEntryFieldManifest, ServerK8sSettings } from '$lib/services/admin/types';
 import type { K8sServerDetail, MCPServerInstance } from '$lib/services/user/types';
 import { createMCPCatalogEntry, createMCPCatalogServer } from '../helpers/mcp';
 import { faker } from '@faker-js/faker';
@@ -33,49 +28,50 @@ export const getAppNotificationResponse = {
 // App preferences
 
 export const listAppPreferencesResponse = {
+	displayName: 'ZTOCC',
 	logos: {
-		darkLogoChat: '/user/images/obot-chat-logo-blue-white-text.svg',
-		darkLogoCommunity: '/user/images/obot-community-logo-blue-white-text.svg',
-		darkLogoDefault: '/user/images/obot-logo-blue-white-text.svg',
-		darkLogoEnterprise: '/user/images/obot-enterprise-logo-blue-white-text.svg',
-		logoChat: '/user/images/obot-chat-logo-blue-black-text.svg',
-		logoCommunity: '/user/images/obot-community-logo-blue-black-text.svg',
-		logoDefault: '/user/images/obot-logo-blue-black-text.svg',
-		logoEnterprise: '/user/images/obot-enterprise-logo-blue-black-text.svg',
-		logoIcon: '/user/images/obot-icon-blue.svg',
-		logoIconError: '/user/images/obot-icon-grumpy-blue.svg',
-		logoIconWarning: '/user/images/obot-icon-surprised-yellow.svg'
+		darkLogoChat: '/user/images/ztocc/drp-admin-logo.png',
+		darkLogoCommunity: '/user/images/ztocc/drp-admin-logo.png',
+		darkLogoDefault: '/user/images/ztocc/drp-admin-logo.png',
+		darkLogoEnterprise: '/user/images/ztocc/drp-admin-logo.png',
+		logoChat: '/user/images/ztocc/ztocc-logo.png',
+		logoCommunity: '/user/images/ztocc/ztocc-logo.png',
+		logoDefault: '/user/images/ztocc/ztocc-logo.png',
+		logoEnterprise: '/user/images/ztocc/ztocc-logo.png',
+		logoIcon: '/user/images/ztocc/driver-app-logo.png',
+		logoIconError: '/user/images/ztocc/driver-app-logo.png',
+		logoIconWarning: '/user/images/ztocc/driver-app-logo.png'
 	},
 	theme: {
-		backgroundColor: 'hsl(0 0 100)',
-		darkBackgroundColor: 'hsl(0 0 0)',
-		darkErrorColor: '#ef4444',
-		darkOnBackgroundColor: 'hsl(0 0 97.5)',
-		darkOnErrorColor: 'hsl(0 0 97.5)',
-		darkOnPrimaryColor: 'hsl(0 0 97.5)',
-		darkOnSuccessColor: 'hsl(0 0 97.5)',
-		darkOnWarningColor: 'hsl(0 0 97.5)',
-		darkPrimaryColor: '#4f7ef3',
-		darkSecondaryColor: 'hsl(0 0 22.5)',
-		darkSuccessColor: 'oklch(67% 0.13 149)',
-		darkSurface1Color: 'hsl(0 0 7.5)',
-		darkSurface2Color: 'hsl(0 0 12.5)',
-		darkSurface3Color: 'hsl(0 0 22.5)',
-		darkWarningColor: 'oklch(79.5% 0.184 86.047)',
-		errorColor: '#ef4444',
+		backgroundColor: '#f2f7f4',
+		darkBackgroundColor: '#0e1514',
+		darkErrorColor: '#e57272',
+		darkOnBackgroundColor: '#c4d3ce',
+		darkOnErrorColor: '#f2f7f4',
+		darkOnPrimaryColor: '#f2f7f4',
+		darkOnSuccessColor: '#f2f7f4',
+		darkOnWarningColor: '#f2f7f4',
+		darkPrimaryColor: '#2dd4bf',
+		darkSecondaryColor: '#1e2b29',
+		darkSuccessColor: '#2dd4bf',
+		darkSurface1Color: '#17211f',
+		darkSurface2Color: '#1e2b29',
+		darkSurface3Color: '#2a3a37',
+		darkWarningColor: '#d99b2b',
+		errorColor: '#d64545',
 		fontFamily: 'Poppins, ui-sans-serif, system-ui, sans-serif',
-		onBackgroundColor: 'hsl(0 0 0)',
-		onErrorColor: 'hsl(0 0 100)',
-		onPrimaryColor: 'hsl(0 0 100)',
-		onSuccessColor: 'hsl(0 0 100)',
-		onWarningColor: 'hsl(0 0 100)',
-		primaryColor: '#4f7ef3',
-		secondaryColor: 'hsl(0 0 82.5)',
-		successColor: 'oklch(67% 0.13 149)',
-		surface1Color: 'hsl(0 0 95.5)',
-		surface2Color: 'hsl(0 0 92.5)',
-		surface3Color: 'hsl(0 0 82.5)',
-		warningColor: 'oklch(79.5% 0.184 86.047)'
+		onBackgroundColor: '#1e3431',
+		onErrorColor: '#f2f7f4',
+		onPrimaryColor: '#f2f7f4',
+		onSuccessColor: '#f2f7f4',
+		onWarningColor: '#f2f7f4',
+		primaryColor: '#159a91',
+		secondaryColor: '#e4eee9',
+		successColor: '#159a91',
+		surface1Color: '#ffffff',
+		surface2Color: '#e4eee9',
+		surface3Color: '#d8e6df',
+		warningColor: '#b97d10'
 	}
 } satisfies Awaited<ReturnType<typeof UserService.listAppPreferences>>;
 
@@ -178,7 +174,6 @@ export const listAuthProvidersResponse = [
 		image: '',
 		port: 0,
 		link: 'https://entra.microsoft.com/',
-		missingEntitlements: ['OBOT_ENTERPRISE_AUTH_PROVIDERS'],
 		requiredConfigurationParameters: [
 			{
 				name: 'OBOT_ENTRA_AUTH_PROVIDER_CLIENT_ID',
@@ -275,16 +270,6 @@ export const initiateTempLoginResponse = {
 	tokenId: 'temp-login-token'
 };
 
-// License
-
-export const getLicenseResponse = {
-	entitlements: null,
-	enterprise: false,
-	licenseKey: '',
-	locked: false,
-	source: ''
-} satisfies Awaited<ReturnType<typeof UserService.getLicense>>;
-
 // MCP servers
 
 export const createMCPCatalogEntryResponse = {
@@ -355,24 +340,6 @@ export const listMcpServerInstancesResponse = [] satisfies Awaited<
 export const listSingleOrRemoteMcpServersResponse = [] satisfies Awaited<
 	ReturnType<typeof UserService.listSingleOrRemoteMcpServers>
 >;
-
-// LLM gateway
-
-export const getGatewayStatusResponse = {
-	enabled: true,
-	ready: true,
-	hasProviders: false,
-	modelProviderName: 'llm-gateway-model-provider',
-	proxyPath: '/api/llm-proxy'
-} satisfies GatewayStatus;
-
-// Models
-
-export const listDefaultModelAliasesResponse = [] satisfies Awaited<
-	ReturnType<typeof UserService.listDefaultModelAliases>
->;
-
-export const listModelsResponse = [] satisfies Awaited<ReturnType<typeof UserService.listModels>>;
 
 // Profile
 
@@ -510,17 +477,11 @@ export function createMcpServerDetailsFixtures() {
 export const getVersionResponse = {
 	authEnabled: true,
 	engine: 'docker',
-	enterprise: false,
 	hideK8sDetails: false,
-	latestVersion: 'v0.0.0-dev',
-	licenseEntitlementViolations: undefined,
-	licenseEntitlements: undefined,
 	mcpDefaultDenyAllEgress: false,
 	mcpNetworkPolicyEnabled: false,
-	missingLicenseEntitlements: [],
 	obot: 'v0.0.0-dev',
-	sessionStore: 'cookie',
-	upgradeAvailable: false
+	sessionStore: 'cookie'
 } satisfies Awaited<ReturnType<typeof UserService.getVersion>>;
 
 const editableEnvField: MCPCatalogEntryFieldManifest = {
@@ -626,25 +587,3 @@ export function createDeploymentsPageFixtures() {
 		serverNoCatalogEntry
 	};
 }
-
-const emptyTokenUsageStatsTotals = {
-	requests: 0,
-	successes: 0,
-	fallbacks: 0,
-	avgDurationMs: 0,
-	inputTokens: 0,
-	outputTokens: 0,
-	totalTokens: 0,
-	totalSpend: 0
-};
-
-export const getTokenUsageStatsResponse: TokenUsageStats = {
-	start: '2026-10-01T00:00:00Z',
-	end: '2026-10-08T00:00:00Z',
-	bucketSeconds: 10800,
-	totals: emptyTokenUsageStatsTotals,
-	buckets: [],
-	providers: [],
-	topModelsByRequests: [],
-	topModelsBySpend: []
-};

@@ -5,6 +5,7 @@
 	import Table from '$lib/components/table/Table.svelte';
 	import { PAGE_TRANSITION_DURATION } from '$lib/constants';
 	import { m } from '$lib/i18n';
+	import { appPreferences } from '$lib/stores';
 	import { formatTimeAgo } from '$lib/time';
 	import { MOCK_CONNECTOR_TABLE_DATA, type BrandingMockConnectorRow } from './constants.js';
 	import { CircleAlert, HouseIcon, Info, X } from '@lucide/svelte';
@@ -33,8 +34,10 @@
 			<div
 				class="absolute top-1/2 left-1/2 flex w-md -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-4"
 			>
-				<Logo class="h-16" />
-				<h1 class="text-2xl font-semibold">{m.login_welcome()}</h1>
+				<Logo class="h-10" />
+				<h1 class="text-2xl font-semibold">
+					{m.login_welcome_suffix({ name: appPreferences.current.displayName })}
+				</h1>
 				<p class="text-md text-muted-content mb-1 text-center font-light">
 					{m.login_subtitle()}
 				</p>

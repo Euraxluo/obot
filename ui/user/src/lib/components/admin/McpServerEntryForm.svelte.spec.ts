@@ -1,3 +1,4 @@
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import { createMCPCatalogEntry } from '../../../tests/helpers/mcp';
 import { preparePageData } from '../../../tests/helpers/pageData';
 import { worker } from '../../../tests/mocks/worker';
@@ -6,6 +7,8 @@ import { HttpResponse, http } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
+
+overwriteGetLocale(() => 'en');
 
 describe('MCP server entry OAuth management', () => {
 	it('shows configured credentials and allows an administrator to clear them', async () => {

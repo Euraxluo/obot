@@ -14,8 +14,8 @@
 	});
 
 	let { class: klass, variant = 'blue' }: Props = $props();
-	const classes = $derived(twMerge('h-8', klass));
+	const classes = $derived(twMerge('size-10', klass));
 	const logoSrc = $derived(logos[variant]);
 </script>
 
-<img src={logoSrc} class={classes} alt="Obot {variant} logo icon" />
+<img src={logoSrc} class={classes} alt="ZTOCC logo icon" />

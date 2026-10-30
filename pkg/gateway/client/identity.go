@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"net/http"
 	"slices"
 	"time"
 
@@ -22,10 +21,6 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apiserver/pkg/storage/value"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
-)
-
-const (
-	userCreationAdvisoryLockID int64 = 0x6f626f7455736572 // "obotUser"
 )
 
 var (
@@ -115,19 +110,19 @@ func (c *Client) HasSignedInOwner(ctx context.Context, authProviderName string) 
 
 // EnsureIdentity ensures that the given identity exists in the database, and returns the user associated with it.
 // The user gets the explicit role of their email, which ensureIdentityUser applies.
-func (c *Client) EnsureIdentity(ctx context.Context, id *types.Identity, timezone string, userLimit UserLimit) (*types.User, error) {
-	return c.EnsureIdentityWithRole(ctx, id, timezone, types2.RoleUnknown, userLimit)
+func (c *Client) EnsureIdentity(ctx context.Context, id *types.Identity, timezone string) (*types.User, error) {
+	return c.EnsureIdentityWithRole(ctx, id, timezone, types2.RoleUnknown)
 }
 
 // EnsureIdentityWithRole ensures the given identity exists in the database with the at least the given role, and returns the user associated with it.
 // If the user already exists with a superset of the given role, it will not be updated.
-func (c *Client) EnsureIdentityWithRole(ctx context.Context, id *types.Identity, timezone string, role types2.Role, userLimit UserLimit) (*types.User, error) {
+func (c *Client) EnsureIdentityWithRole(ctx context.Context, id *types.Identity, timezone string, role types2.Role) (*types.User, error) {
 	var ensured ensuredIdentity
 
 	// Transaction #1: ensure the identity + user rows exist / are corrected, and read what we need.
 	err := c.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var err error
-		ensured, err = c.ensureIdentity(ctx, tx, id, timezone, role, userLimit)
+		ensured, err = c.ensureIdentity(ctx, tx, id, timezone, role)
 		return err
 	})
 	if err != nil {
@@ -219,7 +214,7 @@ func (c *Client) EncryptIdentities(ctx context.Context, force bool) error {
 // Once SCIM is enforced for the provider, sign-in requires a SCIM binding, and neither the identity nor the user is
 // ever created here. Before that, users are still created just in time. Either way, sign-in never overwrites the
 // profile of a user that SCIM has provisioned.
-func (c *Client) ensureIdentity(ctx context.Context, tx *gorm.DB, id *types.Identity, timezone string, role types2.Role, userLimit UserLimit) (ensuredIdentity, error) {
+func (c *Client) ensureIdentity(ctx context.Context, tx *gorm.DB, id *types.Identity, timezone string, role types2.Role) (ensuredIdentity, error) {
 	verified := slices.Contains(verifiedAuthProviders, fmt.Sprintf("%s/%s", id.AuthProviderNamespace, id.AuthProviderName))
 
 	email := id.Email
@@ -240,7 +235,7 @@ func (c *Client) ensureIdentity(ctx context.Context, tx *gorm.DB, id *types.Iden
 		namespace: id.AuthProviderNamespace,
 		name:      id.AuthProviderName,
 	}
-	user, created, roleRaised, err := c.ensureIdentityUser(ctx, tx, mode, id, timezone, role, userLimit, verified, email, providerUserID, providerUsername)
+	user, created, roleRaised, err := c.ensureIdentityUser(ctx, tx, mode, id, timezone, role, verified, email, providerUserID, providerUsername)
 	if err != nil {
 		return ensuredIdentity{}, err
 	}
@@ -316,7 +311,7 @@ func scimUnprovisionedSignInError(userID uint) error {
 
 // ensureIdentityUser does the work of ensureIdentity. When SCIM is enforced for the identity's auth provider, sign-in
 // requires an identity whose live user the connection provisioned, and it never creates an identity or a user.
-func (c *Client) ensureIdentityUser(ctx context.Context, tx *gorm.DB, mode *scimSignInMode, id *types.Identity, timezone string, role types2.Role, userLimit UserLimit, verified bool, email, providerUserID, providerUsername string) (*types.User, bool, bool, error) {
+func (c *Client) ensureIdentityUser(ctx context.Context, tx *gorm.DB, mode *scimSignInMode, id *types.Identity, timezone string, role types2.Role, verified bool, email, providerUserID, providerUsername string) (*types.User, bool, bool, error) {
 	// See if the identity already exists.
 	if found, err := identityWithSCIMModeTx(tx, id, mode); err != nil {
 		return nil, false, false, fmt.Errorf("failed to look up identity: %w", err)
@@ -451,7 +446,7 @@ func (c *Client) ensureIdentityUser(ctx context.Context, tx *gorm.DB, mode *scim
 			if err = c.encryptUser(ctx, &u); err != nil {
 				return nil, false, false, fmt.Errorf("failed to encrypt user: %w", err)
 			}
-			if err = c.createUser(tx, &u, userLimit); err != nil {
+			if err = c.createUser(tx, &u); err != nil {
 				return nil, false, false, err
 			}
 
@@ -586,7 +581,7 @@ func (c *Client) ensureIdentityUser(ctx context.Context, tx *gorm.DB, mode *scim
 		if err := c.encryptUser(ctx, &u); err != nil {
 			return nil, false, false, fmt.Errorf("failed to encrypt user: %w", err)
 		}
-		if err := c.createUser(tx, &u, userLimit); err != nil {
+		if err := c.createUser(tx, &u); err != nil {
 			return nil, false, false, err
 		}
 
@@ -619,54 +614,8 @@ func (c *Client) ensureIdentityUser(ctx context.Context, tx *gorm.DB, mode *scim
 	return user, created, roleRaised, nil
 }
 
-func (c *Client) createUser(tx *gorm.DB, user *types.User, userLimit UserLimit) error {
-	if userLimit.Unlimited {
-		return tx.Create(user).Error
-	}
-
-	if err := lockUserCreation(tx); err != nil {
-		return err
-	}
-
-	userCount, err := countUsersTowardLimit(tx)
-	if err != nil {
-		return fmt.Errorf("failed to count users: %w", err)
-	}
-	if userCount >= userLimit.Maximum {
-		return newUserLimitError()
-	}
-
+func (c *Client) createUser(tx *gorm.DB, user *types.User) error {
 	return tx.Create(user).Error
-}
-
-func countUsersTowardLimit(tx *gorm.DB) (int64, error) {
-	var userCount int64
-	err := tx.Model(new(types.User)).
-		Where("deleted_at IS NULL").
-		Where("hashed_username != ?", hash.String(system.BootstrapName)).
-		Where("CAST(users.id AS TEXT) NOT IN (?)", tx.Model(&types.ClaudeEnvironment{}).
-			Select("claude_tag_user_id").Where("claude_tag_user_id <> ''")).
-		Count(&userCount).Error
-	return userCount, err
-}
-
-func lockUserCreation(tx *gorm.DB) error {
-	// PostgreSQL installations may have multiple Obot replicas, so serialize
-	// all operations that allocate user seats across them. SQLite operations
-	// acquire its write lock before calling this helper.
-	if tx.Name() == "postgres" {
-		if err := tx.Exec("SELECT pg_advisory_xact_lock(?)", userCreationAdvisoryLockID).Error; err != nil {
-			return fmt.Errorf("failed to lock user creation: %w", err)
-		}
-	}
-	return nil
-}
-
-func newUserLimitError() error {
-	return types2.NewErrHTTP(
-		http.StatusForbidden,
-		"Unable to provision your account. Please contact your administrator.",
-	)
 }
 
 // ensureIdentityProviderData fetches auth-provider data (the provider-native group lookup ID and

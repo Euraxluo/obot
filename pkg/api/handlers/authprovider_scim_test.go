@@ -13,7 +13,6 @@ import (
 	gclient "github.com/obot-platform/obot/pkg/gateway/client"
 	"github.com/obot-platform/obot/pkg/gateway/server/dispatcher"
 	gatewaytypes "github.com/obot-platform/obot/pkg/gateway/types"
-	"github.com/obot-platform/obot/pkg/license"
 	"github.com/obot-platform/obot/pkg/scim/adapter"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	"github.com/obot-platform/obot/pkg/system"
@@ -36,7 +35,6 @@ type authProviderSCIMTest struct {
 	storage    kclient.WithWatch
 	gateway    *gclient.Client
 	db         *gorm.DB
-	license    *license.Provider
 	dispatcher *dispatcher.Dispatcher
 }
 
@@ -69,8 +67,6 @@ func newAuthProviderSCIMTest(t *testing.T) *authProviderSCIMTest {
 	}
 	storage := newAuthProviderTestStorage(provider)
 	gateway, db := newHandlerTestGatewayWithDB(t)
-	licenseProvider, err := license.NewProvider(t.Context(), nil, license.Config{})
-	require.NoError(t, err)
 
 	return &authProviderSCIMTest{
 		t:          t,
@@ -78,13 +74,12 @@ func newAuthProviderSCIMTest(t *testing.T) *authProviderSCIMTest {
 		storage:    storage,
 		gateway:    gateway,
 		db:         db,
-		license:    licenseProvider,
-		dispatcher: dispatcher.New(nil, storage, gateway, licenseProvider, "", "", ""),
+		dispatcher: dispatcher.New(nil, storage, gateway, "", "", ""),
 	}
 }
 
 func (s *authProviderSCIMTest) handler() *AuthProviderHandler {
-	return NewAuthProviderHandler(s.dispatcher, "", s.license)
+	return NewAuthProviderHandler(s.dispatcher, "")
 }
 
 func (s *authProviderSCIMTest) context(method, path, body string, groups ...string) (api.Context, *httptest.ResponseRecorder) {
@@ -207,12 +202,12 @@ func TestConfigureWithoutDirectoryParametersRefusesResidualGroupData(t *testing.
 	s := newAuthProviderSCIMTest(t)
 	_, err := s.gateway.CreateGroupRoleAssignment(t.Context(), "okta/00g-legacy", clienttypes.RoleAdmin, "")
 	require.NoError(t, err)
-	require.NoError(t, s.storage.Create(t.Context(), &v1.ModelAccessPolicy{
-		Name:      "models",
+	require.NoError(t, s.storage.Create(t.Context(), &v1.SkillAccessRule{
+		Name:      "skills",
 		Namespace: system.DefaultNamespace,
-		Spec: v1.ModelAccessPolicySpec{
-			Manifest: clienttypes.ModelAccessPolicyManifest{
-				DisplayName: "Models",
+		Spec: v1.SkillAccessRuleSpec{
+			Manifest: clienttypes.SkillAccessRuleManifest{
+				DisplayName: "Skills",
 				Subjects: []clienttypes.Subject{
 					{
 						Type: clienttypes.SubjectTypeGroup,
@@ -230,7 +225,7 @@ func TestConfigureWithoutDirectoryParametersRefusesResidualGroupData(t *testing.
 	require.ErrorAs(t, err, &httpErr)
 	assert.Equal(t, http.StatusConflict, httpErr.Code)
 	assert.Contains(t, httpErr.Message, "okta/00g-legacy")
-	assert.Contains(t, httpErr.Message, `model access policy "Models"`)
+	assert.Contains(t, httpErr.Message, `skill access rule "Skills"`)
 	assert.Contains(t, httpErr.Message, "group role assignment")
 	s.requireNoChange()
 
