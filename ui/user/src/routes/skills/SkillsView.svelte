@@ -15,7 +15,7 @@
 	import { AiClient, COMMON_AI_CLIENTS_MAP } from '$lib/services/user/constants';
 	import { errors } from '$lib/stores';
 	import { setUrlParamAndUpdateUrl } from '$lib/url';
-	import { Bot, Download, PencilRuler, TriangleAlert } from '@lucide/svelte';
+	import { Bot, Download, Eye, EyeOff, PencilRuler, TriangleAlert } from '@lucide/svelte';
 	import { SvelteSet } from 'svelte/reactivity';
 	import { fade } from 'svelte/transition';
 	import { twMerge } from 'tailwind-merge';
@@ -37,7 +37,7 @@
 	}: Props = $props();
 
 	let query = $derived(page.url.searchParams.get('query') ?? '');
-	let rules = $state<SkillPublicationRule[]>([]);
+	let optimisticOverrides = $state<Record<string, boolean>>({});
 	let publishingSkillIDs = new SvelteSet<string>();
 	let bulkPublishing = $state(false);
 	let copyFields = $state<ReturnType<typeof CopyField>[]>([]);
@@ -45,13 +45,12 @@
 	let selectedSkillToInstall = $state<Skill | undefined>(undefined);
 	let selectedTab = $state<'macos/linux' | 'windows'>('macos/linux');
 
-	$effect(() => {
-		rules = publicationRules;
-	});
 	let skillRepositoriesMap = $derived(
 		new Map(skillRepositories.map((repository) => [repository.id, repository]))
 	);
-	let publicationRulesMap = $derived(new Map(rules.map((rule) => [rule.skillID, rule])));
+	let publicationRulesMap = $derived(
+		new Map(publicationRules.map((rule) => [rule.skillID, rule]))
+	);
 	let clientUnzipCommands = $derived.by(() => {
 		const skillName = sanitizeFilenameSegment(
 			selectedSkillToInstall?.name ?? selectedSkillToInstall?.id ?? 'skill'
@@ -115,6 +114,9 @@
 	}
 
 	function isPublished(skillID: string) {
+		if (skillID in optimisticOverrides) {
+			return optimisticOverrides[skillID];
+		}
 		return publicationRulesMap.get(skillID)?.published ?? false;
 	}
 
@@ -125,17 +127,24 @@
 	}
 
 	async function savePublication(skill: Skill, published: boolean) {
+		const existing = publicationRulesMap.get(skill.id);
+		const previousOptimistic = optimisticOverrides[skill.id];
+		optimisticOverrides[skill.id] = published;
+
 		publishingSkillIDs.add(skill.id);
 		try {
-			const existing = publicationRulesMap.get(skill.id);
 			const manifest = { skillID: skill.id, published };
-			const updated = existing
-				? await AdminService.updateSkillPublicationRule(existing.id, manifest)
-				: await AdminService.createSkillPublicationRule(manifest);
-			rules = existing
-				? rules.map((rule) => (rule.id === updated.id ? updated : rule))
-				: [...rules, updated];
+			if (existing) {
+				await AdminService.updateSkillPublicationRule(existing.id, manifest);
+			} else {
+				await AdminService.createSkillPublicationRule(manifest);
+			}
 		} catch (err) {
+			if (previousOptimistic !== undefined) {
+				optimisticOverrides[skill.id] = previousOptimistic;
+			} else {
+				delete optimisticOverrides[skill.id];
+			}
 			errors.append(err);
 		} finally {
 			publishingSkillIDs.delete(skill.id);
@@ -148,10 +157,7 @@
 		bulkPublishing = true;
 		try {
 			const changes = skills.filter((skill) => isPublished(skill.id) !== published);
-			for (const skill of changes) {
-				// Rule creation is keyed by skill ID; concurrent creates can collide.
-				await savePublication(skill, published);
-			}
+			await Promise.all(changes.map((skill) => savePublication(skill, published)));
 		} finally {
 			bulkPublishing = false;
 		}
@@ -191,20 +197,22 @@
 			{#if canManagePublication}
 				<button
 					type="button"
-					class="btn btn-outline btn-sm shrink-0"
+					class="btn btn-secondary h-11 rounded-lg px-3.5 flex items-center gap-1.5 text-sm font-normal shrink-0 shadow-xs border-base-300/70"
 					disabled={bulkPublishing}
 					data-testid="publish-all-skills"
 					onclick={() => updateAllPublications(true)}
 				>
+					<Eye class="size-4 text-muted-content" />
 					{m.skills_publish_all()}
 				</button>
 				<button
 					type="button"
-					class="btn btn-outline btn-sm shrink-0"
+					class="btn btn-secondary h-11 rounded-lg px-3.5 flex items-center gap-1.5 text-sm font-normal shrink-0 shadow-xs border-base-300/70"
 					disabled={bulkPublishing}
 					data-testid="unpublish-all-skills"
 					onclick={() => updateAllPublications(false)}
 				>
+					<EyeOff class="size-4 text-muted-content" />
 					{m.skills_unpublish_all()}
 				</button>
 			{/if}
@@ -261,7 +269,6 @@
 							{/snippet}
 						</MarketplaceCard>
 						{#if canManagePublication}
-							{@const publishing = publishingSkillIDs.has(skill.id)}
 							<div
 								class="absolute top-3 right-3 z-10 flex items-center rounded-lg px-2 py-1 transition-colors hover:bg-base-200/60 dark:hover:bg-base-300/40"
 								role="presentation"
@@ -271,13 +278,13 @@
 									label={m.skills_market_publish()}
 									labelInline
 									checked={isPublished(skill.id)}
-									disabled={publishing || bulkPublishing}
+									disabled={bulkPublishing}
 									onChange={(published) => updatePublication(skill, published)}
 									classes={{
 										label: `text-xs select-none gap-2 cursor-pointer font-light transition-colors ${
 											isPublished(skill.id) ? 'text-primary font-medium' : 'text-muted-content'
 										}`,
-										input: 'toggle-xs toggle-primary'
+										input: 'toggle-xs toggle-primary cursor-pointer'
 									}}
 								/>
 							</div>

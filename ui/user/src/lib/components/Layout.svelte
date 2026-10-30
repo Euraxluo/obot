@@ -211,14 +211,6 @@
 
 	let isAtLeastPoweruser = $derived(profile.current.groups.includes(Group.POWERUSER));
 
-	// End users keep the standard navigation, with the marketplace as one entry.
-	let isEndUser = $derived(
-		profile.current.loaded &&
-			!profile.current.hasAdminAccess?.() &&
-			!isAtLeastPoweruser &&
-			!profile.current.groups.includes(Group.AUDITOR)
-	);
-
 	let routes = $derived([
 		{
 			id: 'mcp-dashboard',
@@ -227,17 +219,13 @@
 			href: '/dashboard',
 			collapsible: false
 		},
-		...(isEndUser
-			? [
-					{
-						id: 'market',
-						icon: Store,
-						label: m.market_title(),
-						href: '/market',
-						collapsible: false
-					}
-				]
-			: []),
+		{
+			id: 'market',
+			icon: Store,
+			label: m.market_title(),
+			href: '/market',
+			collapsible: false
+		},
 		{
 			id: 'ai-resources',
 			icon: Bot,

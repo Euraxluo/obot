@@ -55,6 +55,15 @@ func (*SkillPublicationRuleHandler) Create(req api.Context) error {
 	}
 
 	if err := req.Create(&rule); err != nil {
+		if apierrors.IsAlreadyExists(err) {
+			var existing v1.SkillPublicationRule
+			if getErr := req.Get(&existing, rule.Name); getErr == nil {
+				existing.Spec.Published = manifest.Published
+				if updateErr := req.Update(&existing); updateErr == nil {
+					return req.Write(convertSkillPublicationRule(existing))
+				}
+			}
+		}
 		return fmt.Errorf("failed to create skill publication rule: %w", err)
 	}
 

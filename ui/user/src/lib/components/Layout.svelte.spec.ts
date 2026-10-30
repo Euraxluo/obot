@@ -152,8 +152,8 @@ describe('Layout.svelte', () => {
 				await renderLayout([Group.ADMIN]);
 				await expectSharedNavigation();
 				await expectLink('/dashboard');
+				await expectLink('/market');
 				await expectAdminOnlyNavigation();
-				await expectNoLink('/market');
 			});
 		});
 
@@ -162,6 +162,7 @@ describe('Layout.svelte', () => {
 				await renderLayout([Group.POWERUSER]);
 				await expectSharedNavigation();
 				await expectLink('/dashboard');
+				await expectLink('/market');
 				await expectLink('/mcp-servers');
 				await expectNoAdminOnlyNavigation();
 			});
@@ -172,6 +173,7 @@ describe('Layout.svelte', () => {
 				await renderLayout([Group.POWERUSER, Group.POWERUSER_PLUS]);
 				await expectSharedNavigation();
 				await expectLink('/dashboard');
+				await expectLink('/market');
 				await expectLink('/mcp-servers');
 				await expectNoAdminOnlyNavigation();
 			});
@@ -193,6 +195,7 @@ describe('Layout.svelte', () => {
 				await renderLayout([Group.USER, Group.AUDITOR]);
 				await expectSharedNavigation();
 				await expectLink('/dashboard');
+				await expectLink('/market');
 				await expectAdminOnlyNavigation();
 			});
 		});

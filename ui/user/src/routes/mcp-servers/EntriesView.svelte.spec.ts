@@ -105,12 +105,10 @@ describe('MCP Servers EntriesView', () => {
 		mockMarketPublicationUpdate(update);
 		await renderEntriesView();
 
-		await page
-			.getByRole('row')
-			.filter({ hasText: 'Catalog Entry' })
-			.getByRole('button')
-			.first()
-			.click();
+		// Native DOM click: Playwright actionability fails on sticky table headers / scroll container.
+		const selectButton = page.getByRole('row').filter({ hasText: 'Catalog Entry' }).getByRole('button').first();
+		const el = await selectButton.element();
+		if (el instanceof HTMLElement) el.click();
 
 		await page.getByRole('button', { name: m.mcps_servers_market_publish_selected() }).click();
 		await expect.poll(() => update).toHaveBeenCalledOnce();
@@ -142,12 +140,10 @@ describe('MCP Servers EntriesView', () => {
 		);
 		render(EntriesView, { entity: 'catalog', id: 'default' });
 
-		await page
-			.getByRole('row')
-			.filter({ hasText: 'Published Entry' })
-			.getByRole('button')
-			.first()
-			.click();
+		// Native DOM click: Playwright actionability fails on sticky table headers / scroll container.
+		const selectButton = page.getByRole('row').filter({ hasText: 'Published Entry' }).getByRole('button').first();
+		const el = await selectButton.element();
+		if (el instanceof HTMLElement) el.click();
 		await page.getByRole('button', { name: m.mcps_servers_market_unpublish_selected() }).click();
 
 		await expect.poll(() => update).toHaveBeenCalledOnce();
