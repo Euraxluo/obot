@@ -228,6 +228,7 @@
 							actionLabel={m.skills_install()}
 							disabled={!skill.valid}
 							class="hover:translate-y-0 w-full"
+							classes={{ content: canManagePublication ? 'pr-28' : '' }}
 							onAction={() => {
 								selectedSkillToInstall = skill;
 								installSkillDialog?.open();
@@ -262,7 +263,7 @@
 						{#if canManagePublication}
 							{@const publishing = publishingSkillIDs.has(skill.id)}
 							<div
-								class="border-base-300/70 bg-base-100/90 dark:border-base-100/20 dark:bg-base-200/90 absolute top-2.5 right-2.5 z-10 flex items-center rounded-full border px-2.5 py-0.5 shadow-xs backdrop-blur-xs transition-colors group-hover/skill-item:border-primary/40"
+								class="absolute top-3 right-3 z-10 flex items-center rounded-lg px-2 py-1 transition-colors hover:bg-base-200/60 dark:hover:bg-base-300/40"
 								role="presentation"
 								onclick={(e) => e.stopPropagation()}
 							>
@@ -273,8 +274,10 @@
 									disabled={publishing || bulkPublishing}
 									onChange={(published) => updatePublication(skill, published)}
 									classes={{
-										label: 'text-[11px] font-medium text-muted-content select-none gap-1.5',
-										input: 'toggle-xs'
+										label: `text-xs select-none gap-2 cursor-pointer font-light transition-colors ${
+											isPublished(skill.id) ? 'text-primary font-medium' : 'text-muted-content'
+										}`,
+										input: 'toggle-xs toggle-primary'
 									}}
 								/>
 							</div>

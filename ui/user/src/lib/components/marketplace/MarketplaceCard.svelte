@@ -15,6 +15,10 @@
 		href?: `/${string}`;
 		disabled?: boolean;
 		class?: string;
+		classes?: {
+			root?: string;
+			content?: string;
+		};
 	}
 
 	let {
@@ -27,13 +31,15 @@
 		onAction,
 		href,
 		disabled = false,
-		class: customClass
+		class: customClass,
+		classes
 	}: Props = $props();
 
 	let rootClass = $derived(
 		twMerge(
 			'group bg-base-100 dark:bg-base-200 border-base-300/80 hover:border-primary/40 flex h-full min-h-28 items-center gap-3 rounded-xl border p-4 text-left shadow-[0_1px_2px_rgba(15,23,42,0.04)] transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_20px_rgba(15,23,42,0.08)] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary',
-			customClass
+			customClass,
+			classes?.root
 		)
 	);
 </script>
@@ -41,7 +47,7 @@
 {#if href && !disabled}
 	<a href={resolve(href)} data-testid={testId} class={rootClass}>
 		{@render icon()}
-		<span class="min-w-0 flex-1">
+		<span class={twMerge('min-w-0 flex-1', classes?.content)}>
 			<span class="block truncate text-sm font-semibold" {title}>{title}</span>
 			<span class="text-muted-content mt-1 block truncate text-sm font-light" title={description}>
 				{description || '—'}
@@ -70,7 +76,7 @@
 		onclick={onAction}
 	>
 		{@render icon()}
-		<span class="min-w-0 flex-1">
+		<span class={twMerge('min-w-0 flex-1', classes?.content)}>
 			<span class="block truncate text-sm font-semibold" {title}>{title}</span>
 			<span class="text-muted-content mt-1 block truncate text-sm font-light" title={description}>
 				{description || '—'}
