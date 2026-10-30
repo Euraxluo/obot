@@ -1,3 +1,7 @@
 export KUBECONFIG=$(pwd)/tools/devmode-kubeconfig
 export OBOT_DEV_MODE=true
 export WORKSPACE_PROVIDER_IGNORE_WORKSPACE_NOT_FOUND=true
+# Auth stays on in dev mode: anonymous API access must be rejected so the
+# signed skill-download tokens are the only session-less path.
+# (The env prefix is OBOT_SERVER_* — the cmd framework derives OBOT_<command>_<field>.)
+export OBOT_SERVER_ENABLE_AUTHENTICATION=true
