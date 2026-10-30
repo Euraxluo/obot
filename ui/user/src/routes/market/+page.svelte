@@ -285,10 +285,16 @@
 		connecting = true;
 		submitError = '';
 		try {
-			const existing = data.vmcps.find(
+			const vmcps = await UserService.listVMCPs();
+			const existing = vmcps.find(
 				(vmcp) =>
 					vmcp.userID === profile.current.id &&
-					vmcp.components?.some((component) => component.mcpServerCatalogEntryID === entry.id)
+					vmcp.components?.some((component) => {
+						const catalogEntryID =
+							component.mcpServerCatalogEntryID ||
+							(component.catalogEntry as { id?: string } | undefined)?.id;
+						return catalogEntryID === entry.id;
+					})
 			);
 			const source =
 				existing ??

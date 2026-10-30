@@ -87,6 +87,7 @@
 	let statusRequest = 0;
 	let connectionFlow = 0;
 	let oauthStatusController: AbortController | undefined;
+	let vmcpRefreshController: AbortController | undefined;
 	let reauthenticatingTarget = $state<'all' | string>();
 	let reauthenticateChoices = $state<(VMcpComponentView & { id: string })[]>([]);
 	let reauthenticatableComponents = $derived(
@@ -126,6 +127,7 @@
 	) {
 		connectionFlow += 1;
 		oauthStatusController?.abort();
+		vmcpRefreshController?.abort();
 		vmcp = target;
 		instance = targetInstance;
 		onConnected = options?.onConnected;
@@ -144,6 +146,77 @@
 		howToConnect?.resetCopied?.();
 		statusRequest += 1;
 		authenticatedComponents = [];
+	}
+
+	function waitForRetry(ms: number, signal: AbortSignal) {
+		return new Promise<boolean>((resolve) => {
+			if (signal.aborted) {
+				resolve(false);
+				return;
+			}
+			const timer = setTimeout(() => {
+				signal.removeEventListener('abort', onAbort);
+				resolve(true);
+			}, ms);
+			const onAbort = () => {
+				clearTimeout(timer);
+				resolve(false);
+			};
+			signal.addEventListener('abort', onAbort, { once: true });
+		});
+	}
+
+	async function refreshVMCPUntilReady(
+		vmcpID: string,
+		flow: number,
+		{ force = false }: { force?: boolean } = {}
+	): Promise<VMCP | undefined> {
+		vmcpRefreshController?.abort();
+		const controller = new AbortController();
+		vmcpRefreshController = controller;
+
+		if (!force && vmcp && (vmcpConnectURL(vmcp) || vmcpMissingStaticOAuthComponent(vmcp))) {
+			return vmcp;
+		}
+
+		const maxAttempts = 15;
+		for (let attempt = 0; attempt < maxAttempts; attempt++) {
+			if (controller.signal.aborted || flow !== connectionFlow || vmcp?.id !== vmcpID) {
+				return;
+			}
+			if (attempt > 0 && !(await waitForRetry(reconciliationRetryMs, controller.signal))) {
+				return;
+			}
+
+			try {
+				const refreshed = await UserService.getVMCP(vmcpID, {
+					dontLogErrors: true,
+					signal: controller.signal
+				});
+				if (controller.signal.aborted || flow !== connectionFlow || vmcp?.id !== vmcpID) {
+					return;
+				}
+				if (vmcpConnectURL(refreshed) || vmcpMissingStaticOAuthComponent(refreshed)) {
+					vmcp = refreshed;
+					return refreshed;
+				}
+				// A finish refresh must not replace an already usable snapshot with a
+				// transient not-ready response.
+				if (force && vmcp && vmcpConnectURL(vmcp)) return vmcp;
+			} catch (err) {
+				if (
+					controller.signal.aborted ||
+					isAbortError(err) ||
+					flow !== connectionFlow ||
+					vmcp?.id !== vmcpID
+				) {
+					return;
+				}
+				if (force && vmcp && vmcpConnectURL(vmcp)) return vmcp;
+			}
+		}
+
+		return vmcp;
 	}
 
 	async function refreshOAuthStatus(vmcpID: string) {
@@ -173,12 +246,14 @@
 
 	export function open(target: VMCP, targetInstance?: VMCPInstance, options?: VMcpConnectOptions) {
 		resetDialogState(target, targetInstance, options);
+		const flow = connectionFlow;
 		skipConnectDialog = Boolean(options?.onConnected);
 
 		if (options?.onConnected) {
 			initLaunch();
 		} else {
 			connectDialog?.open();
+			void refreshVMCPUntilReady(target.id, flow);
 			const candidates = targetInstance ? [targetInstance] : vmcpInstances.current.items;
 			if (
 				candidates.some(
@@ -408,7 +483,9 @@
 		configureDialog?.close();
 	}
 
-	function finishLaunch() {
+	async function finishLaunch() {
+		const flow = connectionFlow;
+		const vmcpID = vmcp?.id;
 		const { connected } = takeConnectCallbacks();
 		closeConfigureWithoutDismissing();
 		if (connected) {
@@ -416,6 +493,10 @@
 			return;
 		}
 		if (skipConnectDialog) return;
+		if (vmcpID) {
+			await refreshVMCPUntilReady(vmcpID, flow, { force: true });
+		}
+		if (flow !== connectionFlow) return;
 		connectDialog?.open();
 	}
 
@@ -465,7 +546,7 @@
 			closeConfigureWithoutDismissing();
 			showOauthPrompt();
 		} else {
-			finishLaunch();
+			await finishLaunch();
 		}
 	}
 
@@ -486,7 +567,7 @@
 			await refresh;
 			if (request !== statusRequest || oauthStatusController?.signal.aborted) return;
 		}
-		finishLaunch();
+		await finishLaunch();
 	}
 
 	// Escape closes the dialog natively, bypassing the close buttons.
@@ -509,7 +590,7 @@
 			connectDialog?.close();
 			showOauthPrompt();
 		} else {
-			finishLaunch();
+			await finishLaunch();
 		}
 	}
 
@@ -640,7 +721,7 @@
 					launchError = m.vmcps_failed_to_launch();
 					return;
 				}
-				finishLaunch();
+				await finishLaunch();
 				return;
 			}
 
@@ -667,6 +748,7 @@
 		ensureOauthVisibilityListener();
 		return () => {
 			oauthStatusController?.abort();
+			vmcpRefreshController?.abort();
 			document.removeEventListener('visibilitychange', handleOauthTabReturn);
 		};
 	});

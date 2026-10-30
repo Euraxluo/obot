@@ -334,6 +334,37 @@ describe('market page', () => {
 		await expect.element(page.getByText(m.vmcps_connection_url())).toBeVisible();
 	});
 
+	it('reuses an existing personal vMCP with the same connector without creating another', async () => {
+		const profile = createMockProfile([Group.USER]);
+		const existing = createVMCP(
+			{ id: 'vmcp1existing', displayName: 'Existing Connector', userID: profile.id },
+			[connectorEntry]
+		);
+		existing.components![0].mcpServerCatalogEntryID = '';
+		existing.components![0].catalogEntry = {
+			...existing.components![0].catalogEntry,
+			id: connectorEntry.id
+		} as (typeof existing.components)[number]['catalogEntry'];
+		const create = vi.fn();
+
+		await renderMarketPage({ profile, requests: [requestFixture('approved')], vmcps: [] });
+		worker.use(
+			http.get('/api/vmcps', () => HttpResponse.json({ items: [existing] })),
+			http.post('/api/vmcps', async ({ request }) => {
+				create(await request.json());
+				return HttpResponse.json(existing, { status: 201 });
+			}),
+			http.get(`/api/vmcps/${existing.id}`, () => HttpResponse.json(existing))
+		);
+
+		await openConnectorsTab();
+		await page.getByTestId(`market-connector-${connectorEntry.id}`).click();
+		await page.getByRole('button', { name: m.market_connect() }).click();
+
+		await expect.element(page.getByCSS('#connect-to-vmcp-dialog')).toBeVisible();
+		expect(create).not.toHaveBeenCalled();
+	});
+
 	it('shows one-line install commands and call instructions when a skill is clicked', async () => {
 		worker.use(
 			http.get(`/api/skills/${skill.id}/download-url`, () =>

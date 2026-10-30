@@ -1,4 +1,6 @@
 import { page as appPage } from '$app/state';
+import { m } from '$lib/i18n';
+import { overwriteGetLocale } from '$lib/paraglide/runtime';
 import { UserService, type VMCP, type VMCPConfiguration, type VMCPInstance } from '$lib/services';
 import type { VMcpConnectOptions } from '$lib/services/vmcps/types';
 import { vmcpInstanceNeedsUserConfiguration } from '$lib/services/vmcps/utils';
@@ -13,6 +15,8 @@ import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page, userEvent } from 'vitest/browser';
+
+overwriteGetLocale(() => 'en');
 
 vi.mock('$lib/url', async (importOriginal) => ({
 	...(await importOriginal<typeof import('$lib/url')>()),
@@ -252,6 +256,54 @@ describe('ConnectVMcp.svelte', () => {
 				page.getByText('Additional configuration details may also be required', { exact: false })
 			)
 			.toBeVisible();
+	});
+
+	it('refreshes a not-ready vMCP until it is ready when opened', async () => {
+		const vmcp = createVMCP({ id: 'vmcp1starting', displayName: 'Starting vMCP' });
+		vmcp.status = { ready: false, components: [{ name: 'Default', ready: false }] };
+		const ready = { ...structuredClone(vmcp), status: { ready: true } };
+		let reads = 0;
+		worker.use(
+			http.get(`/api/vmcps/${vmcp.id}`, () => {
+				reads += 1;
+				return HttpResponse.json(reads >= 2 ? ready : vmcp);
+			})
+		);
+
+		await renderDialog(vmcp);
+
+		await vi.waitFor(() => expect(reads).toBe(2));
+		await expect.element(page.getByText(m.vmcps_connection_url(), { exact: true })).toBeVisible();
+		await expect
+			.element(page.getByText(m.vmcps_not_ready_complete_setup()))
+			.not.toBeInTheDocument();
+	});
+
+	it('cancels the previous vMCP refresh when another open starts', async () => {
+		const vmcp = createVMCP({ id: 'vmcp1cancelrefresh', displayName: 'Starting vMCP' });
+		vmcp.status = { ready: false };
+		let release!: () => void;
+		const pending = new Promise<void>((resolve) => (release = resolve));
+		worker.use(
+			http.get(`/api/vmcps/${vmcp.id}`, async () => {
+				await pending;
+				return HttpResponse.json(vmcp);
+			})
+		);
+		const refresh = vi.spyOn(UserService, 'getVMCP');
+		try {
+			const { component } = await renderDialog(vmcp);
+			await vi.waitFor(() => expect(refresh).toHaveBeenCalled());
+			const firstSignal = refresh.mock.calls.find(([id]) => id === vmcp.id)?.[1]?.signal;
+			expect(firstSignal?.aborted).toBe(false);
+
+			component.open(createVMCP({ id: 'vmcp1replacement', displayName: 'Ready vMCP' }));
+
+			expect(firstSignal?.aborted).toBe(true);
+		} finally {
+			release();
+			refresh.mockRestore();
+		}
 	});
 
 	function salesforceOAuthVMcp() {
@@ -634,6 +686,37 @@ describe('ConnectVMcp.svelte', () => {
 		});
 		await expect.element(page.getByCSS('#connect-to-vmcp-dialog')).toBeVisible();
 	});
+
+	it('refreshes the vMCP before reopening the connect dialog after OAuth completes', async () => {
+		const vmcp = configurableVMcp();
+		vmcp.status = { ready: false };
+		const ready = { ...structuredClone(vmcp), status: { ready: true } };
+		let readyAfterOAuth = false;
+		const { launch, oauthChecks } = mockConfigureAndLaunch(vmcp, {
+			oauthURL: (check) => {
+				if (check === 1) return 'https://auth.example.com/authorize';
+				readyAfterOAuth = true;
+				return '';
+			}
+		});
+		worker.use(
+			http.get(`/api/vmcps/${vmcp.id}`, () => HttpResponse.json(readyAfterOAuth ? ready : vmcp))
+		);
+
+		await renderDialog(vmcp);
+		await configureFromPreconfigure();
+
+		await vi.waitFor(() => expect(launch).toHaveBeenCalledOnce(), { timeout: 5000 });
+		await expect.element(page.getByRole('link', { name: 'Authenticate' })).toBeVisible();
+		document.dispatchEvent(new Event('visibilitychange'));
+		await vi.waitFor(() => expect(oauthChecks()).toBe(2));
+
+		await expect.element(page.getByCSS('#connect-to-vmcp-dialog')).toBeVisible();
+		await expect.element(page.getByText(m.vmcps_connection_url(), { exact: true })).toBeVisible();
+		await expect
+			.element(page.getByText(m.vmcps_not_ready_complete_setup()))
+			.not.toBeInTheDocument();
+	}, 8000);
 
 	it('keeps onConnected until OAuth completes after the configure dialog close animation', async () => {
 		const vmcp = createVMCP({ id: 'vmcp1oauth-inspector', displayName: 'OAuth vMCP' });
