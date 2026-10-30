@@ -190,7 +190,9 @@ describe('McpPoliciesView group-based authorization', () => {
 				})
 			})
 		);
-		expect(vi.mocked(invalidate)).toHaveBeenCalledWith('mcp-access-policies:data');
+		await vi.waitFor(() =>
+			expect(vi.mocked(invalidate)).toHaveBeenCalledWith('mcp-access-policies:data')
+		);
 	});
 
 	it('creates a new access control rule for a group without an existing ACR when saving', async () => {
@@ -227,7 +229,9 @@ describe('McpPoliciesView group-based authorization', () => {
 				resources: [{ type: 'mcpServerCatalogEntry', id: 'mce1' }]
 			})
 		);
-		expect(vi.mocked(invalidate)).toHaveBeenCalledWith('mcp-access-policies:data');
+		await vi.waitFor(() =>
+			expect(vi.mocked(invalidate)).toHaveBeenCalledWith('mcp-access-policies:data')
+		);
 	});
 
 	it('filters connectors by search query', async () => {
@@ -296,6 +300,9 @@ describe('McpPoliciesView group-based authorization', () => {
 		await page.getByRole('button', { name: m.core_save() }).click();
 
 		await vi.waitFor(() => expect(postSpy).toHaveBeenCalledTimes(1));
+		await vi.waitFor(() =>
+			expect(vi.mocked(invalidate)).toHaveBeenCalledWith('mcp-access-policies:data')
+		);
 		expect(putSpy).not.toHaveBeenCalled();
 		expect(postSpy).toHaveBeenCalledWith(
 			expect.objectContaining({
