@@ -29,6 +29,7 @@
 	"market_request_connect": "Request access",
 	"market_request_pending": "Pending approval",
 	"market_connected": "Connected",
+	"market_authorized": "Authorized",
 	"market_rejected": "Rejected",
 	"market_not_connected": "Not connected",
 	"market_request_reason_label": "Reason (optional)",

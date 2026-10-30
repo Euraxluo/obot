@@ -1,7 +1,7 @@
 import { saveBlob } from '$lib/download';
 import { m } from '$lib/i18n';
 import { Group } from '$lib/services';
-import type { ConnectorAccessRequest, Skill } from '$lib/services';
+import type { ConnectorAccessRequest, MCPCatalogEntry, Skill } from '$lib/services';
 import { mcpServersAndEntries, vmcpInstances } from '$lib/stores';
 import { formatTimeAgo } from '$lib/time';
 import { createMCPCatalogEntry, createVMCP } from '../../tests/helpers/mcp';
@@ -89,9 +89,9 @@ function requestFixture(
 	};
 }
 
-function mockMarketApis() {
+function mockMarketApis(entries: MCPCatalogEntry[] = [connectorEntry]) {
 	worker.use(
-		http.get('/api/all-mcps/entries', () => HttpResponse.json({ items: [connectorEntry] })),
+		http.get('/api/all-mcps/entries', () => HttpResponse.json({ items: entries })),
 		http.get('/api/all-mcps/servers', () => HttpResponse.json({ items: [] })),
 		http.get('/api/mcp-servers', () => HttpResponse.json({ items: [] })),
 		http.get('/api/mcp-server-instances', () => HttpResponse.json({ items: [] }))
@@ -113,16 +113,18 @@ function resetStore() {
 async function renderMarketPage({
 	requests = [],
 	vmcps = [],
+	catalogEntries = [connectorEntry],
 	profile = createMockProfile([Group.USER])
 }: {
 	requests?: ConnectorAccessRequest[];
 	vmcps?: PageData['vmcps'];
+	catalogEntries?: MCPCatalogEntry[];
 	profile?: ReturnType<typeof createMockProfile>;
 } = {}) {
 	await applyTestGoto('/market');
 	resetStore();
 	vmcpInstances.current = { items: [], loading: false };
-	mockMarketApis();
+	mockMarketApis(catalogEntries);
 	const data = await preparePageData<PageData>({
 		profile,
 		skills: [skill],
@@ -250,6 +252,54 @@ describe('market page', () => {
 
 		await expect.element(page.getByText(m.market_connectors_available())).toBeVisible();
 		await expect.element(page.getByTestId(`market-connector-${connectorEntry.id}`)).toBeVisible();
+	});
+
+	it('connects an authorized connector without filing an access request', async () => {
+		const profile = createMockProfile([Group.USER]);
+		const authorizedEntry = {
+			...structuredClone(connectorEntry),
+			authorized: true
+		};
+		const created = createVMCP(
+			{ id: 'vmcp1authorized', displayName: 'Authorized Connector', userID: profile.id },
+			[authorizedEntry]
+		);
+		const requestAccess = vi.fn();
+		const createVMCPRequest = vi.fn();
+		worker.use(
+			http.get('/api/all-mcps/entries', () => HttpResponse.json({ items: [authorizedEntry] })),
+			http.post('/api/connector-access-requests', () => {
+				requestAccess();
+				return HttpResponse.json({ status: 400 });
+			}),
+			http.post('/api/vmcps', async ({ request }) => {
+				createVMCPRequest(await request.json());
+				return HttpResponse.json(created, { status: 201 });
+			}),
+			http.get('/api/vmcps/vmcp1authorized', () => HttpResponse.json(created))
+		);
+
+		await renderMarketPage({ profile, vmcps: [], catalogEntries: [authorizedEntry] });
+		await openConnectorsTab();
+
+		const card = page.getByTestId(`market-connector-${connectorEntry.id}`);
+		await expect.element(page.getByText(m.market_connectors_available())).toBeVisible();
+		await expect.element(card.getByText(m.market_authorized())).toBeVisible();
+		await expect
+			.element(page.getByText(m.market_connectors_requires_approval()))
+			.not.toBeInTheDocument();
+
+		await card.click();
+		await page.getByRole('button', { name: m.market_connect() }).click();
+
+		await expect.element(page.getByCSS('#connect-to-vmcp-dialog')).toBeVisible();
+		await expect.element(page.getByText(m.vmcps_connection_url())).toBeVisible();
+		expect(requestAccess).not.toHaveBeenCalled();
+		expect(createVMCPRequest).toHaveBeenCalledWith(
+			expect.objectContaining({
+				components: [expect.objectContaining({ mcpServerCatalogEntryID: connectorEntry.id })]
+			})
+		);
 	});
 
 	it('shows rejected review comments and allows re-requesting', async () => {

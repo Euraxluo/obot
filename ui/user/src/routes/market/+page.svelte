@@ -133,19 +133,22 @@
 		return connected;
 	});
 
-	type ConnectorState = 'none' | 'pending' | 'approved' | 'rejected' | 'connected';
+	type ConnectorState = 'none' | 'pending' | 'approved' | 'authorized' | 'rejected' | 'connected';
 
-	function connectorState(entryID: string): ConnectorState {
-		if (connectedEntryIDs.has(entryID)) return 'connected';
-		const request = requestByConnector.get(entryID);
+	function connectorState(entry: MCPCatalogEntry): ConnectorState {
+		if (connectedEntryIDs.has(entry.id)) return 'connected';
+		if (entry.authorized) return 'authorized';
+		const request = requestByConnector.get(entry.id);
 		if (!request) return 'none';
 		return request.manifest.status;
 	}
 
-	function connectorStatus(entryID: string) {
-		switch (connectorState(entryID)) {
+	function connectorStatus(entry: MCPCatalogEntry) {
+		switch (connectorState(entry)) {
 			case 'connected':
 				return { label: m.market_connected(), tone: 'success' as const };
+			case 'authorized':
+				return { label: m.market_authorized(), tone: 'success' as const };
 			case 'pending':
 				return { label: m.market_request_pending(), tone: 'warning' as const };
 			case 'rejected':
@@ -202,10 +205,14 @@
 	}
 
 	let availableEntries = $derived(
-		visibleEntries.filter((entry) => ['connected', 'approved'].includes(connectorState(entry.id)))
+		visibleEntries.filter((entry) =>
+			['connected', 'approved', 'authorized'].includes(connectorState(entry))
+		)
 	);
 	let requiresApprovalEntries = $derived(
-		visibleEntries.filter((entry) => !['connected', 'approved'].includes(connectorState(entry.id)))
+		visibleEntries.filter(
+			(entry) => !['connected', 'approved', 'authorized'].includes(connectorState(entry))
+		)
 	);
 
 	// --- Skills ---
@@ -509,7 +516,7 @@
 		{/snippet}
 		{#snippet metadata()}
 			<span class="text-muted-content flex items-center gap-2 text-xs font-light">
-				<span>{connectorStatus(entry.id).label}</span>
+				<span>{connectorStatus(entry).label}</span>
 				{#if entryCategories(entry).length}
 					<span aria-hidden="true">·</span>
 					<span>{entryCategories(entry).join(', ')}</span>
@@ -758,7 +765,8 @@
 			{/if}
 
 			{#if selected.tab === 'connectors' && selected.entryID}
-				{@const state = connectorState(selected.entryID)}
+				{@const entry = allEntries.find((candidate) => candidate.id === selected?.entryID)}
+				{@const state = entry ? connectorState(entry) : 'none'}
 				<div class="divider"></div>
 				<div class="flex flex-col gap-2">
 					{#if state === 'rejected' && selectedRequest?.manifest.reviewComment}
@@ -779,7 +787,7 @@
 						<button type="button" disabled class="btn btn-neutral btn-sm w-full rounded-lg">
 							{m.market_request_pending()}
 						</button>
-					{:else if state === 'approved'}
+					{:else if state === 'approved' || state === 'authorized'}
 						<button
 							type="button"
 							class="btn btn-primary btn-sm w-full rounded-lg"

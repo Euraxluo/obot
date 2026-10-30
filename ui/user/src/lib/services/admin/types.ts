@@ -736,6 +736,8 @@ export interface MCPCatalogEntry {
 	needsUpdate?: boolean;
 	canConnect?: boolean;
 	needsK8sUpdate?: boolean;
+	/** The current user has direct access through an access-control rule. */
+	authorized?: boolean;
 	oauthCredentialConfigured?: boolean;
 	userID?: string;
 }

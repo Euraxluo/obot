@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
 
 	"github.com/obot-platform/obot/apiclient/types"
@@ -90,7 +91,7 @@ func TestMinimalCatalogEntryPreservesLaunchConfiguration(t *testing.T) {
 	expected.ToolPreview = nil
 	expected.RepoURL = ""
 
-	actual := convertMCPServerCatalogEntryForList(entry, "", "", true)
+	actual := convertMCPServerCatalogEntryForList(entry, "", "", true, false)
 	require.Equal(t, expected, actual.Manifest)
 }
 
@@ -335,6 +336,124 @@ func TestListCatalogEntriesMinimal(t *testing.T) {
 	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
 	require.Len(t, response.Items, 1)
 	require.Empty(t, response.Items[0].Manifest.Description)
+}
+
+func TestListEntriesFromAllSourcesMarksAuthorizedCatalogEntries(t *testing.T) {
+	indexer := gocache.NewIndexer(gocache.MetaNamespaceKeyFunc, map[string]gocache.IndexFunc{
+		"selectors": func(any) ([]string, error) {
+			return nil, nil
+		},
+		"catalog-entry-names": func(obj any) ([]string, error) {
+			rule := obj.(*v1.AccessControlRule)
+			if rule.Spec.MCPCatalogID != system.DefaultCatalog {
+				return nil, nil
+			}
+			for _, resource := range rule.Spec.Manifest.Resources {
+				if resource.Type == types.ResourceTypeMCPServerCatalogEntry {
+					return []string{resource.ID}, nil
+				}
+			}
+			return nil, nil
+		},
+	})
+	require.NoError(t, indexer.Add(&v1.AccessControlRule{
+		Name:      "basic-entry-access",
+		Namespace: system.DefaultNamespace,
+		Spec: v1.AccessControlRuleSpec{
+			MCPCatalogID: system.DefaultCatalog,
+			Manifest: types.AccessControlRuleManifest{
+				Subjects:  []types.Subject{{Type: types.SubjectTypeGroup, ID: types.GroupBasic}},
+				Resources: []types.Resource{{Type: types.ResourceTypeMCPServerCatalogEntry, ID: "test-entry"}},
+			},
+		},
+	}))
+
+	list := func(marketOpen bool) types.MCPServerCatalogEntryList {
+		t.Helper()
+		t.Setenv("OBOT_MARKET_OPEN", strconv.FormatBool(marketOpen))
+		entry := minimalResponseTestEntry()
+		entry.Spec.Manifest.Metadata[types.MarketPublishedMetadataKey] = "true"
+		storageClient := storage.Client(fake.NewClientBuilder().
+			WithScheme(storagescheme.Scheme).
+			WithObjects(&entry).
+			Build())
+		request := httptest.NewRequest(http.MethodGet, "/api/all-mcps/entries", nil)
+		recorder := httptest.NewRecorder()
+
+		err := (&MCPHandler{
+			serverURL: "https://example.com",
+			acrHelper: accesscontrolrule.NewAccessControlRuleHelper(indexer, nil),
+		}).ListEntriesFromAllSources(api.Context{
+			Request:        request,
+			ResponseWriter: recorder,
+			Storage:        storageClient,
+			User: &kuser.DefaultInfo{
+				Name:   "basic",
+				UID:    "1",
+				Groups: []string{types.GroupBasic, types.GroupAuthenticated},
+				Extra: map[string][]string{
+					"auth_provider_groups": {types.GroupBasic},
+				},
+			},
+		})
+		require.NoError(t, err)
+
+		var response types.MCPServerCatalogEntryList
+		require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+		require.Len(t, response.Items, 1)
+		return response
+	}
+
+	require.True(t, list(false).Items[0].Authorized)
+	require.True(t, list(true).Items[0].Authorized)
+}
+
+func TestListEntriesFromAllSourcesMarksUnauthorizedCatalogEntries(t *testing.T) {
+	indexer := gocache.NewIndexer(gocache.MetaNamespaceKeyFunc, map[string]gocache.IndexFunc{
+		"selectors": func(any) ([]string, error) {
+			return nil, nil
+		},
+		"catalog-entry-names": func(any) ([]string, error) {
+			return nil, nil
+		},
+	})
+	t.Setenv("OBOT_MARKET_OPEN", "true")
+	entry := minimalResponseTestEntry()
+	entry.Spec.Manifest.Metadata[types.MarketPublishedMetadataKey] = "true"
+	storageClient := storage.Client(fake.NewClientBuilder().
+		WithScheme(storagescheme.Scheme).
+		WithObjects(&entry).
+		Build())
+	request := httptest.NewRequest(http.MethodGet, "/api/all-mcps/entries", nil)
+	recorder := httptest.NewRecorder()
+
+	err := (&MCPHandler{
+		serverURL: "https://example.com",
+		acrHelper: accesscontrolrule.NewAccessControlRuleHelper(indexer, nil),
+	}).ListEntriesFromAllSources(api.Context{
+		Request:        request,
+		ResponseWriter: recorder,
+		Storage:        storageClient,
+		User: &kuser.DefaultInfo{
+			Name:   "basic",
+			UID:    "2",
+			Groups: []string{types.GroupBasic, types.GroupAuthenticated},
+		},
+	})
+	require.NoError(t, err)
+
+	var response types.MCPServerCatalogEntryList
+	require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &response))
+	require.Len(t, response.Items, 1)
+	require.False(t, response.Items[0].Authorized)
+}
+
+func TestConvertMCPServerCatalogEntryForListTransfersAuthorization(t *testing.T) {
+	actual := convertMCPServerCatalogEntryForList(minimalResponseTestEntry(), "", "", true, true)
+	require.True(t, actual.Authorized)
+
+	actual = convertMCPServerCatalogEntryForList(minimalResponseTestEntry(), "", "", true, false)
+	require.False(t, actual.Authorized)
 }
 
 func minimalResponseTestEntry() v1.MCPServerCatalogEntry {

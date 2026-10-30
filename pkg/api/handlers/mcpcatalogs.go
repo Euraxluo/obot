@@ -244,7 +244,7 @@ func (h *MCPCatalogHandler) ListEntries(req api.Context) error {
 	if (req.UserIsAdmin() || req.UserIsAuditor()) && req.URL.Query().Get("all") == "true" {
 		entries := make([]types.MCPServerCatalogEntry, 0, len(list.Items))
 		for _, entry := range list.Items {
-			entries = append(entries, convertMCPServerCatalogEntryForList(entry, workspaceID, powerUserID, minimal))
+			entries = append(entries, convertMCPServerCatalogEntryForList(entry, workspaceID, powerUserID, minimal, false))
 		}
 		return req.Write(types.MCPServerCatalogEntryList{Items: entries})
 	}
@@ -273,7 +273,7 @@ func (h *MCPCatalogHandler) ListEntries(req api.Context) error {
 			if !req.UserIsAdmin() && entryRequiresStaticOAuthCreds(entry) {
 				continue
 			}
-			entries = append(entries, convertMCPServerCatalogEntryForList(entry, workspaceID, powerUserID, minimal))
+			entries = append(entries, convertMCPServerCatalogEntryForList(entry, workspaceID, powerUserID, minimal, false))
 		}
 	}
 

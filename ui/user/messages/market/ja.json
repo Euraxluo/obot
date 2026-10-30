@@ -29,6 +29,7 @@
 	"market_request_connect": "接続を申請",
 	"market_request_pending": "承認待ち",
 	"market_connected": "接続済み",
+	"market_authorized": "承認済み",
 	"market_rejected": "却下",
 	"market_not_connected": "未接続",
 	"market_request_reason_label": "申請理由（任意）",

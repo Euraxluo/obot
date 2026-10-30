@@ -161,8 +161,24 @@ func (m *MCPHandler) ListEntriesFromAllSources(req api.Context) error {
 	}
 	minimal, _ := strconv.ParseBool(req.URL.Query().Get("minimal"))
 
-	convertEntry := func(entry v1.MCPServerCatalogEntry) types.MCPServerCatalogEntry {
-		return convertMCPServerCatalogEntryForList(entry, entry.Spec.PowerUserWorkspaceID, "", minimal)
+	convertEntry := func(entry v1.MCPServerCatalogEntry, authorized bool) types.MCPServerCatalogEntry {
+		return convertMCPServerCatalogEntryForList(
+			entry,
+			entry.Spec.PowerUserWorkspaceID,
+			"",
+			minimal,
+			authorized,
+		)
+	}
+	entryAuthorized := func(entry v1.MCPServerCatalogEntry) (bool, error) {
+		if entry.Spec.MCPCatalogName == "" || m.acrHelper == nil {
+			return false, nil
+		}
+		return m.acrHelper.UserHasAccessToMCPServerCatalogEntryInCatalog(
+			req.User,
+			entry.Name,
+			entry.Spec.MCPCatalogName,
+		)
 	}
 	marketVisibilityOpen := req.UserIsAuthenticated() && marketOpenEnabled()
 
@@ -170,7 +186,11 @@ func (m *MCPHandler) ListEntriesFromAllSources(req api.Context) error {
 	if (req.UserIsAdmin() || req.UserIsAuditor()) && req.URL.Query().Get("all") == "true" {
 		entries := make([]types.MCPServerCatalogEntry, 0, len(list.Items))
 		for _, entry := range list.Items {
-			entries = append(entries, convertEntry(entry))
+			authorized, err := entryAuthorized(entry)
+			if err != nil {
+				return err
+			}
+			entries = append(entries, convertEntry(entry, authorized))
 		}
 		return req.Write(types.MCPServerCatalogEntryList{Items: entries})
 	}
@@ -179,16 +199,28 @@ func (m *MCPHandler) ListEntriesFromAllSources(req api.Context) error {
 	entries := make([]types.MCPServerCatalogEntry, 0, len(list.Items))
 	for _, entry := range list.Items {
 		var (
-			err       error
-			hasAccess bool
+			err        error
+			hasAccess  bool
+			authorized bool
 		)
 
 		if marketVisibilityOpen && (req.UserIsAdmin() || req.UserIsAuditor()) {
 			hasAccess = true
+			authorized, err = entryAuthorized(entry)
+			if err != nil {
+				return err
+			}
 		} else if marketVisibilityOpen && entry.Spec.MCPCatalogName != "" {
 			hasAccess = marketPublished(entry)
+			if hasAccess {
+				authorized, err = m.acrHelper.UserHasAccessToMCPServerCatalogEntryInCatalog(req.User, entry.Name, entry.Spec.MCPCatalogName)
+				if err != nil {
+					return err
+				}
+			}
 		} else if entry.Spec.MCPCatalogName != "" {
-			hasAccess, err = m.acrHelper.UserHasAccessToMCPServerCatalogEntryInCatalog(req.User, entry.Name, entry.Spec.MCPCatalogName)
+			authorized, err = m.acrHelper.UserHasAccessToMCPServerCatalogEntryInCatalog(req.User, entry.Name, entry.Spec.MCPCatalogName)
+			hasAccess = authorized
 		} else if entry.Spec.PowerUserWorkspaceID != "" {
 			hasAccess, err = m.acrHelper.UserHasAccessToMCPServerCatalogEntryInWorkspace(req.Context(), req.User, entry.Name, entry.Spec.PowerUserWorkspaceID)
 		}
@@ -206,7 +238,7 @@ func (m *MCPHandler) ListEntriesFromAllSources(req api.Context) error {
 					continue
 				}
 			}
-			entries = append(entries, convertEntry(entry))
+			entries = append(entries, convertEntry(entry, authorized))
 		}
 	}
 
@@ -243,11 +275,19 @@ func ConvertMCPServerCatalogEntryWithWorkspace(entry v1.MCPServerCatalogEntry, p
 	}
 }
 
-func convertMCPServerCatalogEntryForList(entry v1.MCPServerCatalogEntry, powerUserWorkspaceID, powerUserID string, minimal bool) types.MCPServerCatalogEntry {
+func convertMCPServerCatalogEntryForList(
+	entry v1.MCPServerCatalogEntry,
+	powerUserWorkspaceID,
+	powerUserID string,
+	minimal bool,
+	authorized bool,
+) types.MCPServerCatalogEntry {
 	if minimal {
 		minimizeMCPServerCatalogEntryManifest(&entry.Spec.Manifest)
 	}
-	return ConvertMCPServerCatalogEntryWithWorkspace(entry, powerUserWorkspaceID, powerUserID)
+	response := ConvertMCPServerCatalogEntryWithWorkspace(entry, powerUserWorkspaceID, powerUserID)
+	response.Authorized = authorized
+	return response
 }
 
 func minimizeMCPServerCatalogEntryManifest(manifest *types.MCPServerCatalogEntryManifest) {

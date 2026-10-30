@@ -29,6 +29,7 @@
 	"market_request_connect": "연결 신청",
 	"market_request_pending": "승인 대기",
 	"market_connected": "연결됨",
+	"market_authorized": "승인됨",
 	"market_rejected": "거부됨",
 	"market_not_connected": "연결 안 됨",
 	"market_request_reason_label": "신청 사유(선택)",

@@ -135,6 +135,7 @@ type MCPServerCatalogEntry struct {
 	PowerUserID               string                        `json:"powerUserID,omitempty"`
 	NeedsUpdate               bool                          `json:"needsUpdate,omitempty"`
 	OAuthCredentialConfigured bool                          `json:"oauthCredentialConfigured,omitempty"`
+	Authorized                bool                          `json:"authorized,omitempty"`
 }
 
 type MCPResourceRequirements struct {

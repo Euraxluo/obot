@@ -29,6 +29,7 @@
 	"market_request_connect": "请求连接",
 	"market_request_pending": "审批中",
 	"market_connected": "已连接",
+	"market_authorized": "已授权",
 	"market_rejected": "已驳回",
 	"market_not_connected": "未连接",
 	"market_request_reason_label": "申请说明（可选）",
