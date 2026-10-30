@@ -11,19 +11,24 @@
 	import { sanitizeFilenameSegment, saveBlob } from '$lib/download';
 	import { m } from '$lib/i18n';
 	import { toHTMLFromMarkdownWithNewTabLinks } from '$lib/markdown';
-	import { UserService, type ConnectorAccessRequest, type Skill } from '$lib/services';
-	import { buildSkillInstallCommands, type SkillInstallOS } from '$lib/skills/installCommands';
-		import {
+	import {
+		UserService,
+		type ConnectorAccessRequest,
+		type MCPCatalogEntry,
+		type Skill
+	} from '$lib/services';
+	import {
 		catalogEntryToVMCPComponent,
 		catalogEntryDisplayName,
 		entryCategories,
 		matchesQuery,
 		sortMcpServers
 	} from '$lib/services/vmcps/utils';
+	import { buildSkillInstallCommands, type SkillInstallOS } from '$lib/skills/installCommands';
 	import { mcpServersAndEntries, profile } from '$lib/stores';
 	import { formatTimeAgo } from '$lib/time';
 	import { goto } from '$lib/url';
-	import { Bot, CircleAlert, Download, Lightbulb, SearchX } from '@lucide/svelte';
+	import { Bot, Cable, CircleAlert, Download, Lightbulb, SearchX } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { twMerge } from 'tailwind-merge';
@@ -95,6 +100,12 @@
 		[...requests].sort((left, right) => (right.created ?? '').localeCompare(left.created ?? ''))
 	);
 
+	let myVMcps = $derived(
+		data.vmcps
+			.filter((vmcp) => vmcp.userID === profile.current.id && !vmcp.deleted)
+			.sort((left, right) => (right.created ?? '').localeCompare(left.created ?? ''))
+	);
+
 	/** Entry IDs the user already composed into a personal vMCP. */
 	let connectedEntryIDs = $derived.by(() => {
 		const connected = new SvelteSet<string>();
@@ -161,6 +172,26 @@
 				return 'badge-error';
 		}
 	}
+
+	function vmcpConnectorNames(components: { mcpServerCatalogEntryID: string; name: string }[]) {
+		return components.map((component) => {
+			const entry = allEntries.find(
+				(candidate) => candidate.id === component.mcpServerCatalogEntryID
+			);
+			return (
+				(entry ? catalogEntryDisplayName(entry) : '') ||
+				component.name ||
+				component.mcpServerCatalogEntryID
+			);
+		});
+	}
+
+	let availableEntries = $derived(
+		visibleEntries.filter((entry) => ['connected', 'approved'].includes(connectorState(entry.id)))
+	);
+	let requiresApprovalEntries = $derived(
+		visibleEntries.filter((entry) => !['connected', 'approved'].includes(connectorState(entry.id)))
+	);
 
 	// --- Skills ---
 
@@ -368,7 +399,8 @@
 
 	const views: TabView[] = [
 		{ value: 'skills', label: m.market_tab_skills(), content: skillsView },
-		{ value: 'connectors', label: m.market_tab_connectors(), content: connectorsView }
+		{ value: 'connectors', label: m.market_tab_connectors(), content: connectorsView },
+		{ value: 'mine', label: m.market_tab_mine(), content: mineView }
 	];
 </script>
 
@@ -433,6 +465,35 @@
 	</div>
 {/snippet}
 
+{#snippet connectorCard(entry: MCPCatalogEntry)}
+	<MarketplaceCard
+		testId={`market-connector-${entry.id}`}
+		title={catalogEntryDisplayName(entry) || m.market_untitled_connector()}
+		description={entry.manifest.shortDescription || entry.manifest.description || ''}
+		actionLabel={m.market_connect()}
+		onAction={() => openConnector(entry.id)}
+	>
+		{#snippet icon()}
+			<McpServerIcon
+				icon={entry.manifest.icon}
+				width={40}
+				height={40}
+				classes={{ root: 'size-10 bg-primary/12 rounded-lg' }}
+				class="size-5"
+			/>
+		{/snippet}
+		{#snippet metadata()}
+			<span class="text-muted-content flex items-center gap-2 text-xs font-light">
+				<span>{connectorStatus(entry.id).label}</span>
+				{#if entryCategories(entry).length}
+					<span aria-hidden="true">·</span>
+					<span>{entryCategories(entry).join(', ')}</span>
+				{/if}
+			</span>
+		{/snippet}
+	</MarketplaceCard>
+{/snippet}
+
 {#snippet connectorsView()}
 	<div class="bg-base-200/70 flex min-h-full flex-col gap-4 p-4 md:p-6">
 		<div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
@@ -450,6 +511,53 @@
 					class="h-11 rounded-lg border-base-300/70 bg-base-100 shadow-sm"
 				/>
 			</div>
+		</div>
+
+		{#if mcpServersAndEntries.current.loading && allEntries.length === 0}
+			<MarketplaceGrid>
+				{#each Array.from({ length: 6 }) as _, index (index)}
+					<Skeleton type="card" class="h-28 rounded-xl" />
+				{/each}
+			</MarketplaceGrid>
+		{:else if visibleEntries.length === 0}
+			<div
+				class="bg-base-100 dark:bg-base-200 text-muted-content flex flex-col items-center gap-3 rounded-xl p-12 text-center"
+			>
+				<SearchX class="size-10 opacity-50" />
+				<p class="text-sm">{m.market_empty_connectors()}</p>
+			</div>
+		{:else}
+			<div class="flex flex-col gap-6">
+				{#if availableEntries.length > 0}
+					<section class="flex flex-col gap-3">
+						<h3 class="text-sm font-semibold">{m.market_connectors_available()}</h3>
+						<MarketplaceGrid>
+							{#each availableEntries as entry (entry.id)}
+								{@render connectorCard(entry)}
+							{/each}
+						</MarketplaceGrid>
+					</section>
+				{/if}
+
+				{#if requiresApprovalEntries.length > 0}
+					<section class="flex flex-col gap-3">
+						<h3 class="text-sm font-semibold">{m.market_connectors_requires_approval()}</h3>
+						<MarketplaceGrid>
+							{#each requiresApprovalEntries as entry (entry.id)}
+								{@render connectorCard(entry)}
+							{/each}
+						</MarketplaceGrid>
+					</section>
+				{/if}
+			</div>
+		{/if}
+	</div>
+{/snippet}
+
+{#snippet mineView()}
+	<div class="bg-base-200/70 flex min-h-full flex-col gap-4 p-4 md:p-6">
+		<div>
+			<h2 class="text-xl font-semibold tracking-tight">{m.market_tab_mine()}</h2>
 		</div>
 
 		<section
@@ -494,51 +602,44 @@
 			{/if}
 		</section>
 
-		{#if mcpServersAndEntries.current.loading && allEntries.length === 0}
-			<MarketplaceGrid>
-				{#each Array.from({ length: 6 }) as _, index (index)}
-					<Skeleton type="card" class="h-28 rounded-xl" />
-				{/each}
-			</MarketplaceGrid>
-		{:else if visibleEntries.length === 0}
-			<div
-				class="bg-base-100 dark:bg-base-200 text-muted-content flex flex-col items-center gap-3 rounded-xl p-12 text-center"
-			>
-				<SearchX class="size-10 opacity-50" />
-				<p class="text-sm">{m.market_empty_connectors()}</p>
-			</div>
-		{:else}
-			<MarketplaceGrid>
-				{#each visibleEntries as entry (entry.id)}
-					<MarketplaceCard
-						testId={`market-connector-${entry.id}`}
-						title={catalogEntryDisplayName(entry) || m.market_untitled_connector()}
-						description={entry.manifest.shortDescription || entry.manifest.description || ''}
-						actionLabel={m.market_connect()}
-						onAction={() => openConnector(entry.id)}
-					>
-						{#snippet icon()}
-							<McpServerIcon
-								icon={entry.manifest.icon}
-								width={40}
-								height={40}
-								classes={{ root: 'size-10 bg-primary/12 rounded-lg' }}
-								class="size-5"
-							/>
-						{/snippet}
-						{#snippet metadata()}
-							<span class="text-muted-content flex items-center gap-2 text-xs font-light">
-								<span>{connectorStatus(entry.id).label}</span>
-								{#if entryCategories(entry).length}
-									<span aria-hidden="true">·</span>
-									<span>{entryCategories(entry).join(', ')}</span>
-								{/if}
-							</span>
-						{/snippet}
-					</MarketplaceCard>
-				{/each}
-			</MarketplaceGrid>
-		{/if}
+		<section
+			data-testid="market-my-connections"
+			aria-label={m.market_my_connections()}
+			class="bg-base-100 border-base-300 dark:bg-base-200 rounded-xl border p-4 shadow-sm"
+		>
+			<h2 class="text-sm font-semibold">{m.market_my_connections()}</h2>
+			{#if myVMcps.length === 0}
+				<p class="text-muted-content mt-2 text-sm">{m.market_my_connections_empty()}</p>
+			{:else}
+				<div class="mt-3">
+					<MarketplaceGrid>
+						{#each myVMcps as vmcp (vmcp.id)}
+							{@const connectorNames = vmcpConnectorNames(vmcp.components ?? [])}
+							<MarketplaceCard
+								testId={`market-my-vmcp-${vmcp.id}`}
+								title={vmcp.displayName}
+								description={connectorNames.join(', ')}
+								actionLabel={m.market_manage_connection()}
+								href="/vmcps"
+							>
+								{#snippet icon()}
+									<span
+										class="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-lg"
+									>
+										<Cable class="size-5" />
+									</span>
+								{/snippet}
+								{#snippet metadata()}
+									<span class="text-primary text-xs font-medium">
+										{m.market_manage_connection()}
+									</span>
+								{/snippet}
+							</MarketplaceCard>
+						{/each}
+					</MarketplaceGrid>
+				</div>
+			{/if}
+		</section>
 	</div>
 {/snippet}
 
@@ -554,7 +655,9 @@
 
 {#if selected}
 	<div class="modal modal-open" role="dialog" aria-modal="true" aria-label={selected.title}>
-		<div class="modal-box bg-base-100 dark:bg-base-200 max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl">
+		<div
+			class="modal-box bg-base-100 dark:bg-base-200 max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl"
+		>
 			<div class="flex items-start justify-between gap-3">
 				<div class="flex items-center gap-3">
 					{#if selected.tab === 'connectors'}
@@ -671,7 +774,10 @@
 								<button
 									type="button"
 									role="tab"
-									class={twMerge('tab text-xs', selectedSkillOsTab === 'macos/linux' && 'tab-active')}
+									class={twMerge(
+										'tab text-xs',
+										selectedSkillOsTab === 'macos/linux' && 'tab-active'
+									)}
 									onclick={() => (selectedSkillOsTab = 'macos/linux')}
 									aria-selected={selectedSkillOsTab === 'macos/linux'}
 								>
