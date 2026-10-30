@@ -227,7 +227,7 @@ describe('market page', () => {
 		await renderMarketPage({ requests: [requestFixture('approved')] });
 		await openMineTab();
 		await expect
-			.element(page.getByTestId('market-request-car1-1').getByText('已通过'))
+			.element(page.getByTestId('market-request-car1-1').getByText(m.market_request_approved()))
 			.toBeVisible();
 	});
 

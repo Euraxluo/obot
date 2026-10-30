@@ -1,4 +1,5 @@
 import '../app.css';
+import { setLocale } from '$lib/paraglide/runtime';
 import { useShortTimeouts } from './helpers/shortTimeouts';
 import { worker } from './mocks/worker';
 import 'devicon/devicon.min.css';
@@ -14,6 +15,7 @@ locators.extend({
 let restoreTimeouts: (() => void) | undefined;
 
 beforeAll(async () => {
+	setLocale('en', { reload: false });
 	restoreTimeouts = useShortTimeouts();
 	await worker.start({
 		quiet: true,
@@ -29,6 +31,7 @@ beforeAll(async () => {
 beforeEach(() => {
 	localStorage.clear();
 	sessionStorage.clear();
+	setLocale('en', { reload: false });
 });
 
 afterEach(async () => {
