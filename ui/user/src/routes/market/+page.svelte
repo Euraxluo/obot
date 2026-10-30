@@ -8,12 +8,12 @@
 	import MarketplaceGrid from '$lib/components/marketplace/MarketplaceGrid.svelte';
 	import ConnectVMcp from '$lib/components/vmcps/ConnectVMcp.svelte';
 	import McpServerIcon from '$lib/components/vmcps/McpServerIcon.svelte';
-	import { sanitizeFilenameSegment, saveBlob } from '$lib/download';
+	import { sanitizeFilenameSegment } from '$lib/download';
 	import { m } from '$lib/i18n';
 	import { toHTMLFromMarkdownWithNewTabLinks } from '$lib/markdown';
 	import { UserService, type ConnectorAccessRequest, type Skill } from '$lib/services';
-	import { AiClient, COMMON_AI_CLIENTS_MAP } from '$lib/services/user/constants';
-	import {
+	import { buildSkillInstallCommands, type SkillInstallOS } from '$lib/skills/installCommands';
+		import {
 		catalogEntryToVMCPComponent,
 		catalogEntryDisplayName,
 		entryCategories,
@@ -23,7 +23,7 @@
 	import { mcpServersAndEntries, profile } from '$lib/stores';
 	import { formatTimeAgo } from '$lib/time';
 	import { goto } from '$lib/url';
-	import { Bot, CircleAlert, Download, Lightbulb, SearchX } from '@lucide/svelte';
+	import { Bot, CircleAlert, Lightbulb, SearchX } from '@lucide/svelte';
 	import { onMount } from 'svelte';
 	import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 	import { twMerge } from 'tailwind-merge';
@@ -219,10 +219,13 @@
 			tags: skill.repoURL ? [skill.repoURL] : [],
 			skill
 		};
+		void refreshSkillDownloadURL(skill);
 	}
 
 	function closeDetail() {
 		selected = undefined;
+		skillDownloadURL = undefined;
+		skillDownloadURLFailed = false;
 	}
 
 	async function submitRequest() {
@@ -322,83 +325,29 @@
 		return current.skill ?? data.skills.find((s) => s.id === current.id);
 	});
 
-	let selectedSkillOsTab = $state<'macos/linux' | 'windows'>('macos/linux');
-	let downloadingSkill = $state(false);
+	let selectedSkillOsTab = $state<SkillInstallOS>('macos/linux');
+	let skillDownloadURL = $state<string | undefined>(undefined);
+	let skillDownloadURLFailed = $state(false);
 
-	let clientUnzipCommands = $derived.by(() => {
-		const skillName = sanitizeFilenameSegment(
-			selectedSkill?.name ?? selectedSkill?.id ?? 'skill'
-		);
-		const command = (clientSkillsDirectory: string) => {
-			if (selectedSkillOsTab === 'windows') {
-				const windowsSkillsDirectory = clientSkillsDirectory.replaceAll('/', '\\');
-				return `Expand-Archive -LiteralPath "$env:USERPROFILE\\Downloads\\${skillName}.zip" -DestinationPath "$env:USERPROFILE\\${windowsSkillsDirectory}\\${skillName}" -Force`;
-			}
+	let skillInstallCommands = $derived(
+		skillDownloadURL && selectedSkill
+			? buildSkillInstallCommands({
+					downloadURL: `${window.location.origin}${skillDownloadURL}`,
+					skillName: sanitizeFilenameSegment(selectedSkill.name ?? selectedSkill.id),
+					os: selectedSkillOsTab
+				})
+			: []
+	);
 
-			return `unzip "$HOME/Downloads/${skillName}.zip" -d "$HOME/${clientSkillsDirectory}/${skillName}"`;
-		};
-		// WorkBuddy skills are always marketplace-published here, so the command
-		// can download from the session-less public endpoint in one step. The zip
-		// is staged in a temp directory and cleaned up; the install destination
-		// is WorkBuddy's fixed skills directory.
-		const workBuddyCommand = () => {
-			const publicDownloadUrl = selectedSkill
-				? `${window.location.origin}/api/public/skills/${encodeURIComponent(selectedSkill.id)}/download`
-				: '';
-			if (selectedSkillOsTab === 'windows') {
-				return `$z=Join-Path $env:TEMP '${skillName}.zip'; Invoke-WebRequest "${publicDownloadUrl}" -OutFile $z; Expand-Archive -LiteralPath $z -DestinationPath "$env:USERPROFILE\\.workbuddy\\skills\\${skillName}" -Force; Remove-Item $z`;
-			}
-
-			return `tmp="$(mktemp -d)" && curl -fsSL "${publicDownloadUrl}" -o "$tmp/skill.zip" && mkdir -p "$HOME/.workbuddy/skills/${skillName}" && unzip -oq "$tmp/skill.zip" -d "$HOME/.workbuddy/skills/${skillName}" && rm -rf "$tmp"`;
-		};
-
-		return [
-			{
-				id: 'cursor',
-				label: 'Cursor',
-				icon: COMMON_AI_CLIENTS_MAP.get(AiClient.Cursor)?.icon,
-				iconDark: COMMON_AI_CLIENTS_MAP.get(AiClient.Cursor)?.iconDark,
-				command: command('.cursor/skills')
-			},
-			{
-				id: 'claudeCode',
-				label: 'Claude Code',
-				icon: COMMON_AI_CLIENTS_MAP.get(AiClient.Claude)?.icon,
-				iconDark: COMMON_AI_CLIENTS_MAP.get(AiClient.Claude)?.iconDark,
-				command: command('.claude/skills')
-			},
-			{
-				id: 'codex',
-				label: 'Codex',
-				icon: COMMON_AI_CLIENTS_MAP.get(AiClient.Codex)?.icon,
-				iconDark: COMMON_AI_CLIENTS_MAP.get(AiClient.Codex)?.iconDark,
-				command: command('.codex/skills')
-			},
-			{
-				id: 'workbuddy',
-				label: 'WorkBuddy',
-				icon: COMMON_AI_CLIENTS_MAP.get(AiClient.WorkBuddy)?.icon,
-				command: workBuddyCommand()
-			},
-			{
-				id: 'other',
-				label: m.skills_other(),
-				command: command('.agents/skills')
-			}
-		];
-	});
-
-	async function handleDownloadSkill(skill?: Skill) {
-		if (!skill || downloadingSkill) return;
-		downloadingSkill = true;
+	async function refreshSkillDownloadURL(skill?: Skill) {
+		skillDownloadURL = undefined;
+		skillDownloadURLFailed = false;
+		if (!skill) return;
 		try {
-			const blob = await UserService.downloadSkill(skill.id);
-			const filename = `${sanitizeFilenameSegment(skill.name ?? skill.id)}.zip`;
-			saveBlob(blob, filename);
+			skillDownloadURL = await UserService.getSkillDownloadURL(skill.id);
 		} catch (err) {
-			console.error('Failed to download skill', err);
-		} finally {
-			downloadingSkill = false;
+			console.error('Failed to create skill install link', err);
+			skillDownloadURLFailed = true;
 		}
 	}
 
@@ -697,40 +646,11 @@
 				<div class="divider my-4">{m.market_skill_usage_title()}</div>
 
 				<div class="flex flex-col gap-4">
-					<!-- Step 1: Download zip -->
-					<div class="bg-base-200/50 dark:bg-base-300/40 rounded-xl p-3.5">
-						<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-							<div>
-								<p class="text-xs font-semibold text-base-content">
-									{m.skills_install_step_download({
-										name: selectedSkill.displayName || selectedSkill.name || ''
-									})}
-								</p>
-								<p class="text-xs text-muted-content mt-0.5">
-									{m.market_skill_download_hint({
-										filename: `${sanitizeFilenameSegment(selectedSkill.name ?? selectedSkill.id)}.zip`
-									})}
-								</p>
-							</div>
-							<div class="flex items-center gap-2 shrink-0">
-								<button
-									type="button"
-									class="btn btn-primary btn-sm gap-2 rounded-lg"
-									disabled={downloadingSkill}
-									onclick={() => handleDownloadSkill(selectedSkill)}
-								>
-									<Download class="size-4" />
-									{downloadingSkill ? m.market_downloading() : m.skills_download()}
-								</button>
-							</div>
-						</div>
-					</div>
-
-					<!-- Step 2: Unzip to Client -->
+					<!-- One-line install commands per client -->
 					<div class="flex flex-col gap-2.5">
 						<div class="flex items-center justify-between">
 							<p class="text-xs font-semibold text-base-content">
-								{m.skills_install_step_unzip()}
+								{m.skills_install_step_command()}
 							</p>
 							<div role="tablist" class="tabs tabs-box tabs-xs">
 								<button
@@ -753,43 +673,49 @@
 								</button>
 							</div>
 						</div>
-						<div class="flex flex-col gap-2">
-							{#each clientUnzipCommands as client (client.id)}
-								<CopyField
-									value={client.command}
-									id={`command-${client.id}`}
-									classes={{
-										inputLabel: 'bg-base-200/60 dark:bg-base-300',
-										input: 'font-mono text-xs'
-									}}
-								>
-									{#snippet preContent()}
-										<span
-											class="label shrink-0 w-32 mr-0 text-xs text-base-content flex items-center gap-1.5 font-medium"
-										>
-											{#if client.icon || client.iconDark}
-												<img
-													src={client.iconDark ?? client.icon}
-													alt={m.skills_branding_icon_alt({ client: client.label })}
-													class="size-4 dark:block hidden"
-												/>
-												<img
-													src={client?.icon}
-													alt={m.skills_branding_icon_alt({ client: client.label })}
-													class="size-4 block dark:hidden"
-												/>
-											{:else}
-												<Bot class="size-4" />
-											{/if}
-											{client.label}
-										</span>
-									{/snippet}
-								</CopyField>
-							{/each}
-						</div>
+						{#if skillInstallCommands.length > 0}
+							<div class="flex flex-col gap-2">
+								{#each skillInstallCommands as client (client.id)}
+									<CopyField
+										value={client.command}
+										id={`command-${client.id}`}
+										classes={{
+											inputLabel: 'bg-base-200/60 dark:bg-base-300',
+											input: 'font-mono text-xs'
+										}}
+									>
+										{#snippet preContent()}
+											<span
+												class="label shrink-0 w-32 mr-0 text-xs text-base-content flex items-center gap-1.5 font-medium"
+											>
+												{#if client.icon || client.iconDark}
+													<img
+														src={client.iconDark ?? client.icon}
+														alt={m.skills_branding_icon_alt({ client: client.label })}
+														class="size-4 dark:block hidden"
+													/>
+													<img
+														src={client?.icon}
+														alt={m.skills_branding_icon_alt({ client: client.label })}
+														class="size-4 block dark:hidden"
+													/>
+												{:else}
+													<Bot class="size-4" />
+												{/if}
+												{client.label}
+											</span>
+										{/snippet}
+									</CopyField>
+								{/each}
+							</div>
+						{:else if skillDownloadURLFailed}
+							<p class="text-error text-xs">{m.skills_install_url_failed()}</p>
+						{:else}
+							<p class="text-muted-content text-xs">{m.skills_install_url_pending()}</p>
+						{/if}
 					</div>
 
-					<!-- Step 3: Run / Use in Chat -->
+					<!-- Step 2: Run / Use in Chat -->
 					<div class="rounded-xl border border-primary/20 bg-primary/5 p-3.5">
 						<p class="text-xs font-semibold text-primary">
 							{m.market_skill_step_call()}

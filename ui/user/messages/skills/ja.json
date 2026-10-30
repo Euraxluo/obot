@@ -52,8 +52,6 @@
 	"skills_guides_try_using_the_appropriate_cli_command": "ここで適切な CLI コマンドを使用してスキルをインストールしてみましょう！",
 	"skills_guides_view_the_skills_you_have_access": "アクセスできるスキルを表示してインストールします。",
 	"skills_install": "インストール",
-	"skills_install_step_download": "1. {name} をダウンロード",
-	"skills_install_step_unzip": "2. CLI で解凍",
 	"skills_license": "ライセンス",
 	"skills_license_error": "ライセンスエラー",
 	"skills_license_error_prefix": "ライセンスの問題により、スキルの取得中に問題が発生しました。未解決のライセンスの問題を解決するか、次のサポート窓口までお問い合わせください：",
@@ -103,5 +101,8 @@
 	"skills_invalid": "無効",
 	"skills_install_step_invoke": "3. AI クライアントで実行",
 	"skills_install_step_invoke_desc": "解凍後、チャットで /{name} と入力するか、AI にタスクを指示してスキルを実行します。",
-	"skills_view_config_and_source": "スキルの設定とソースコードを表示"
+	"skills_view_config_and_source": "スキルの設定とソースコードを表示",
+	"skills_install_step_command": "ワンライナー・インストールコマンドをコピー",
+	"skills_install_url_pending": "インストールリンクを生成中...",
+	"skills_install_url_failed": "インストールリンクの作成に失敗しました。ダイアログを閉じて再試行してください。"
 }

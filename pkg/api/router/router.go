@@ -390,10 +390,8 @@ func NewRouter(ctx context.Context, services *services.Services) (*Router, error
 	mux.HandleFunc("GET /api/skills", skills.List)
 	mux.HandleFunc("GET /api/skills/{id}", skills.Get)
 	mux.HandleFunc("GET /api/skills/{id}/download", skills.Download)
+	mux.HandleFunc("GET /api/skills/{id}/download-url", skills.DownloadURL)
 	mux.HandleFunc("GET /api/skills/{id}/preview", skills.Preview)
-	// Session-less download of marketplace-published skill packages, for
-	// external tools (e.g. WorkBuddy one-click skill install).
-	mux.HandleFunc("GET /api/public/skills/{id}/download", skills.DownloadPublished)
 
 	// Skill repositories (admin only)
 	mux.HandleFunc("GET /api/skill-repositories", skillRepositories.List)

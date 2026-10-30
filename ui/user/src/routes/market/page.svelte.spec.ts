@@ -284,44 +284,31 @@ describe('market page', () => {
 		await expect.element(page.getByText(m.vmcps_connection_url())).toBeVisible();
 	});
 
-	it('shows how to use skills with download button, unzip commands, and call instructions when clicked', async () => {
-		const downloadCalled = vi.fn();
+	it('shows one-line install commands and call instructions when a skill is clicked', async () => {
 		worker.use(
-			http.get(`/api/skills/${skill.id}/download`, () => {
-				downloadCalled();
-				return new HttpResponse(new Blob(['fake-zip']), {
-					headers: { 'Content-Type': 'application/zip' }
-				});
-			})
+			http.get(`/api/skills/${skill.id}/download-url`, () =>
+				HttpResponse.json({ path: `/api/skills/${skill.id}/download?expires=1&token=t` })
+			)
 		);
 
 		await renderMarketPage();
 		const skillCard = page.getByTestId('market-skill-sk1-report');
 		await skillCard.click();
 
-		// Modal displays the skill usage section and steps
+		// Modal displays the skill usage section, one-line commands, and call hint
 		const modal = page.getByRole('dialog', { name: '中文周报技能' });
 		await expect.element(modal).toBeVisible();
 		await expect.element(modal.getByText(m.market_skill_usage_title())).toBeVisible();
-		await expect
-			.element(
-				modal.getByText(
-					m.skills_install_step_download({
-						name: skill.displayName || skill.name || ''
-					})
-				)
-			)
-			.toBeVisible();
-		await expect.element(modal.getByText(m.skills_install_step_unzip())).toBeVisible();
+		await expect.element(modal.getByText(m.skills_install_step_command())).toBeVisible();
 		await expect.element(modal.getByText(m.market_skill_step_call())).toBeVisible();
 
-		// Unzip copy fields for clients (Cursor, Claude Code, Codex) are rendered in modal
+		// One-line commands for clients (Cursor, Claude Code, Codex) are rendered in modal
 		await expect.element(modal.getByText('Cursor')).toBeVisible();
 		await expect.element(modal.getByText('Claude Code')).toBeVisible();
 		await expect.element(modal.getByText('Codex')).toBeVisible();
 
-		// Download button is clickable
-		const downloadBtn = modal.getByRole('button', { name: new RegExp(m.skills_download()) });
-		await expect.element(downloadBtn).toBeVisible();
+		// The command embeds the signed download URL
+		const expectedCommand = `tmp="$(mktemp -d)" && curl -fsSL "${window.location.origin}/api/skills/sk1-report/download?expires=1&token=t" -o "$tmp/skill.zip" && mkdir -p "$HOME/.claude/skills/weekly-report-en" && unzip -oq "$tmp/skill.zip" -d "$HOME/.claude/skills/weekly-report-en" && rm -rf "$tmp"`;
+		await expect.element(modal.getByCSS('#command-claudeCode')).toHaveValue(expectedCommand);
 	});
 });

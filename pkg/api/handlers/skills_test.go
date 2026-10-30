@@ -4,10 +4,14 @@ import (
 	"archive/zip"
 	"bytes"
 	"context"
+	"crypto/ed25519"
+	"encoding/base64"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -21,7 +25,6 @@ import (
 	gatewaydb "github.com/obot-platform/obot/pkg/gateway/db"
 	gatewaytypes "github.com/obot-platform/obot/pkg/gateway/types"
 	"github.com/obot-platform/obot/pkg/skillaccessrule"
-	"github.com/obot-platform/obot/pkg/skillpublicationrule"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
 	storagescheme "github.com/obot-platform/obot/pkg/storage/scheme"
 	storageservices "github.com/obot-platform/obot/pkg/storage/services"
@@ -626,7 +629,7 @@ func TestSkillHandlerDownloadPackagesMaterializedSkill(t *testing.T) {
 	assert.Contains(t, names, "scripts/run.sh")
 }
 
-func TestSkillHandlerDownloadPublishedRequiresPublication(t *testing.T) {
+func TestSkillHandlerDownloadURLMintsSignedToken(t *testing.T) {
 	skill := &v1.Skill{
 		Name: "sk1", Namespace: system.DefaultNamespace,
 		Spec: v1.SkillSpec{
@@ -638,57 +641,96 @@ func TestSkillHandlerDownloadPublishedRequiresPublication(t *testing.T) {
 		},
 		Status: v1.SkillStatus{Valid: true},
 	}
-	publishedRule := &v1.SkillPublicationRule{
-		Name:      skillpublicationrule.ObjectName(skill.Name),
-		Namespace: system.DefaultNamespace,
-		Spec:      v1.SkillPublicationRuleSpec{SkillID: skill.Name, Published: true},
-	}
-	unpublishedRule := &v1.SkillPublicationRule{
-		Name:      skillpublicationrule.ObjectName(skill.Name),
-		Namespace: system.DefaultNamespace,
-		Spec:      v1.SkillPublicationRuleSpec{SkillID: skill.Name, Published: false},
-	}
-	materialized := func(t *testing.T) *SkillHandler {
-		t.Helper()
-		tempDir := t.TempDir()
-		require.NoError(t, os.WriteFile(tempDir+"/SKILL.md", []byte("---\nname: postgres-helper\ndescription: Test\n---\n"), 0o644))
+
+	_, signingKey, err := ed25519.GenerateKey(nil)
+	require.NoError(t, err)
+	gatewayClient := newHandlerTestGateway(t)
+	require.NoError(t, gatewayClient.UpsertCredential(t.Context(), gatewaytypes.Credential{
+		Context: system.JWKCredentialContext,
+		Name:    system.JWKCredentialContext,
+		Secrets: map[string]string{"JWK_KEY": base64.StdEncoding.EncodeToString(signingKey)},
+	}))
+
+	storage := newFakeStorage(t, skill)
+	tempDir := t.TempDir()
+	require.NoError(t, os.WriteFile(tempDir+"/SKILL.md", []byte("---\nname: postgres-helper\ndescription: Test\n---\n"), 0o644))
+	newHandler := func() *SkillHandler {
 		handler := NewSkillHandler(100, newSkillAccessRuleHelper(t))
 		handler.materializeSkillSource = func(_ context.Context, _ *v1.Skill, _ string, _ int) (func(), string, error) {
 			return func() {}, tempDir, nil
 		}
 		return handler
 	}
-	doDownload := func(t *testing.T, storage kclient.WithWatch) (*httptest.ResponseRecorder, error) {
+	mint := func(t *testing.T, skillID string) string {
 		t.Helper()
-		req := httptest.NewRequest(http.MethodGet, "/api/public/skills/sk1/download", nil)
-		req.SetPathValue("id", "sk1")
+		req := httptest.NewRequest(http.MethodGet, "/api/skills/"+skillID+"/download-url", nil)
+		req.SetPathValue("id", skillID)
 		rec := httptest.NewRecorder()
-		err := materialized(t).DownloadPublished(api.Context{
+		require.NoError(t, newHandler().DownloadURL(api.Context{
 			ResponseWriter: rec,
 			Request:        req,
 			Storage:        storage,
-			GatewayClient:  newHandlerTestGateway(t),
-			User:           testUser(""),
+			GatewayClient:  gatewayClient,
+			User:           testUser("user1"),
+		}))
+		var payload types.SkillDownloadURL
+		require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &payload))
+		require.NotEmpty(t, payload.Path)
+		return payload.Path
+	}
+	anonymousDownload := func(t *testing.T, rawPath string) (*httptest.ResponseRecorder, error) {
+		t.Helper()
+		parsed, err := url.Parse(rawPath)
+		require.NoError(t, err)
+		req := httptest.NewRequest(http.MethodGet, parsed.Path, nil)
+		req.URL.RawQuery = parsed.RawQuery
+		req.SetPathValue("id", skill.Name)
+		rec := httptest.NewRecorder()
+		err = newHandler().Download(api.Context{
+			ResponseWriter: rec,
+			Request:        req,
+			Storage:        storage,
+			GatewayClient:  gatewayClient,
+			User: &kuser.DefaultInfo{
+				Name:   "anonymous",
+				UID:    "anonymous",
+				Groups: []string{"unauthenticated"},
+			},
 		})
 		return rec, err
 	}
 
-	t.Run("published skill downloads without a session", func(t *testing.T) {
-		rec, err := doDownload(t, newFakeStorage(t, skill, publishedRule))
+	t.Run("minted URL downloads without a session", func(t *testing.T) {
+		rec, err := anonymousDownload(t, mint(t, skill.Name))
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, rec.Code)
-		assert.Equal(t, "application/zip", rec.Header().Get("Content-Type"))
 		_, zipErr := zip.NewReader(bytes.NewReader(rec.Body.Bytes()), int64(rec.Body.Len()))
 		require.NoError(t, zipErr)
 	})
 
-	t.Run("unpublished skill is not found", func(t *testing.T) {
-		_, err := doDownload(t, newFakeStorage(t, skill, unpublishedRule))
+	t.Run("anonymous download without a token is rejected", func(t *testing.T) {
+		_, err := anonymousDownload(t, "/api/skills/"+skill.Name+"/download")
 		require.Error(t, err)
 	})
 
-	t.Run("missing publication rule is not found", func(t *testing.T) {
-		_, err := doDownload(t, newFakeStorage(t, skill))
+	t.Run("tampered token is rejected", func(t *testing.T) {
+		path := mint(t, skill.Name)
+		tampered := regexp.MustCompile(`token=.*$`).ReplaceAllString(path, "token=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA")
+		_, err := anonymousDownload(t, tampered)
+		require.Error(t, err)
+	})
+
+	t.Run("expired token is rejected", func(t *testing.T) {
+		expires := time.Now().Add(-time.Minute).Unix()
+		expiredSignature := base64.RawURLEncoding.EncodeToString(ed25519.Sign(signingKey, downloadTokenMessage(skill.Name, expires)))
+		_, err := anonymousDownload(t, "/api/skills/"+skill.Name+"/download?expires="+strconv.FormatInt(expires, 10)+"&token="+expiredSignature)
+		require.Error(t, err)
+	})
+
+	t.Run("token bound to another skill is rejected", func(t *testing.T) {
+		expires := time.Now().Add(time.Hour).Unix()
+		otherSignature := base64.RawURLEncoding.EncodeToString(ed25519.Sign(signingKey, downloadTokenMessage("sk2", expires)))
+		_, err := anonymousDownload(t, "/api/skills/"+skill.Name+"/download?expires="+strconv.FormatInt(expires, 10)+"&token="+otherSignature)
 		require.Error(t, err)
 	})
 }

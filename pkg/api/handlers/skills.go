@@ -3,6 +3,8 @@ package handlers
 import (
 	"archive/zip"
 	"context"
+	"crypto/ed25519"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +16,8 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/obot-platform/obot/apiclient/types"
 	"github.com/obot-platform/obot/pkg/api"
@@ -23,8 +27,8 @@ import (
 	"github.com/obot-platform/obot/pkg/gitcredential"
 	"github.com/obot-platform/obot/pkg/skillaccessrule"
 	"github.com/obot-platform/obot/pkg/skillformat"
-	"github.com/obot-platform/obot/pkg/skillpublicationrule"
 	v1 "github.com/obot-platform/obot/pkg/storage/apis/obot.obot.ai/v1"
+	"github.com/obot-platform/obot/pkg/system"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	kclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
@@ -39,6 +43,9 @@ type SkillHandler struct {
 	maxRepoSizeMB          int
 	skillAccessRuleHelper  *skillaccessrule.Helper
 	materializeSkillSource func(ctx context.Context, skill *v1.Skill, token string, maxRepoSizeMB int) (func(), string, error)
+
+	signingKeyLock sync.Mutex
+	signingKey     ed25519.PrivateKey
 }
 
 type skillRepositoryCredentialRevealer interface {
@@ -169,8 +176,18 @@ func (h *SkillHandler) Preview(req api.Context) error {
 	return err
 }
 
+// downloadTokenTTL bounds how long a minted download URL stays usable. The
+// token is bound to a single skill id, so a leaked command from the UI grants
+// at most one skill download for this window.
+const downloadTokenTTL = 15 * time.Minute
+
 func (h *SkillHandler) Download(req api.Context) error {
-	skill, err := h.getAccessibleSkill(req, req.PathValue("id"))
+	id := req.PathValue("id")
+	if !h.validDownloadToken(req, id) && !req.UserIsAuthenticated() {
+		return types.NewErrHTTP(http.StatusUnauthorized, "a valid download token or an authenticated session is required")
+	}
+
+	skill, err := h.getAccessibleSkill(req, id)
 	if err != nil {
 		return err
 	}
@@ -178,22 +195,80 @@ func (h *SkillHandler) Download(req api.Context) error {
 	return h.writeSkillZip(req, skill)
 }
 
-// DownloadPublished serves the zip of a skill that has been published to the
-// marketplace. The route is reachable without a session so external tools such
-// as the WorkBuddy desktop client can fetch the package with a plain HTTPS GET;
-// unpublished skills are reported as not found.
-func (h *SkillHandler) DownloadPublished(req api.Context) error {
-	skill, err := h.getAccessibleSkill(req, req.PathValue("id"))
+// DownloadURL mints a short-lived signed download URL for the CLI one-line
+// install commands. The request itself requires an authenticated session with
+// access to the skill; the minted URL works without a session until it expires.
+func (h *SkillHandler) DownloadURL(req api.Context) error {
+	id := req.PathValue("id")
+	skill, err := h.getAccessibleSkill(req, id)
 	if err != nil {
 		return err
 	}
 
-	var rule v1.SkillPublicationRule
-	if err := req.Get(&rule, skillpublicationrule.ObjectName(skill.Name)); err != nil || !rule.Spec.Published {
-		return types.NewErrNotFound("skill %s not found", skill.Name)
+	expires := time.Now().Add(downloadTokenTTL).Unix()
+	signature, err := h.signDownloadToken(req, skill.Name, expires)
+	if err != nil {
+		return err
 	}
 
-	return h.writeSkillZip(req, skill)
+	return req.Write(types.SkillDownloadURL{
+		Path: fmt.Sprintf("/api/skills/%s/download?expires=%d&token=%s", skill.Name, expires, signature),
+	})
+}
+
+// downloadSigningKey returns the Ed25519 private key shared with the persistent
+// JWT token service, revealed from the gateway credential store and cached.
+func (h *SkillHandler) downloadSigningKey(req api.Context) (ed25519.PrivateKey, error) {
+	h.signingKeyLock.Lock()
+	defer h.signingKeyLock.Unlock()
+
+	if h.signingKey != nil {
+		return h.signingKey, nil
+	}
+
+	cred, err := req.GatewayClient.RevealCredential(req.Context(), []string{system.JWKCredentialContext}, system.JWKCredentialContext)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reveal signing key: %w", err)
+	}
+	keyData, err := base64.StdEncoding.DecodeString(cred.Secrets["JWK_KEY"])
+	if err != nil || len(keyData) != ed25519.PrivateKeySize {
+		return nil, fmt.Errorf("signing key is missing or malformed")
+	}
+	h.signingKey = ed25519.PrivateKey(keyData)
+	return h.signingKey, nil
+}
+
+func (h *SkillHandler) signDownloadToken(req api.Context, skillID string, expires int64) (string, error) {
+	key, err := h.downloadSigningKey(req)
+	if err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(ed25519.Sign(key, downloadTokenMessage(skillID, expires))), nil
+}
+
+// validDownloadToken reports whether the request carries an unexpired token
+// signed for exactly this skill id.
+func (h *SkillHandler) validDownloadToken(req api.Context, skillID string) bool {
+	query := req.URL.Query()
+	token := query.Get("token")
+	expires, err := strconv.ParseInt(query.Get("expires"), 10, 64)
+	if token == "" || err != nil || time.Now().Unix() > expires {
+		return false
+	}
+
+	key, err := h.downloadSigningKey(req)
+	if err != nil {
+		return false
+	}
+	signature, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil {
+		return false
+	}
+	return ed25519.Verify(key.Public().(ed25519.PublicKey), downloadTokenMessage(skillID, expires), signature)
+}
+
+func downloadTokenMessage(skillID string, expires int64) []byte {
+	return []byte(fmt.Sprintf("skill-download:%s:%d", skillID, expires))
 }
 
 func (h *SkillHandler) writeSkillZip(req api.Context, skill *v1.Skill) error {

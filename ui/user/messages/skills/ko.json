@@ -52,8 +52,6 @@
 	"skills_guides_try_using_the_appropriate_cli_command": "여기에서 적절한 CLI 명령을 사용하여 스킬을 설치해 보세요!",
 	"skills_guides_view_the_skills_you_have_access": "액세스할 수 있는 스킬을 확인하고 설치합니다.",
 	"skills_install": "설치",
-	"skills_install_step_download": "1. {name} 다운로드",
-	"skills_install_step_unzip": "2. CLI로 압축 해제",
 	"skills_license": "라이선스",
 	"skills_license_error": "라이선스 오류",
 	"skills_license_error_prefix": "라이선스 문제로 인해 스킬을 가져오는 중 문제가 발생했습니다. 미해결 라이선스 문제를 해결하거나 다음 주소로 지원팀에 문의하세요:",
@@ -103,5 +101,8 @@
 	"skills_invalid": "유효하지 않음",
 	"skills_install_step_invoke": "3. AI 클라이언트에서 실행",
 	"skills_install_step_invoke_desc": "압축을 푼 후 채팅에서 /{name}을 입력하거나 AI에 요청하여 스킬을 실행합니다.",
-	"skills_view_config_and_source": "스킬 구성 및 소스 코드 보기"
+	"skills_view_config_and_source": "스킬 구성 및 소스 코드 보기",
+	"skills_install_step_command": "원라인 설치 명령 복사",
+	"skills_install_url_pending": "설치 링크 생성 중...",
+	"skills_install_url_failed": "설치 링크 생성에 실패했습니다. 대화상자를 닫고 다시 시도하세요."
 }

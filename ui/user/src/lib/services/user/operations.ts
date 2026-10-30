@@ -1505,6 +1505,16 @@ export async function downloadSkill(
 	})) as Blob;
 }
 
+export async function getSkillDownloadURL(
+	id: string,
+	opts?: { fetch?: Fetcher }
+): Promise<string> {
+	const response = (await doGet(`/skills/${encodeURIComponent(id)}/download-url`, opts)) as {
+		path: string;
+	};
+	return response.path;
+}
+
 // Connector access requests
 
 export async function listConnectorAccessRequests(opts?: {

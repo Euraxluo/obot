@@ -52,8 +52,6 @@
 	"skills_guides_try_using_the_appropriate_cli_command": "Try using the appropriate CLI command here to install the skill!",
 	"skills_guides_view_the_skills_you_have_access": "View the skills you have access to and install them.",
 	"skills_install": "Install",
-	"skills_install_step_download": "1. Download {name}",
-	"skills_install_step_unzip": "2. Unzip via CLI",
 	"skills_license": "License",
 	"skills_license_error": "License Error",
 	"skills_license_error_prefix": "An issue occurred with fetching skills due to licensing. Please resolve outstanding licensing issues or contact support at",
@@ -103,5 +101,8 @@
 	"skills_invalid": "Invalid",
 	"skills_install_step_invoke": "3. Run in AI Client",
 	"skills_install_step_invoke_desc": "After unzipping, type /{name} in your chat or prompt the AI to run this skill.",
-	"skills_view_config_and_source": "View skill configuration and source code"
+	"skills_view_config_and_source": "View skill configuration and source code",
+	"skills_install_step_command": "Copy a one-line install command",
+	"skills_install_url_pending": "Creating the install link...",
+	"skills_install_url_failed": "Failed to create the install link. Close the dialog and try again."
 }

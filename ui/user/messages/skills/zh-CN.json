@@ -52,8 +52,6 @@
 	"skills_guides_try_using_the_appropriate_cli_command": "试试在此使用相应的 CLI 命令安装技能！",
 	"skills_guides_view_the_skills_you_have_access": "查看您有权访问的技能并进行安装。",
 	"skills_install": "安装",
-	"skills_install_step_download": "1. 下载 {name}",
-	"skills_install_step_unzip": "2. 通过 CLI 解压",
 	"skills_license": "许可证",
 	"skills_license_error": "许可证错误",
 	"skills_license_error_prefix": "由于许可证问题，获取技能时出现问题。请解决未处理的许可证问题，或通过以下地址联系支持团队：",
@@ -103,5 +101,8 @@
 	"skills_invalid": "无效",
 	"skills_install_step_invoke": "3. 在 AI 客户端中调用",
 	"skills_install_step_invoke_desc": "解压完成后，在客户端对话中输入 /{name} 或向 AI 描述任务需求，即可自动调用该技能。",
-	"skills_view_config_and_source": "查看技能配置与源代码"
+	"skills_view_config_and_source": "查看技能配置与源代码",
+	"skills_install_step_command": "复制一键安装命令",
+	"skills_install_url_pending": "正在生成安装链接...",
+	"skills_install_url_failed": "获取安装链接失败，请关闭弹窗后重试"
 }

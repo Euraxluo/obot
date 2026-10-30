@@ -277,11 +277,6 @@ var (
 			// This allows the UI to display custom images to unauthenticated users.
 			"GET /api/image/{image_id}",
 
-			// Session-less download of marketplace-published skill packages, for
-			// external tools (e.g. WorkBuddy one-click skill install). Publication
-			// is enforced in the handler; unpublished skills return 404.
-			"GET /api/public/skills/{skill_id}/download",
-
 			// API Key authentication webhook (called by nanobot shim)
 			// This endpoint validates the API key passed in the header
 			"POST /api/api-keys/auth",

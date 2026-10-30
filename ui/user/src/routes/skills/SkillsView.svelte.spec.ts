@@ -1,9 +1,11 @@
 import { m } from '$lib/i18n';
 import { AdminService, type Skill } from '$lib/services';
+import { worker } from '../../tests/mocks/worker';
 import SkillsView from './SkillsView.svelte';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { page } from 'vitest/browser';
+import { http, HttpResponse } from 'msw';
 
 const skills: Skill[] = [
 	{
@@ -133,6 +135,12 @@ describe('SkillsView', () => {
 	});
 
 	it('opens the install skill dialog when clicking a skill card', async () => {
+		worker.use(
+			http.get(`/api/skills/skill-marketplace/download-url`, () =>
+				HttpResponse.json({ path: '/api/skills/skill-marketplace/download?expires=1&token=t' })
+			)
+		);
+
 		render(SkillsView, {
 			props: {
 				skills,
@@ -147,6 +155,9 @@ describe('SkillsView', () => {
 		const dialog = page.getByRole('dialog');
 		await expect.element(dialog).toBeVisible();
 		await expect.element(dialog.getByText('Marketplace Name')).toBeVisible();
-		await expect.element(dialog.getByText(m.skills_download())).toBeVisible();
+		await expect.element(dialog.getByText(m.skills_install_step_command())).toBeVisible();
+		await expect
+			.element(dialog.getByText('Claude Code'))
+			.toBeVisible();
 	});
 });

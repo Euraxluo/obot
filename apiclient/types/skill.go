@@ -14,6 +14,12 @@ type Skill struct {
 	LastIndexedAt   Time   `json:"lastIndexedAt,omitzero"`
 }
 
+// SkillDownloadURL carries a short-lived, skill-bound download path that works
+// without a session, for CLI one-line install commands.
+type SkillDownloadURL struct {
+	Path string `json:"path"`
+}
+
 type SkillManifest struct {
 	Name           string            `json:"name,omitempty"`
 	Description    string            `json:"description,omitempty"`
