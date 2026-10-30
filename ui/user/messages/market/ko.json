@@ -19,6 +19,8 @@
 	"market_enterprise_solutions": "기업 사전 구성 연결",
 	"market_enterprise_solutions_desc": "조직에서 미리 구성하고 승인하여 바로 연결할 수 있는 vMCP 솔루션입니다.",
 	"market_enterprise_badge": "기업 사전 설정",
+	"market_enterprise_needs_setup": "구성 필요",
+	"market_enterprise_needs_setup_hint": "이 솔루션을 사용하려면 먼저 컴포넌트 구성 또는 인증을 완료해야 합니다.",
 	"market_enterprise_services_count": "서비스 {count}개 포함",
 	"market_manage_connection": "관리",
 	"market_request_no_reason": "신청 사유 없음",

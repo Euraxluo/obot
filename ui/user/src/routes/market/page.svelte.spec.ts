@@ -332,6 +332,9 @@ describe('market page', () => {
 		await expect.element(card.getByText('由企业统一配置的企业级数据连接方案')).toBeVisible();
 		await expect.element(card.getByText(m.market_enterprise_badge())).toBeVisible();
 		await expect
+			.element(page.getByTestId(`market-enterprise-setup-${enterprise.id}`))
+			.not.toBeInTheDocument();
+		await expect
 			.element(card.getByText(m.market_enterprise_services_count({ count: 2 })))
 			.toBeVisible();
 
@@ -353,6 +356,70 @@ describe('market page', () => {
 		await expect.element(dialog).toBeVisible();
 		await expect.element(page.getByText(m.vmcps_connection_url())).toBeVisible();
 		await expect.element(dialog.getByRole('heading', { name: '企业数据服务' })).toBeVisible();
+	});
+
+	it('flags enterprise vMCPs that need setup and strips markdown from card descriptions', async () => {
+		const profile = createMockProfile([Group.USER]);
+		const needsSetup = createVMCP(
+			{
+				id: 'vmcp-enterprise-setup',
+				displayName: '企业数据中台',
+				description:
+					'需要配置 Metabase Key。请参考 [查看该 MCP 的 Key](/data-permissions?view=api-keys) 完成授权。',
+				userID: '',
+				creatorUserID: 'admin-user'
+			},
+			[connectorEntry]
+		);
+		needsSetup.components![0].configuration = [{ key: 'METABASE_API_KEY', policy: 'userAllowed' }];
+		const instanceNeedsSetup = createVMCP(
+			{
+				id: 'vmcp-enterprise-instance-setup',
+				displayName: '企业报表服务',
+				userID: '',
+				creatorUserID: 'admin-user'
+			},
+			[connectorEntry]
+		);
+
+		await renderMarketPage({ profile, vmcps: [needsSetup, instanceNeedsSetup] });
+		await openConnectorsTab();
+
+		const card = page.getByTestId(`market-enterprise-${needsSetup.id}`);
+		await expect.element(card).toBeVisible();
+
+		const setupBadge = page.getByTestId(`market-enterprise-setup-${needsSetup.id}`);
+		await expect.element(setupBadge).toBeVisible();
+		await expect.element(setupBadge).toHaveTextContent(m.market_enterprise_needs_setup());
+		await expect.element(card.getByText(m.market_enterprise_needs_setup_hint())).toBeVisible();
+
+		await expect
+			.element(card.getByText('需要配置 Metabase Key。请参考 查看该 MCP 的 Key 完成授权。'))
+			.toBeVisible();
+		await expect.element(card.getByText(/\]\(/)).not.toBeInTheDocument();
+
+		// The badge also follows the current user's instance status, not only the definition.
+		await expect
+			.element(page.getByTestId(`market-enterprise-setup-${instanceNeedsSetup.id}`))
+			.not.toBeInTheDocument();
+		vmcpInstances.current = {
+			items: [
+				{
+					id: 'vmcpi-instance-setup',
+					vmcpID: instanceNeedsSetup.id,
+					userID: profile.id,
+					created: '2026-01-01T00:00:00Z',
+					status: {
+						configured: false,
+						missingRequiredConfiguration: ['component-1.API_TOKEN']
+					}
+				}
+			],
+			loading: false
+		};
+		await expect
+			.element(page.getByTestId(`market-enterprise-setup-${instanceNeedsSetup.id}`))
+			.toBeVisible();
 	});
 
 	it('shows rejected review comments and allows re-requesting', async () => {

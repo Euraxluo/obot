@@ -19,6 +19,8 @@
 	"market_enterprise_solutions": "Enterprise solutions",
 	"market_enterprise_solutions_desc": "Ready-to-use vMCP connections preconfigured and authorized by your organization.",
 	"market_enterprise_badge": "Enterprise pre-configured",
+	"market_enterprise_needs_setup": "Setup required",
+	"market_enterprise_needs_setup_hint": "This solution needs component configuration or authentication before it can be used.",
 	"market_enterprise_services_count": "Includes {count} services",
 	"market_manage_connection": "Manage",
 	"market_request_no_reason": "No reason provided",

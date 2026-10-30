@@ -19,6 +19,8 @@
 	"market_enterprise_solutions": "企业预配置连接方案",
 	"market_enterprise_solutions_desc": "由企业预先配置并完成授权，可直接连接的 vMCP 方案。",
 	"market_enterprise_badge": "企业预置",
+	"market_enterprise_needs_setup": "需配置",
+	"market_enterprise_needs_setup_hint": "此方案需先完成组件配置或授权后才能使用。",
 	"market_enterprise_services_count": "包含 {count} 个服务",
 	"market_manage_connection": "管理",
 	"market_request_no_reason": "未填写申请理由",

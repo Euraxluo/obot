@@ -12,7 +12,8 @@
 	import VMcpList from '$lib/components/vmcps/VMcpList.svelte';
 	import { sanitizeFilenameSegment, saveBlob } from '$lib/download';
 	import { m } from '$lib/i18n';
-	import { toHTMLFromMarkdownWithNewTabLinks } from '$lib/markdown';
+	import { stripMarkdownToText, toHTMLFromMarkdownWithNewTabLinks } from '$lib/markdown';
+	import { vmcpItemContext } from '$lib/runes/vmcps/vmcpItem.svelte';
 	import {
 		UserService,
 		type ConnectorAccessRequest,
@@ -26,7 +27,9 @@
 		entryCategories,
 		matchesQuery,
 		resolveVMcpComponents,
-		sortMcpServers
+		sortMcpServers,
+		vmcpHasUserAllowedConfiguration,
+		vmcpInstanceNeedsUserConfiguration
 	} from '$lib/services/vmcps/utils';
 	import { buildSkillInstallCommands, type SkillInstallOS } from '$lib/skills/installCommands';
 	import { mcpServersAndEntries, profile, vmcpInstances } from '$lib/stores';
@@ -134,6 +137,26 @@
 			.filter((vmcp) => !query || matchesQuery(vmcp, query))
 			.sort((left, right) => (right.created ?? '').localeCompare(left.created ?? ''))
 	);
+
+	/**
+	 * Reuses the same status rules as VMcpStatusBadge. Administrator configuration
+	 * and static OAuth errors come from VMCP status, while per-user configuration
+	 * comes from the current user's instances. A shared vMCP with user-allowed
+	 * fields and no instance yet also needs setup, matching vmcpTesterServer().
+	 */
+	function enterpriseNeedsSetup(vmcp: VMCP): boolean {
+		const ctx = vmcpItemContext(vmcp);
+		const instanceNeedsSetup = ctx.myInstances.some(
+			(instance) =>
+				instance.status?.configured === false || vmcpInstanceNeedsUserConfiguration(instance)
+		);
+		return (
+			vmcp.status?.ready === false ||
+			ctx.needsAdminConfiguration ||
+			instanceNeedsSetup ||
+			(ctx.myInstances.length === 0 && vmcpHasUserAllowedConfiguration(vmcp))
+		);
+	}
 
 	/** Entry IDs the user already composed into a personal vMCP. */
 	let connectedEntryIDs = $derived.by(() => {
@@ -548,10 +571,11 @@
 {/snippet}
 
 {#snippet enterpriseCard(vmcp: VMCP)}
+	{@const needsSetup = enterpriseNeedsSetup(vmcp)}
 	<MarketplaceCard
 		testId={`market-enterprise-${vmcp.id}`}
 		title={vmcp.displayName}
-		description={vmcp.description || ''}
+		description={stripMarkdownToText(vmcp.description ?? '')}
 		actionLabel={m.market_connect()}
 		onAction={() => openEnterpriseSolution(vmcp)}
 	>
@@ -559,10 +583,31 @@
 			<VMcpIcon components={resolveVMcpComponents(vmcp)} />
 		{/snippet}
 		{#snippet metadata()}
-			<span class="text-muted-content flex items-center gap-2 text-xs font-light">
-				<span class="badge badge-primary badge-soft badge-sm">{m.market_enterprise_badge()}</span>
-				<span aria-hidden="true">·</span>
-				<span>{m.market_enterprise_services_count({ count: vmcp.components?.length ?? 0 })}</span>
+			<span class="flex flex-col gap-1">
+				<span class="text-muted-content flex flex-wrap items-center gap-2 text-xs font-light">
+					{#if needsSetup}
+						<span
+							data-testid={`market-enterprise-setup-${vmcp.id}`}
+							class="badge badge-warning badge-soft badge-sm"
+							title={m.market_enterprise_needs_setup_hint()}
+						>
+							{m.market_enterprise_needs_setup()}
+						</span>
+					{/if}
+					<span
+						data-testid={`market-enterprise-badge-${vmcp.id}`}
+						class="badge badge-primary badge-soft badge-sm"
+					>
+						{m.market_enterprise_badge()}
+					</span>
+					<span aria-hidden="true">·</span>
+					<span>{m.market_enterprise_services_count({ count: vmcp.components?.length ?? 0 })}</span>
+				</span>
+				{#if needsSetup}
+					<span class="text-warning text-[11px] font-light">
+						{m.market_enterprise_needs_setup_hint()}
+					</span>
+				{/if}
 			</span>
 		{/snippet}
 	</MarketplaceCard>

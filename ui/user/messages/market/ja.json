@@ -19,6 +19,8 @@
 	"market_enterprise_solutions": "企業向けプリセット接続",
 	"market_enterprise_solutions_desc": "組織が事前に設定して承認済みの、すぐに接続できる vMCP ソリューションです。",
 	"market_enterprise_badge": "企業プリセット",
+	"market_enterprise_needs_setup": "設定が必要",
+	"market_enterprise_needs_setup_hint": "このソリューションを使用するには、コンポーネントの設定または認証が必要です。",
 	"market_enterprise_services_count": "{count} 個のサービスを含む",
 	"market_manage_connection": "管理",
 	"market_request_no_reason": "申請理由はありません",
